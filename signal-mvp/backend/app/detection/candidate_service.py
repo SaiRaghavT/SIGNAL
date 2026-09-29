@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from app.detection.candidate_fusion import fuse_candidate_signals
-from app.detection.structured_trigger import detect_structured_triggers
+from backend.app.detection.candidate_fusion import fuse_candidate_signals
+from backend.app.detection.structured_trigger import detect_structured_triggers
 
 
 def detect_candidates(

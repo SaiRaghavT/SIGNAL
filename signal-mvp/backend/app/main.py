@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from backend.app.canonical.api import router as canonical_router
+from backend.app.detection.api import router as detection_router
 from backend.app.ingestion.api.fhir import router as fhir_router
 from backend.app.ingestion.documents.api import router as document_router
 from backend.app.ingestion.hl7.api import router as hl7_router
@@ -33,6 +34,9 @@ app.include_router(document_router)
 
 # Read-only access to the standardized SIGNAL patient context
 app.include_router(canonical_router)
+
+# Candidate detection
+app.include_router(detection_router)
 
 
 # ---------------------------------------------------------
