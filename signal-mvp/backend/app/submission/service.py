@@ -12,7 +12,7 @@ def submit_ecr(ecr, validation) -> SubmissionResult:
             warnings=validation.warnings,
         )
 
-    if ecr.status == "ON_HOLD":
+    if ecr.status == "HOLD":
         return SubmissionResult(
             submission_id=None,
             status="BLOCKED",
@@ -27,6 +27,15 @@ def submit_ecr(ecr, validation) -> SubmissionResult:
             status="BLOCKED",
             destination="MOCK_PHA",
             errors=["ECR requires review before submission."],
+            warnings=validation.warnings,
+        )
+
+    if ecr.status != "REPORT":
+        return SubmissionResult(
+            submission_id=None,
+            status="BLOCKED",
+            destination="MOCK_PHA",
+            errors=["Only a REPORT ECR can be submitted."],
             warnings=validation.warnings,
         )
 

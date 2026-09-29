@@ -7,7 +7,7 @@ class CaseAssemblyInput:
     patient: Dict[str, Any]
     facility: Dict[str, Any]
     provider: Dict[str, Any]
-    disease: Optional[Dict[str, Any]]
+    disease: Optional[str]
     clinical_evidence: Dict[str, Any]
     laboratory_evidence: List[Dict[str, Any]]
     ai_evidence: Dict[str, Any]
@@ -15,6 +15,8 @@ class CaseAssemblyInput:
     jurisdiction_status: str
     reportability_decision: str
     reportability_evidence_status: str
+    final_decision: Optional[str] = None
+    rule_id: Optional[str] = None
 
 @dataclass
 class SignalCase:
@@ -23,7 +25,7 @@ class SignalCase:
     patient: Dict[str, Any]
     facility: Dict[str, Any]
     provider: Dict[str, Any]
-    disease: Optional[Dict[str, Any]]
+    disease: Optional[str]
     clinical_evidence: Dict[str, Any]
     laboratory_evidence: List[Dict[str, Any]]
     ai_evidence: Dict[str, Any]
@@ -33,3 +35,5 @@ class SignalCase:
     reportability_evidence_status: str
     status: str
     warnings: List[str] = field(default_factory=list)
+    final_decision: Optional[str] = None
+    rule_id: Optional[str] = None

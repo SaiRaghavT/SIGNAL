@@ -12,14 +12,10 @@ def assemble_case(data: CaseAssemblyInput) -> SignalCase:
     if not data.disease:
         warnings.append("Disease information is missing.")
 
-    if data.reportability_decision == "HOLD":
-        status = "ON_HOLD"
-    elif data.reportability_decision == "NEEDS_REVIEW":
-        status = "NEEDS_REVIEW"
-    elif data.reportability_decision == "PROCEED_TO_RULES":
-        status = "READY_FOR_RULES"
-    else:
-        status = "DRAFT"
+    final_decision = data.final_decision or data.reportability_decision
+    if data.jurisdiction_status != "RESOLVED":
+        final_decision = "NEEDS_REVIEW"
+    status = final_decision
 
     return SignalCase(
         case_id=f"CASE-{data.candidate_id}",
@@ -37,4 +33,6 @@ def assemble_case(data: CaseAssemblyInput) -> SignalCase:
         reportability_evidence_status=data.reportability_evidence_status,
         status=status,
         warnings=warnings,
+        final_decision=final_decision,
+        rule_id=data.rule_id,
     )

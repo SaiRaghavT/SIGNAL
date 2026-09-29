@@ -28,12 +28,10 @@ def evaluate_reportability(data: ReportabilityInput) -> ReportabilityAssessment:
             ["Additional evidence is required."]
         )
 
-    lab_statuses = [
-        str(x.get("status", "")).upper()
-        for x in data.laboratory_evidence
-    ]
+    lab_statuses = [str(x.get("status", "")).upper() for x in data.laboratory_evidence]
+    lab_results = [str(x.get("result", "")).upper() for x in data.laboratory_evidence]
 
-    if "PENDING" in lab_statuses:
+    if "PENDING" in lab_statuses or "IN_PROGRESS" in lab_statuses or "PENDING" in lab_results:
         return ReportabilityAssessment(
             data.candidate_id, data.jurisdiction, data.disease,
             "HOLD", "PENDING_LAB",
@@ -41,12 +39,25 @@ def evaluate_reportability(data: ReportabilityInput) -> ReportabilityAssessment:
             ["Wait for the final laboratory result."]
         )
 
-    if "INCONCLUSIVE" in lab_statuses:
+    if (
+        "INCONCLUSIVE" in lab_statuses
+        or "INDETERMINATE" in lab_statuses
+        or "INCONCLUSIVE" in lab_results
+        or "INDETERMINATE" in lab_results
+    ):
         return ReportabilityAssessment(
             data.candidate_id, data.jurisdiction, data.disease,
             "NEEDS_REVIEW", "INCONCLUSIVE_LAB",
             ["Laboratory evidence is inconclusive."],
             ["Review laboratory evidence."]
+        )
+
+    if "POSITIVE" in lab_results and "NEGATIVE" in lab_results:
+        return ReportabilityAssessment(
+            data.candidate_id, data.jurisdiction, data.disease,
+            "NEEDS_REVIEW", "CONFLICTING_LAB_RESULTS",
+            ["Laboratory evidence contains conflicting results."],
+            ["Review the laboratory results before applying reporting rules."]
         )
 
     ai_condition = data.ai_evidence.get("condition")
@@ -59,10 +70,7 @@ def evaluate_reportability(data: ReportabilityInput) -> ReportabilityAssessment:
         )
 
     ai_confidence = data.ai_evidence.get("confidence")
-    positive_lab = any(
-        str(x.get("result", "")).upper() in {"POSITIVE", "DETECTED"}
-        for x in data.laboratory_evidence
-    )
+    positive_lab = any(result in {"POSITIVE", "DETECTED", "REACTIVE"} for result in lab_results)
 
     if positive_lab and isinstance(ai_confidence, (int, float)) and ai_confidence < 0.50:
         return ReportabilityAssessment(
@@ -81,8 +89,8 @@ def evaluate_reportability(data: ReportabilityInput) -> ReportabilityAssessment:
         )
 
     negative_lab = any(
-        str(x.get("result", "")).upper() in {"NEGATIVE", "NOT_DETECTED"}
-        for x in data.laboratory_evidence
+        result in {"NEGATIVE", "NOT DETECTED", "NON-REACTIVE"}
+        for result in lab_results
     )
 
     if negative_lab:

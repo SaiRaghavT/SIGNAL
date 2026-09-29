@@ -8,7 +8,7 @@ class ECRPayload:
     case_id: str
     candidate_id: str
     jurisdiction: Optional[str]
-    disease: Optional[Dict[str, Any]]
+    disease: Optional[str]
     patient: Dict[str, Any]
     facility: Dict[str, Any]
     provider: Dict[str, Any]
@@ -19,3 +19,5 @@ class ECRPayload:
     reportability_evidence_status: str
     status: str = "DRAFT"
     warnings: List[str] = field(default_factory=list)
+    final_decision: Optional[str] = None
+    rule_id: Optional[str] = None

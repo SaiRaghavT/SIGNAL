@@ -4,7 +4,7 @@ from .models import ECRPayload
 def build_ecr(case) -> ECRPayload:
     warnings = []
 
-    if case.status == "ON_HOLD":
+    if case.status == "HOLD":
         warnings.append(
             "Case is on hold; ECR cannot proceed to submission."
         )
@@ -20,14 +20,7 @@ def build_ecr(case) -> ECRPayload:
     if not case.disease:
         warnings.append("Disease information is missing.")
 
-    if case.status in {
-        "READY_FOR_RULES",
-        "ON_HOLD",
-        "NEEDS_REVIEW",
-    }:
-        status = case.status
-    else:
-        status = "DRAFT"
+    status = case.status
 
     return ECRPayload(
         ecr_id=f"ECR-{case.case_id}",
@@ -47,4 +40,6 @@ def build_ecr(case) -> ECRPayload:
         ),
         status=status,
         warnings=warnings,
+        final_decision=case.final_decision,
+        rule_id=case.rule_id,
     )
