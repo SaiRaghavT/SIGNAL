@@ -2,13 +2,15 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 from fastapi import FastAPI, Header, HTTPException
+from datetime import datetime, timezone
 
 from app.ingestion.fhir.normalizer import normalize_bundle
+from app.detection.candidate_service import detect_candidates
 
 
 app = FastAPI(
     title="SIGNAL FHIR Ingestion API",
-    description="FHIR ingestion and normalization service for SIGNAL",
+    description="FHIR ingestion and candidate detection service for SIGNAL",
     version="1.0.0",
 )
 
@@ -163,4 +165,44 @@ def ingest_fhir(
             detail=(
                 f"FHIR normalization failed: {str(exc)}"
             )
+        )
+
+
+@app.post("/api/detection/candidates")
+def detect_candidate_endpoint(
+    normalized_patient: Dict[str, Any],
+    triggers: list[Dict[str, Any]] | None = None,
+):
+    """
+    Detect potential public-health candidates from normalized
+    clinical data using configured structured triggers.
+    """
+
+    try:
+
+        result = detect_candidates(
+            normalized_patient=normalized_patient,
+            triggers=triggers,
+        )
+
+        return {
+            "status": "success",
+            "message": (
+                "Candidate detection completed successfully."
+            ),
+            "data": result,
+        }
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Candidate detection failed: {str(exc)}"
+            ),
         )

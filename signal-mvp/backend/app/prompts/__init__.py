@@ -1,0 +1,1 @@
+"""SIGNAL AI prompt templates."""

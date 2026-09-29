@@ -1,0 +1,43 @@
+services:
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+
+    container_name: signal-backend
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      DATABASE_URL: postgresql://signal_user:signal_password@postgres:5432/signal
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+
+    container_name: signal-postgres
+
+    environment:
+      POSTGRES_DB: signal
+      POSTGRES_USER: signal_user
+      POSTGRES_PASSWORD: signal_password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - signal_postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signal_user -d signal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  signal_postgres_data:
