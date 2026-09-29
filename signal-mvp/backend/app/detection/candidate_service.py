@@ -1,139 +1,50 @@
-from typing import Any
+from __future__ import annotations
 
+from typing import Any, Dict, List
 
-MEASLES_KEYWORDS = {
-    "measles",
-    "rubeola",
-    "measles infection",
-}
-
-
-MEASLES_LAB_KEYWORDS = {
-    "measles igm",
-    "measles igg",
-    "measles pcr",
-    "rubeola igm",
-    "rubeola igg",
-    "rubeola pcr",
-}
-
-
-def _normalize(value: Any) -> str:
-    if value is None:
-        return ""
-
-    return str(value).strip().lower()
+from app.detection.candidate_fusion import fuse_candidate_signals
+from app.detection.structured_trigger import detect_structured_triggers
 
 
 def detect_candidates(
-    normalized_patient: dict[str, Any],
-) -> list[dict[str, Any]]:
+    normalized_patient: Dict[str, Any],
+    triggers: List[Dict[str, Any]] | None = None,
+) -> Dict[str, Any]:
     """
-    Detect potential reportable-disease candidates
-    from canonical patient data.
+    Run the SIGNAL structured candidate detection pipeline.
 
-    This layer is intentionally deterministic.
+    Flow:
+        Normalized Patient
+            ↓
+        Structured Trigger Detection
+            ↓
+        Candidate Signals
+            ↓
+        Candidate Fusion
+            ↓
+        Potential Candidates
 
-    AI evidence extraction and reasoning will be added
-    after candidate detection is working.
+    This service does not determine:
+        - jurisdiction
+        - reportability
+        - case confirmation
+        - submission
     """
 
-    candidates: list[dict[str, Any]] = []
+    if not isinstance(normalized_patient, dict):
+        raise ValueError("normalized_patient must be a dictionary.")
 
-    patient = normalized_patient.get(
-        "patient",
-        {},
+    signals = detect_structured_triggers(
+        normalized_patient,
+        triggers=triggers,
     )
 
-    patient_id = patient.get("id")
+    candidates = fuse_candidate_signals(signals)
 
-    # --------------------------------------------------
-    # Condition-based detection
-    # --------------------------------------------------
-
-    for condition in normalized_patient.get(
-        "conditions",
-        [],
-    ):
-        condition_display = _normalize(
-            condition.get("display")
-            or condition.get("condition_display")
-        )
-
-        condition_code = _normalize(
-            condition.get("code")
-            or condition.get("condition_code")
-        )
-
-        matched_term = next(
-            (
-                keyword
-                for keyword in MEASLES_KEYWORDS
-                if keyword in condition_display
-                or keyword in condition_code
-            ),
-            None,
-        )
-
-        if matched_term:
-            candidates.append(
-                {
-                    "patient_id": patient_id,
-                    "disease": "measles",
-                    "candidate_type": "condition",
-                    "trigger": matched_term,
-                    "source": "canonical_condition",
-                    "status": "detected",
-                }
-            )
-
-    # --------------------------------------------------
-    # Lab-result detection
-    # --------------------------------------------------
-
-    for lab_result in normalized_patient.get(
-        "lab_results",
-        [],
-    ):
-        test_display = _normalize(
-            lab_result.get("test_display")
-        )
-
-        test_code = _normalize(
-            lab_result.get("test_code")
-        )
-
-        conclusion = _normalize(
-            lab_result.get("conclusion")
-        )
-
-        searchable_text = " ".join(
-            [
-                test_display,
-                test_code,
-                conclusion,
-            ]
-        )
-
-        matched_lab = next(
-            (
-                keyword
-                for keyword in MEASLES_LAB_KEYWORDS
-                if keyword in searchable_text
-            ),
-            None,
-        )
-
-        if matched_lab:
-            candidates.append(
-                {
-                    "patient_id": patient_id,
-                    "disease": "measles",
-                    "candidate_type": "laboratory",
-                    "trigger": matched_lab,
-                    "source": "canonical_lab_result",
-                    "status": "detected",
-                }
-            )
-
-    return candidates
+    return {
+        "patient_id": normalized_patient.get("patient", {}).get("id"),
+        "signal_count": len(signals),
+        "candidate_count": len(candidates),
+        "signals": signals,
+        "candidates": candidates,
+    }
