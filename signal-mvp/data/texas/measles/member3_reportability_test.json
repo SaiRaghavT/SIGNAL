@@ -1,0 +1,415 @@
+[
+  {
+    "candidate_id": "CAND-001",
+    "patient": {
+      "state": "TX",
+      "county": "Harris",
+      "dob": "1990-01-15"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Harris"
+    },
+    "provider": {
+      "name": "Dr. Test One",
+      "phone": "555-0101"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true,
+      "rash": true,
+      "cough": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "POSITIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.97
+    }
+  },
+  {
+    "candidate_id": "CAND-002",
+    "patient": {
+      "state": "TX",
+      "county": "Dallas",
+      "dob": "1985-04-20"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Dallas"
+    },
+    "provider": {
+      "name": "Dr. Test Two",
+      "phone": "555-0102"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true,
+      "rash": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles IgM",
+        "status": "FINAL",
+        "result": "NEGATIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.92
+    }
+  },
+  {
+    "candidate_id": "CAND-003",
+    "patient": {
+      "state": "TX",
+      "county": "Travis",
+      "dob": "1995-06-10"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Travis"
+    },
+    "provider": {
+      "name": "Dr. Test Three"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true,
+      "rash": true
+    },
+    "laboratory_evidence": [],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.74
+    }
+  },
+  {
+    "candidate_id": "CAND-004",
+    "patient": {
+      "state": "TX",
+      "county": "Bexar",
+      "dob": "1988-09-12"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Bexar"
+    },
+    "provider": {
+      "name": "Dr. Test Four",
+      "phone": "555-0104"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "POSITIVE"
+      },
+      {
+        "test": "Measles IgM",
+        "status": "FINAL",
+        "result": "NEGATIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.32
+    }
+  },
+  {
+    "candidate_id": "CAND-005",
+    "patient": {
+      "state": "TX",
+      "county": "Harris",
+      "dob": "1992-02-14"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Harris"
+    },
+    "provider": {
+      "name": "Dr. Test Five",
+      "phone": "555-0105"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true,
+      "rash": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "POSITIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.96
+    }
+  },
+  {
+    "candidate_id": "CAND-006",
+    "patient": {
+      "state": "TX",
+      "county": "Tarrant"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Tarrant"
+    },
+    "provider": {
+      "name": "Dr. Test Six",
+      "phone": "555-0106"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true,
+      "rash": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "POSITIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.95
+    }
+  },
+  {
+    "candidate_id": "CAND-007",
+    "patient": {
+      "state": "TX",
+      "county": "El Paso",
+      "dob": "1991-03-11"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "El Paso"
+    },
+    "provider": {
+      "name": "Dr. Test Seven",
+      "phone": "555-0107"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true,
+      "rash": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "PENDING",
+        "result": null
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.91
+    }
+  },
+  {
+    "candidate_id": "CAND-008",
+    "patient": {
+      "state": "TX",
+      "county": "Collin",
+      "dob": "1993-07-19"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Collin"
+    },
+    "provider": {
+      "name": "Dr. Test Eight",
+      "phone": "555-0108"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "POSITIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.18
+    }
+  },
+  {
+    "candidate_id": "CAND-009",
+    "patient": {
+      "state": "TX",
+      "county": "Denton",
+      "dob": "1994-11-25"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Denton"
+    },
+    "provider": {
+      "name": "Dr. Test Nine",
+      "phone": "555-0109"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true,
+      "rash": true,
+      "exposure": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "INCONCLUSIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.81
+    }
+  },
+  {
+    "candidate_id": "CAND-010",
+    "patient": {
+      "state": "NM",
+      "county": "Bernalillo",
+      "dob": "1987-08-18"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Harris"
+    },
+    "provider": {
+      "name": "Dr. Test Ten",
+      "phone": "555-0110"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "POSITIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "measles",
+      "confidence": 0.94
+    }
+  },
+  {
+    "candidate_id": "CAND-011",
+    "patient": {
+      "state": "TX",
+      "county": "Williamson",
+      "dob": "1996-01-30"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Williamson"
+    },
+    "provider": {
+      "name": "Dr. Test Eleven",
+      "phone": "555-0111"
+    },
+    "disease": null,
+    "disease_info": null,
+    "clinical_evidence": {
+      "fever": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "POSITIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": null,
+      "confidence": 0.90
+    }
+  },
+  {
+    "candidate_id": "CAND-012",
+    "patient": {
+      "state": "TX",
+      "county": "Fort Bend",
+      "dob": "1990-12-05"
+    },
+    "facility": {
+      "state": "TX",
+      "county": "Fort Bend"
+    },
+    "provider": {
+      "name": "Dr. Test Twelve",
+      "phone": "555-0112"
+    },
+    "disease": "measles",
+    "disease_info": {
+      "condition": "measles"
+    },
+    "clinical_evidence": {
+      "fever": true,
+      "rash": true
+    },
+    "laboratory_evidence": [
+      {
+        "test": "Measles PCR",
+        "status": "FINAL",
+        "result": "POSITIVE"
+      }
+    ],
+    "ai_evidence": {
+      "condition": "rubella",
+      "confidence": 0.89
+    }
+  }
+]
