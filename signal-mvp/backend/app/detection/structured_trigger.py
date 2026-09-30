@@ -30,7 +30,9 @@ STRUCTURED_TRIGGERS: List[Dict[str, Any]] = [
         "trigger_type": "CONDITION_CODE",
         "resource_type": "Condition",
         "code_system": "http://snomed.info/sct",
-        "codes": ["14189004"],
+        # Synthea seed bundles use 14168008 for "Measles (disorder)".
+        # Keep the existing supported code for records using that code too.
+        "codes": ["14168008", "14189004"],
         "disease_id": "measles",
     },
     {

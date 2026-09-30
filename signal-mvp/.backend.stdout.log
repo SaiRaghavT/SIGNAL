@@ -1,0 +1,21 @@
+INFO:     127.0.0.1:56652 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56654 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51790 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51790 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63278 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63278 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63137 - "GET /api/canonical/patients/91592d7b-43f9-b288-0255-e44789759a0a HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53909 - "POST /api/ingestion/fhir?source=fhir HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:54347 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54347 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59847 - "GET /api/canonical/patients/91592d7b-43f9-b288-0255-e44789759a0a HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:58924 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58924 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56288 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56288 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58044 - "GET /api/canonical/patients/a190ca71-ba88-43cd-ba0a-3fdca4987a87 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51436 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51436 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55274 - "POST /api/detection/candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54168 - "GET /api/canonical/patients/a190ca71-ba88-43cd-ba0a-3fdca4987a87 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55492 - "POST /api/detection/candidates HTTP/1.1" 200 OK

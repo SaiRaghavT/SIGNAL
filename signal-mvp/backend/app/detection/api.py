@@ -46,8 +46,53 @@ def detect_patient_candidates(
 
     normalized_patient = canonical_context_to_detection_input(context)
 
+    documents = process_documents(
+        context.get("clinical_documents", [])
+    )
+
+    documents_with_text = [
+        document
+        for document in documents
+        if isinstance(document.get("text"), str)
+        and document["text"].strip()
+    ]
+
+    document_evidence: list[dict[str, Any]] = []
+
+    if not documents_with_text:
+        document_evidence_status = "no_document_text"
+    else:
+        try:
+            document_evidence = extract_evidence(
+                documents_with_text
+            )
+            document_evidence_status = "completed"
+
+        except RuntimeError as exc:
+            print(
+                f"❌ DOCUMENT EVIDENCE CONFIG ERROR: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            document_evidence_status = "failed"
+
+        except Exception as exc:
+            print(
+                f"❌ DOCUMENT EVIDENCE ERROR: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            document_evidence_status = "failed"
+
     try:
-        return detect_candidates(normalized_patient)
+        result = detect_candidates(
+            normalized_patient,
+            document_evidence=document_evidence,
+        )
+
+        result["document_evidence_status"] = document_evidence_status
+        result["document_evidence_count"] = len(document_evidence)
+
+        return result
+
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -67,6 +112,7 @@ def extract_patient_evidence(
             db=db,
             patient_id=request.patient_id,
         )
+
     except CanonicalPatientNotFoundError as exc:
         raise HTTPException(
             status_code=404,
@@ -79,20 +125,31 @@ def extract_patient_evidence(
 
     try:
         evidence = extract_evidence(documents)
+
     except RuntimeError as exc:
         raise HTTPException(
             status_code=503,
             detail=str(exc),
         ) from exc
+
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
             detail=str(exc),
         ) from exc
+
     except Exception as exc:
+        print(
+            f"❌ EVIDENCE EXTRACTION ERROR: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
         raise HTTPException(
             status_code=502,
-            detail="Clinical evidence extraction failed.",
+            detail=(
+                "Clinical evidence extraction failed: "
+                f"{type(exc).__name__}: {exc}"
+            ),
         ) from exc
 
     return {
