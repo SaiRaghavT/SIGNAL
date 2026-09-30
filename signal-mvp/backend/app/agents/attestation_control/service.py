@@ -34,10 +34,10 @@ class AttestationControlService:
         }
 
     def validate(
-    self,
-    request: AttestationRequest,
-    db: Session,
-) -> AttestationResponse:
+        self,
+        request: AttestationRequest,
+        db: Session,
+    ) -> AttestationResponse:
 
         if not request.case_reference.strip():
             return AttestationResponse(
@@ -100,11 +100,9 @@ class AttestationControlService:
                 message="Case has not been attested.",
                 comments=request.comments,
             )
-            audit_service = AuditLedgerService()
 
-        print(
-            "DEBUG: Agent 30 is recording CASE_ATTESTED audit event"
-        )
+        # Successful attestation is recorded in the audit ledger.
+        audit_service = AuditLedgerService()
 
         audit_service.record_event(
             AuditEventCreate(
@@ -117,7 +115,7 @@ class AttestationControlService:
                 status="SUCCESS",
                 description="Case attestation accepted.",
                 previous_value={
-                    "attestation_status": "PENDING"
+                    "attestation_status": "PENDING",
                 },
                 new_value={
                     "attestation_status": "ATTESTED",
@@ -128,16 +126,6 @@ class AttestationControlService:
                 },
             ),
             db,
-        )
-
-        return AttestationResponse(
-            case_reference=request.case_reference,
-            reviewer_id=request.reviewer_id,
-            reviewer_role=request.reviewer_role,
-            attestation_status=request.attestation_status,
-            authorized=True,
-            message="Attestation accepted.",
-            comments=request.comments,
         )
 
         return AttestationResponse(
