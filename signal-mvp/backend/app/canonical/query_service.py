@@ -19,6 +19,11 @@ def _patient_to_dict(patient: Patient) -> dict[str, Any]:
     return {
         "patient_id": str(patient.patient_id),
         "source_patient_id": patient.source_patient_id,
+
+        # Patient name
+        "first_name": patient.first_name,
+        "last_name": patient.last_name,
+
         "date_of_birth": (
             patient.date_of_birth.isoformat()
             if patient.date_of_birth
