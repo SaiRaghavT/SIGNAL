@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 venv/
 .env
+data/seed/fhir/
+data/batch_requests/

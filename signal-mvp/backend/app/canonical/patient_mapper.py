@@ -40,11 +40,23 @@ def map_fhir_patient(
             "FHIR Patient resource is missing its id."
         )
 
+    names = resource.get("name") or []
+    primary_name = names[0] if names else {}
+
+    given_names = primary_name.get("given") or []
+
+    first_name = given_names[0] if given_names else None
+    last_name = primary_name.get("family")
+
     address = resource.get("address") or []
     primary_address = address[0] if address else {}
 
     return Patient(
         source_patient_id=source_patient_id,
+
+        first_name=first_name,
+
+        last_name=last_name,
 
         date_of_birth=parse_fhir_date(
             resource.get("birthDate")
