@@ -1,4 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from backend.app.database import get_db
 
 from .schemas import AuditEventCreate, AuditEventResponse
 from .service import AuditLedgerService
@@ -19,5 +22,10 @@ service = AuditLedgerService()
 )
 def record_audit_event(
     event: AuditEventCreate,
+    db: Session = Depends(get_db),
 ) -> AuditEventResponse:
-    return service.record_event(event)
+
+    return service.record_event(
+        event,
+        db,
+    )
