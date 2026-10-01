@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from backend.app.agents.document_intelligence.agent import ocr_scanned_pdf_page
+from backend.app.agents.document_intelligence.service import ocr_scanned_pdf_page
 
 
 class DocumentExtractionError(ValueError):

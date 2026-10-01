@@ -7,6 +7,13 @@ from backend.app.ingestion.api.fhir import router as fhir_router
 from backend.app.ingestion.documents.api import router as document_router
 from backend.app.ingestion.hl7.api import router as hl7_router
 from backend.app.agents.audit_ledger.router import router as audit_ledger_router
+from backend.app.agents.document_intelligence.router import (
+    router as document_intelligence_router,
+)
+from backend.app.agents.nlp_evidence.router import router as nlp_evidence_router
+from backend.app.agents.candidate_disposition.router import (
+    router as candidate_disposition_router,
+)
 from backend.app.agents.deadline_calculation.router import (
     router as deadline_calculation_router,
 )
@@ -108,6 +115,9 @@ app.include_router(cluster_router)
 
 
 app.include_router(attestation_control_router)
+app.include_router(candidate_disposition_router)
+app.include_router(document_intelligence_router)
+app.include_router(nlp_evidence_router)
 
 app.include_router(reportability_workflow_router)
 

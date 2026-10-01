@@ -2,8 +2,12 @@ from typing import Any
 
 from backend.app.case.assembler import assemble_case
 from backend.app.case.models import CaseAssemblyInput
-from backend.app.decision.models import ReconciliationInput
-from backend.app.decision.reconciler import reconcile_decisions
+from backend.app.agents.candidate_disposition.schemas import (
+    CandidateDispositionRequest,
+)
+from backend.app.agents.candidate_disposition.service import (
+    determine_candidate_disposition,
+)
 from backend.app.ecr.builder import build_ecr
 from backend.app.jurisdiction.models import JurisdictionInput
 from backend.app.jurisdiction.resolver import resolve_jurisdiction
@@ -105,8 +109,8 @@ def process_candidate(
     else:
         laboratory_decision = None
 
-    reconciliation = reconcile_decisions(
-        ReconciliationInput(
+    reconciliation = determine_candidate_disposition(
+        CandidateDispositionRequest(
             candidate_id=request.candidate_id,
             ai_decision=ai_decision,
             ai_confidence=ai_evidence.get("confidence"),

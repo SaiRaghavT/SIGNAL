@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.agents.document_intelligence.agent import process_documents
-from backend.app.agents.nlp_evidence.agent import extract_evidence
+from backend.app.agents.document_intelligence.service import process_documents
+from backend.app.agents.nlp_evidence.service import extract_evidence
 from backend.app.canonical.query_service import (
     CanonicalPatientNotFoundError,
     get_patient_context,
