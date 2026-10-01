@@ -20,10 +20,12 @@ def process_documents(
         processed_documents.append(
             {
                 "document_id": document.get("document_id"),
+                "patient_id": document.get("patient_id"),
                 "document_type": document.get("document_type"),
                 "title": document.get("title"),
                 "document_date": document.get("document_date"),
-                "text": document.get("text"),
+                "text": document.get("extracted_text")
+                or document.get("text"),
             }
         )
 

@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     db_name: str = "signal"
     db_user: str = "postgres"
     db_password: str
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
 
     model_config = SettingsConfigDict(
         env_file=".env",

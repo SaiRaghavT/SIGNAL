@@ -1,21 +1,10 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
-from openai import OpenAI
-
-from app.prompts.nlp_evidence import NLP_EVIDENCE_SYSTEM_PROMPT
-
-
-# ---------------------------------------------------------
-# OpenAI Client
-# ---------------------------------------------------------
-
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+from ...config.settings import settings
+from ...prompts.nlp_evidence import NLP_EVIDENCE_SYSTEM_PROMPT
 
 
 # ---------------------------------------------------------
@@ -45,17 +34,29 @@ def extract_evidence(
     if not isinstance(documents, list):
         raise ValueError("documents must be a list.")
 
+    documents_with_text = [
+        document
+        for document in documents
+        if isinstance(document, dict)
+        and isinstance(document.get("text"), str)
+        and document["text"].strip()
+    ]
+
+    if not documents_with_text:
+        return []
+
+    api_key = settings.gemini_api_key
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=api_key)
     all_evidence: list[dict[str, Any]] = []
 
-    for document in documents:
-
-        if not isinstance(document, dict):
-            continue
-
+    for document in documents_with_text:
         text = document.get("text")
-
-        if not isinstance(text, str) or not text.strip():
-            continue
 
         # -------------------------------------------------
         # Build LLM request
@@ -70,35 +71,26 @@ def extract_evidence(
         )
 
         # -------------------------------------------------
-        # Call OpenAI
+        # Call Gemini
         # -------------------------------------------------
 
-        response = client.chat.completions.create(
-            model=os.getenv(
-                "OPENAI_MODEL",
-                "gpt-4.1-mini",
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=(
+                f"{NLP_EVIDENCE_SYSTEM_PROMPT}\n\n"
+                f"{user_prompt}"
             ),
-            temperature=0,
-            response_format={
-                "type": "json_object"
-            },
-            messages=[
-                {
-                    "role": "system",
-                    "content": NLP_EVIDENCE_SYSTEM_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
-            ],
+            config=types.GenerateContentConfig(
+                temperature=0,
+                response_mime_type="application/json",
+            ),
         )
 
         # -------------------------------------------------
         # Parse LLM response
         # -------------------------------------------------
 
-        content = response.choices[0].message.content
+        content = response.text
 
         if not content:
             continue
