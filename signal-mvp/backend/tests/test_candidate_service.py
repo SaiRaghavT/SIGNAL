@@ -166,4 +166,3 @@ def test_invalid_normalized_patient_is_rejected():
         assert False
     except ValueError as exc:
         assert str(exc) == "normalized_patient must be a dictionary."
-        

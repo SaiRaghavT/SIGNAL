@@ -21,7 +21,7 @@ class CanonicalClient:
 
         url = (
             f"{self.base_url}"
-            f"/api/canonical/patients/{patient_id}/context"
+            f"/api/canonical/patients/{patient_id}"
         )
 
         response = requests.get(
