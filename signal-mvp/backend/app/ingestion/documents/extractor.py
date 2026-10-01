@@ -1,8 +1,10 @@
 from pathlib import Path
 
+from backend.app.agents.document_intelligence.agent import ocr_scanned_pdf_page
+
 
 class DocumentExtractionError(ValueError):
-    """Raised when document text extraction fails."""
+    """Raised when document text or OCR extraction fails."""
 
 
 def extract_text_from_file(
@@ -17,8 +19,8 @@ def extract_text_from_file(
         - DOCX
         - TXT
 
-    OCR and NLP are intentionally not handled here.
-    Those will be separate processing layers.
+    Text-based formats are extracted locally. Scanned PDF page images are
+    OCRed locally with Tesseract.
     """
 
     path = Path(file_path)
@@ -50,7 +52,7 @@ def extract_text_from_file(
 
 
 def _extract_pdf(path: Path) -> str:
-    """Extract text from a text-based PDF."""
+    """Extract embedded text, then OCR scanned page images locally."""
 
     try:
         from pypdf import PdfReader
@@ -61,16 +63,22 @@ def _extract_pdf(path: Path) -> str:
 
         for page in reader.pages:
             text = page.extract_text()
+            if not text or not text.strip():
+                try:
+                    text = ocr_scanned_pdf_page(page)
+                except ValueError as exc:
+                    raise DocumentExtractionError(str(exc)) from exc
+            if text and text.strip():
+                pages.append(text.strip())
 
-            if text:
-                pages.append(text)
-
-        return "\n".join(pages).strip()
-
+    except DocumentExtractionError:
+        raise
     except Exception as exc:
         raise DocumentExtractionError(
             f"Failed to extract PDF text: {path.name}"
         ) from exc
+
+    return "\n".join(pages).strip()
 
 
 def _extract_docx(path: Path) -> str:

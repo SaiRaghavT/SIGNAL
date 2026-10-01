@@ -19,11 +19,13 @@ Rules:
 1. Extract only information explicitly supported by the document.
 2. Do not invent clinical facts.
 3. Do not infer a confirmed diagnosis when the document does not state one.
-4. Preserve the original meaning of the clinical evidence.
-5. Do not determine jurisdiction.
-6. Do not determine reportability.
-7. Do not confirm a public-health case.
-8. Do not determine whether the patient must be reported.
+4. Preserve negation: a denied or absent finding is not present evidence.
+5. Preserve timing: distinguish current findings from historical conditions.
+6. Preserve uncertainty: suspected or possible findings are not confirmed.
+7. Do not determine jurisdiction.
+8. Do not determine reportability.
+9. Do not confirm a public-health case.
+10. Do not determine whether the patient must be reported.
 
 Return valid JSON only.
 
@@ -35,6 +37,8 @@ Output format:
             "evidence_type": "symptom | diagnosis | finding | laboratory | exposure | epidemiology",
             "concept": "string",
             "evidence_text": "string",
+            "assertion": "present | absent | uncertain",
+            "temporality": "current | historical | unknown",
             "confidence": 0.0
         }
     ]

@@ -27,8 +27,6 @@ from backend.app.agents.reportability_workflow.router import (
 
 )
 
-from backend.app.agents.manual_reporting.router import router as manual_reporting_router
-
 from backend.app.agents.manual_reporting.router import (
     router as manual_reporting_router,
 )
@@ -110,9 +108,6 @@ app.include_router(cluster_router)
 app.include_router(attestation_control_router)
 
 app.include_router(reportability_workflow_router)
-
-
-app.include_router(manual_reporting_router)
 
 
 app.include_router(manual_reporting_router)

@@ -15,19 +15,44 @@ from typing import Any, Dict, List
 # potential public-health reporting candidate."
 #
 # Jurisdiction and reportability decisions happen downstream.
+# Texas DSHS's 2026 Epi Case Criteria Guide assigns measles
+# surveillance condition code 10140 and provides the Texas case
+# criteria. That code is not identified as a FHIR terminology
+# system here, so it must not be matched as SNOMED CT or ICD-10-CM.
+# Texas DSHS also requires immediate reporting of suspected and
+# confirmed measles cases; these code matches do not determine that
+# a patient meets Texas case criteria.
 # ---------------------------------------------------------
 
 STRUCTURED_TRIGGERS: List[Dict[str, Any]] = [
-    # Example structure:
-    #
-    # {
-    #     "trigger_id": "example-condition-trigger",
-    #     "trigger_type": "CONDITION_CODE",
-    #     "resource_type": "Condition",
-    #     "code_system": "http://snomed.info/sct",
-    #     "codes": ["EXAMPLE_CODE"],
-    #     "disease_id": "example-disease",
-    # }
+    {
+        "trigger_id": "measles-snomed-condition",
+        "trigger_type": "CONDITION_CODE",
+        "resource_type": "Condition",
+        "code_system": "http://snomed.info/sct",
+        # Synthea seed bundles use 14168008 for "Measles (disorder)".
+        # Keep the existing supported code for records using that code too.
+        "codes": ["14168008", "14189004"],
+        "disease_id": "measles",
+    },
+    {
+        "trigger_id": "measles-icd10cm-condition",
+        "trigger_type": "CONDITION_CODE",
+        "resource_type": "Condition",
+        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "codes": [
+            "B05",
+            "B05.0",
+            "B05.1",
+            "B05.2",
+            "B05.3",
+            "B05.4",
+            "B05.81",
+            "B05.89",
+            "B05.9",
+        ],
+        "disease_id": "measles",
+    },
 ]
 
 
