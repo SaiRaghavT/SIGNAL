@@ -32,7 +32,7 @@ class AuditLedgerService:
             description=event.description,
             previous_value=event.previous_value,
             new_value=event.new_value,
-            metadata=event.metadata,
+            metadata_json=event.metadata,
             event_timestamp=event.event_timestamp,
         )
 
@@ -52,6 +52,6 @@ class AuditLedgerService:
             description=audit_event.description,
             previous_value=audit_event.previous_value,
             new_value=audit_event.new_value,
-            metadata=audit_event.metadata,
+            metadata=audit_event.metadata_json,
             event_timestamp=audit_event.event_timestamp,
         )

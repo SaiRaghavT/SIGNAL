@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
+from uuid import uuid4
 
 from backend.app.ecr.builder import build_ecr
 from backend.app.models.case import Case
 from backend.app.models.submissions import Submission
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.service import submit_ecr
+from backend.app.submission.gates import case_has_current_attestation, smart_fields_for_case
 
 from .schemas import (
     ECRSubmissionRequest,
@@ -44,7 +46,7 @@ class ECRSubmissionService:
         # ---------------------------------------------------------
         # 3. Validate ECR
         # ---------------------------------------------------------
-        validation = validate_ecr(ecr)
+        validation = validate_ecr(ecr, smart_fields_for_case(case))
 
         # ---------------------------------------------------------
         # 4. Submit using existing submission service
@@ -52,13 +54,14 @@ class ECRSubmissionService:
         result = submit_ecr(
             ecr,
             validation,
+            attested=case_has_current_attestation(db, case),
         )
 
         # ---------------------------------------------------------
         # 5. Persist submission
         # ---------------------------------------------------------
         submission = Submission(
-            submission_id=result.submission_id,
+            submission_id=result.submission_id or f"SUB-{uuid4()}",
             case_id=str(case.case_id),
             ecr_id=ecr.ecr_id,
             destination=result.destination,

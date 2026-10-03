@@ -15,8 +15,12 @@ def resolve_jurisdiction(data: JurisdictionInput) -> JurisdictionResult:
         return JurisdictionResult(data.candidate_id, None, "NEEDS_REVIEW", reasons)
 
     if patient_state:
-        reasons.append(f"Only patient state is available: {patient_state}.")
-        return JurisdictionResult(data.candidate_id, patient_state, "NEEDS_REVIEW", reasons)
+        reasons.append(f"Patient state resolves the reporting jurisdiction to {patient_state}.")
+        if data.patient_county:
+            reasons.append(f"Patient county is available: {data.patient_county.strip()}.")
+        else:
+            reasons.append("Patient county is not available; it remains a report-form completion item and is not required to resolve this state-level jurisdiction.")
+        return JurisdictionResult(data.candidate_id, patient_state, "RESOLVED", reasons)
 
     if facility_state:
         reasons.append(f"Only facility state is available: {facility_state}.")

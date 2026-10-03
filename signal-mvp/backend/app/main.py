@@ -2,11 +2,20 @@ from fastapi import FastAPI
 
 from backend.app.agents.cluster_signal.api import router as cluster_router
 from backend.app.canonical.api import router as canonical_router
+from backend.app.case.api import router as cases_router
+from backend.app.dashboard.router import router as dashboard_router
 from backend.app.detection.api import router as detection_router
 from backend.app.ingestion.api.fhir import router as fhir_router
 from backend.app.ingestion.documents.api import router as document_router
 from backend.app.ingestion.hl7.api import router as hl7_router
 from backend.app.agents.audit_ledger.router import router as audit_ledger_router
+from backend.app.agents.candidate_disposition.router import (
+    router as candidate_disposition_router,
+)
+from backend.app.agents.document_intelligence.router import (
+    router as document_intelligence_router,
+)
+from backend.app.agents.nlp_evidence.router import router as nlp_evidence_router
 from backend.app.agents.deadline_calculation.router import (
     router as deadline_calculation_router,
 )
@@ -57,6 +66,7 @@ from backend.app.agents.retry_resubmission.router import (
 from backend.app.agents.public_health_followup.router import (
     router as public_health_followup_router,
 )
+from backend.app.workflow.router import router as workflow_router
 
 app = FastAPI(
     title="SIGNAL MVP",
@@ -98,6 +108,10 @@ app.include_router(form_rendering_router)
 # Read-only access to the standardized SIGNAL patient context
 app.include_router(canonical_router)
 
+# Persisted case summary list for the manager-facing Cases screen.
+app.include_router(cases_router)
+app.include_router(dashboard_router)
+
 # Candidate detection
 app.include_router(detection_router)
 
@@ -106,6 +120,9 @@ app.include_router(cluster_router)
 
 
 app.include_router(attestation_control_router)
+app.include_router(candidate_disposition_router)
+app.include_router(document_intelligence_router)
+app.include_router(nlp_evidence_router)
 
 app.include_router(reportability_workflow_router)
 
@@ -132,6 +149,8 @@ app.include_router(
 app.include_router(
     public_health_followup_router
 )
+
+app.include_router(workflow_router)
 # ---------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------

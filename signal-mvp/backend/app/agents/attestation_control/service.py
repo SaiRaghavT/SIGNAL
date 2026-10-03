@@ -1,10 +1,16 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
+from backend.app.ecr.builder import build_ecr
+from backend.app.models.case import Case
+from backend.app.schemas.validation import validate_ecr
+from backend.app.case.report_fields import missing_report_fields
 
 from .schemas import (
     AttestationRequest,
@@ -100,6 +106,82 @@ class AttestationControlService:
                 message="Case has not been attested.",
                 comments=request.comments,
             )
+
+        try:
+            case_id = UUID(request.case_reference.strip())
+        except ValueError:
+            return AttestationResponse(
+                case_reference=request.case_reference,
+                reviewer_id=request.reviewer_id,
+                reviewer_role=request.reviewer_role,
+                attestation_status=request.attestation_status,
+                authorized=False,
+                message="A persisted case UUID is required for attestation.",
+                comments=request.comments,
+            )
+
+        case = db.query(Case).filter(Case.case_id == case_id).first()
+        if case is None:
+            return AttestationResponse(
+                case_reference=request.case_reference,
+                reviewer_id=request.reviewer_id,
+                reviewer_role=request.reviewer_role,
+                attestation_status=request.attestation_status,
+                authorized=False,
+                message="Case was not found.",
+                comments=request.comments,
+            )
+
+        if case.jurisdiction_status != "RESOLVED":
+            return AttestationResponse(
+                case_reference=request.case_reference,
+                reviewer_id=request.reviewer_id,
+                reviewer_role=request.reviewer_role,
+                attestation_status=request.attestation_status,
+                authorized=False,
+                message="Jurisdiction review must be resolved before attestation.",
+                comments=request.comments,
+            )
+
+        if case.final_decision != "REPORT":
+            return AttestationResponse(
+                case_reference=request.case_reference,
+                reviewer_id=request.reviewer_id,
+                reviewer_role=request.reviewer_role,
+                attestation_status=request.attestation_status,
+                authorized=False,
+                message="Only a REPORT decision can be attested for submission.",
+                comments=request.comments,
+            )
+
+        missing, required_missing = missing_report_fields(case.report_fields or {})
+        ecr = build_ecr(case)
+        # Attestation is the human review transition from NEEDS_REVIEW to
+        # REPORT; validate the underlying evidence before that transition.
+        ecr.status = "REPORT"
+        validation = validate_ecr(
+            ecr,
+            SimpleNamespace(
+                fields=case.report_fields or {},
+                missing_fields=missing,
+                required_missing_fields=required_missing,
+            ),
+        )
+        if not validation.valid:
+            tasks = validation.completion_required + validation.errors
+            return AttestationResponse(
+                case_reference=request.case_reference,
+                reviewer_id=request.reviewer_id,
+                reviewer_role=request.reviewer_role,
+                attestation_status=request.attestation_status,
+                authorized=False,
+                message="Attestation is blocked: " + "; ".join(tasks),
+                comments=request.comments,
+            )
+
+        case.status = "REPORT"
+        db.commit()
+        db.refresh(case)
 
         # Successful attestation is recorded in the audit ledger.
         audit_service = AuditLedgerService()

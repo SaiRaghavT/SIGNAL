@@ -1,10 +1,14 @@
 from typing import Any
+from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CandidateProcessRequest(BaseModel):
     candidate_id: str
+    # Canonical patient UUID. If omitted, candidate_id must itself be a UUID
+    # for compatibility with detection flows that use the patient UUID as ID.
+    patient_id: UUID | None = None
     patient_state: str | None = None
     patient_county: str | None = None
     facility_state: str | None = None
@@ -16,6 +20,23 @@ class CandidateProcessRequest(BaseModel):
     clinical_evidence: dict[str, Any] = Field(default_factory=dict)
     laboratory_evidence: list[dict[str, Any]] = Field(default_factory=list)
     ai_evidence: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_legacy_lab_evidence(cls, value: Any) -> Any:
+        """Accept the older singular ``lab_evidence`` request shape."""
+        if not isinstance(value, dict):
+            return value
+
+        normalized = dict(value)
+        if "laboratory_evidence" not in normalized and "lab_evidence" in normalized:
+            normalized["laboratory_evidence"] = normalized.pop("lab_evidence")
+
+        labs = normalized.get("laboratory_evidence")
+        if isinstance(labs, dict):
+            normalized["laboratory_evidence"] = [labs]
+
+        return normalized
 
 
 class CandidateProcessResponse(BaseModel):

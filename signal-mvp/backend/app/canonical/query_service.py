@@ -1,6 +1,7 @@
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import String, cast, or_
 from sqlalchemy.orm import Session
 
 from backend.app.models.patient import Patient
@@ -9,10 +10,143 @@ from backend.app.models.condition import Condition
 from backend.app.models.observation import Observation
 from backend.app.models.lab_result import LabResult
 from backend.app.models.clinical_document import ClinicalDocument
+from backend.app.detection.structured_trigger import STRUCTURED_TRIGGERS
 
 
 class CanonicalPatientNotFoundError(ValueError):
     """Raised when a requested patient does not exist."""
+
+
+def _is_measles_condition(condition: Condition) -> bool:
+    display = (condition.condition_display or "").casefold()
+    if "measles" in display:
+        return True
+    return any(
+        trigger.get("disease_id") == "measles"
+        and trigger.get("resource_type") == "Condition"
+        and condition.condition_system == trigger.get("code_system")
+        and condition.condition_code in trigger.get("codes", [])
+        for trigger in STRUCTURED_TRIGGERS
+    )
+
+
+def list_patients(
+    db: Session,
+    page: int = 1,
+    page_size: int = 10,
+    search: str | None = None,
+    facility: str | None = None,
+) -> dict[str, Any]:
+    """Return a paginated patient list using fields present in canonical models."""
+    query = db.query(Patient)
+    search_text = (search or "").strip()
+    if search_text:
+        pattern = f"%{search_text}%"
+        query = query.filter(or_(
+            cast(Patient.patient_id, String).ilike(pattern),
+            Patient.source_patient_id.ilike(pattern),
+            Patient.first_name.ilike(pattern),
+            Patient.last_name.ilike(pattern),
+            cast(Patient.date_of_birth, String).ilike(pattern),
+        ))
+
+    facility_text = (facility or "").strip()
+    if facility_text:
+        patient_ids_at_facility = (
+            db.query(Encounter.patient_id)
+            .filter(Encounter.facility_id == facility_text)
+            .distinct()
+        )
+        query = query.filter(Patient.patient_id.in_(patient_ids_at_facility))
+
+    total = query.count()
+    patients = (
+        query.order_by(Patient.created_at.desc(), Patient.patient_id.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    patient_ids = [patient.patient_id for patient in patients]
+
+    facilities = [
+        row[0]
+        for row in (
+            db.query(Encounter.facility_id)
+            .filter(Encounter.facility_id.isnot(None))
+            .distinct()
+            .order_by(Encounter.facility_id.asc())
+            .all()
+        )
+        if row[0]
+    ]
+
+    encounters = []
+    conditions = []
+    if patient_ids:
+        encounters = (
+            db.query(Encounter)
+            .filter(
+                Encounter.patient_id.in_(patient_ids),
+                Encounter.facility_id.isnot(None),
+            )
+            .order_by(Encounter.start_time.desc().nullslast())
+            .all()
+        )
+        conditions = (
+            db.query(Condition)
+            .filter(Condition.patient_id.in_(patient_ids))
+            .order_by(Condition.recorded_time.desc().nullslast())
+            .all()
+        )
+
+    facility_by_patient: dict[UUID, str] = {}
+    for encounter in encounters:
+        facility_by_patient.setdefault(encounter.patient_id, encounter.facility_id)
+
+    conditions_by_patient: dict[UUID, list[dict[str, str | None]]] = {}
+    condition_label_by_patient: dict[UUID, str] = {}
+    measles_by_patient: set[UUID] = set()
+    for condition in conditions:
+        if condition.condition_display or condition.condition_code:
+            value = {
+                "code": condition.condition_code,
+                "display": condition.condition_display,
+            }
+            conditions_by_patient.setdefault(condition.patient_id, []).append(value)
+            is_measles = _is_measles_condition(condition)
+            label = condition.condition_display or ("Measles" if is_measles else condition.condition_code)
+            current = condition_label_by_patient.get(condition.patient_id)
+            if label and (current is None or (is_measles and condition.patient_id not in measles_by_patient)):
+                condition_label_by_patient[condition.patient_id] = label
+            if is_measles:
+                measles_by_patient.add(condition.patient_id)
+
+    return {
+        "items": [
+            {
+                "patient_id": str(patient.patient_id),
+                "source_patient_id": patient.source_patient_id,
+                "first_name": patient.first_name,
+                "last_name": patient.last_name,
+                "date_of_birth": (
+                    patient.date_of_birth.isoformat()
+                    if patient.date_of_birth
+                    else None
+                ),
+                "condition": condition_label_by_patient.get(patient.patient_id),
+                # No severity field exists in the canonical Condition model.
+                "severity": None,
+                "facility": facility_by_patient.get(patient.patient_id),
+                "conditions": conditions_by_patient.get(patient.patient_id, []),
+            }
+            for patient in patients
+        ],
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "pages": (total + page_size - 1) // page_size,
+        "facilities": facilities,
+    }
 
 
 def _patient_to_dict(patient: Patient) -> dict[str, Any]:

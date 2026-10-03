@@ -6,3 +6,10 @@ venv/
 .env
 data/seed/fhir/
 data/batch_requests/
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+frontend/vite-dev*.log
+backend/app/forms/generated/
+*.zip

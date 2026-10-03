@@ -17,6 +17,8 @@ class CaseAssemblyInput:
     reportability_evidence_status: str
     final_decision: Optional[str] = None
     rule_id: Optional[str] = None
+    report_fields: Dict[str, Any] = field(default_factory=dict)
+    required_missing_fields: List[str] = field(default_factory=list)
 
 @dataclass
 class SignalCase:
@@ -37,3 +39,4 @@ class SignalCase:
     warnings: List[str] = field(default_factory=list)
     final_decision: Optional[str] = None
     rule_id: Optional[str] = None
+    report_fields: Dict[str, Any] = field(default_factory=dict)

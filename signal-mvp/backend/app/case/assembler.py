@@ -21,11 +21,23 @@ def assemble_case(
         warnings.append("Disease information is missing.")
 
     final_decision = data.final_decision or data.reportability_decision
-
-    if data.jurisdiction_status != "RESOLVED":
-        final_decision = "NEEDS_REVIEW"
-
     status = final_decision
+    missing_provider_fields = [
+        name for name in ("name", "phone", "address")
+        if not (data.provider or {}).get(name)
+    ]
+    if status != "HOLD" and data.jurisdiction_status != "RESOLVED":
+        status = "NEEDS_REVIEW"
+    if status != "HOLD" and (data.required_missing_fields or missing_provider_fields or not (data.facility or {}).get("name")):
+        status = "NEEDS_REVIEW"
+        if data.required_missing_fields:
+            warnings.append(
+                f"{len(data.required_missing_fields)} required reporting fields need human completion."
+            )
+        if missing_provider_fields:
+            warnings.append("Provider information needs human completion.")
+        if not (data.facility or {}).get("name"):
+            warnings.append("Facility name needs human completion.")
 
     case = Case(
         candidate_id=data.candidate_id,
@@ -36,6 +48,7 @@ def assemble_case(
         clinical_evidence=data.clinical_evidence,
         laboratory_evidence=data.laboratory_evidence,
         ai_evidence=data.ai_evidence,
+        report_fields=data.report_fields,
         jurisdiction=data.jurisdiction,
         jurisdiction_status=data.jurisdiction_status,
         reportability_decision=data.reportability_decision,
@@ -68,4 +81,5 @@ def assemble_case(
         warnings=case.warnings,
         final_decision=case.final_decision,
         rule_id=case.rule_id,
+        report_fields=case.report_fields or {},
     )

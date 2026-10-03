@@ -1,14 +1,14 @@
 from .models import SubmissionResult
 
 
-def submit_ecr(ecr, validation) -> SubmissionResult:
+def submit_ecr(ecr, validation, *, attested: bool = False) -> SubmissionResult:
 
     if not validation.valid:
         return SubmissionResult(
             submission_id=None,
-            status="REJECTED",
+            status="REJECTED" if validation.errors else "BLOCKED",
             destination="MOCK_PHA",
-            errors=validation.errors,
+            errors=[*validation.errors, *getattr(validation, "completion_required", [])],
             warnings=validation.warnings,
         )
 
@@ -36,6 +36,15 @@ def submit_ecr(ecr, validation) -> SubmissionResult:
             status="BLOCKED",
             destination="MOCK_PHA",
             errors=["Only a REPORT ECR can be submitted."],
+            warnings=validation.warnings,
+        )
+
+    if not attested:
+        return SubmissionResult(
+            submission_id=None,
+            status="BLOCKED",
+            destination="MOCK_PHA",
+            errors=["A current human attestation is required before submission."],
             warnings=validation.warnings,
         )
 

@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
+from backend.app.canonical.query_service import CanonicalPatientNotFoundError
 
 from .schemas import CandidateProcessRequest, CandidateProcessResponse
 from .service import process_candidate
@@ -20,4 +21,9 @@ def process_candidate_endpoint(
 ) -> CandidateProcessResponse:
     """Run the end-to-end candidate reportability workflow."""
 
-    return process_candidate(request, db)
+    try:
+        return process_candidate(request, db)
+    except CanonicalPatientNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
