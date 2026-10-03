@@ -2,6 +2,8 @@ from fastapi import FastAPI
 
 from backend.app.agents.cluster_signal.api import router as cluster_router
 from backend.app.canonical.api import router as canonical_router
+from backend.app.case.api import router as cases_router
+from backend.app.dashboard.router import router as dashboard_router
 from backend.app.detection.api import router as detection_router
 from backend.app.ingestion.api.fhir import router as fhir_router
 from backend.app.ingestion.documents.api import router as document_router
@@ -34,8 +36,6 @@ from backend.app.agents.reportability_workflow.router import (
 
 )
 
-from backend.app.agents.manual_reporting.router import router as manual_reporting_router
-
 from backend.app.agents.manual_reporting.router import (
     router as manual_reporting_router,
 )
@@ -66,6 +66,7 @@ from backend.app.agents.retry_resubmission.router import (
 from backend.app.agents.public_health_followup.router import (
     router as public_health_followup_router,
 )
+from backend.app.workflow.router import router as workflow_router
 
 app = FastAPI(
     title="SIGNAL MVP",
@@ -107,6 +108,10 @@ app.include_router(form_rendering_router)
 # Read-only access to the standardized SIGNAL patient context
 app.include_router(canonical_router)
 
+# Persisted case summary list for the manager-facing Cases screen.
+app.include_router(cases_router)
+app.include_router(dashboard_router)
+
 # Candidate detection
 app.include_router(detection_router)
 
@@ -120,9 +125,6 @@ app.include_router(document_intelligence_router)
 app.include_router(nlp_evidence_router)
 
 app.include_router(reportability_workflow_router)
-
-
-app.include_router(manual_reporting_router)
 
 
 app.include_router(manual_reporting_router)
@@ -147,6 +149,8 @@ app.include_router(
 app.include_router(
     public_health_followup_router
 )
+
+app.include_router(workflow_router)
 # ---------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------

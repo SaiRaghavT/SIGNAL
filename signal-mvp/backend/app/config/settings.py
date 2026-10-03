@@ -9,22 +9,11 @@ class Settings(BaseSettings):
     db_user: str = "postgres"
     db_password: str
     gemini_enabled: bool = False
+    llm_provider: str = "gemini"
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
-
-    # LLM provider
-    # Supported values: "gemini" or "groq"
-    llm_provider: str = "groq"
-
-    # Gemini
-    gemini_api_key: str | None = None
-    gemini_model: str = "gemini-3.8-flash"
-
-    # Groq
     groq_api_key: str | None = None
     groq_model: str = "openai/gpt-oss-20b"
-
-    # OCR
     tesseract_cmd: str | None = None
 
     model_config = SettingsConfigDict(

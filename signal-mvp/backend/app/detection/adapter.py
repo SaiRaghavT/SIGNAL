@@ -9,13 +9,21 @@ def canonical_context_to_detection_input(
     patient = context["patient"]
     patient_id = patient["patient_id"]
 
+    # ---------------------------------------------------------
+    # Conditions
+    # ---------------------------------------------------------
     conditions = []
+
     for condition in context.get("conditions", []):
         code = condition.get("code") or {}
+
         conditions.append(
             {
                 "id": condition.get("condition_id"),
-                "patient_id": condition.get("patient_id", patient_id),
+                "patient_id": condition.get(
+                    "patient_id",
+                    patient_id,
+                ),
                 "encounter_id": condition.get("encounter_id"),
                 "system": code.get("system"),
                 "code": code.get("code"),
@@ -24,13 +32,21 @@ def canonical_context_to_detection_input(
             }
         )
 
+    # ---------------------------------------------------------
+    # Observations
+    # ---------------------------------------------------------
     observations = []
+
     for observation in context.get("observations", []):
         code = observation.get("code") or {}
+
         observations.append(
             {
                 "id": observation.get("observation_id"),
-                "patient_id": observation.get("patient_id", patient_id),
+                "patient_id": observation.get(
+                    "patient_id",
+                    patient_id,
+                ),
                 "encounter_id": observation.get("encounter_id"),
                 "system": code.get("system"),
                 "code": code.get("code"),
@@ -40,26 +56,116 @@ def canonical_context_to_detection_input(
             }
         )
 
-    diagnostic_reports = []
+    # ---------------------------------------------------------
+    # Lab Results
+    # ---------------------------------------------------------
+    #
+    # IMPORTANT:
+    # Keep these as `lab_results`.
+    #
+    # The canonical LabResult structure is:
+    #
+    # {
+    #     "lab_result_id": "...",
+    #     "patient_id": "...",
+    #     "encounter_id": "...",
+    #     "test": {
+    #         "system": "...",
+    #         "code": "...",
+    #         "display": "..."
+    #     },
+    #     "report_status": "final",
+    #     "conclusion": "Positive for measles IgM"
+    # }
+    #
+    # The structured trigger detector now expects this
+    # canonical LabResult shape.
+    # ---------------------------------------------------------
+    lab_results = []
+
     for lab_result in context.get("lab_results", []):
         test = lab_result.get("test") or {}
-        diagnostic_reports.append(
+
+        lab_results.append(
             {
                 "id": lab_result.get("lab_result_id"),
-                "patient_id": lab_result.get("patient_id", patient_id),
-                "encounter_id": lab_result.get("encounter_id"),
-                "system": test.get("system"),
-                "code": test.get("code"),
-                "display": test.get("display"),
-                "conclusion": lab_result.get("conclusion"),
-                "status": lab_result.get("report_status"),
+                "lab_result_id": lab_result.get(
+                    "lab_result_id"
+                ),
+                "source_lab_result_id": lab_result.get(
+                    "source_lab_result_id"
+                ),
+                "patient_id": lab_result.get(
+                    "patient_id",
+                    patient_id,
+                ),
+                "encounter_id": lab_result.get(
+                    "encounter_id"
+                ),
+                "test": {
+                    "system": test.get("system"),
+                    "code": test.get("code"),
+                    "display": test.get("display"),
+                },
+                "report_status": lab_result.get(
+                    "report_status"
+                ),
+                "conclusion": lab_result.get(
+                    "conclusion"
+                ),
+                "effective_time": lab_result.get(
+                    "effective_time"
+                ),
+                "result_time": lab_result.get(
+                    "result_time"
+                ),
             }
         )
 
+    # ---------------------------------------------------------
+    # Diagnostic reports
+    # ---------------------------------------------------------
+    #
+    # Keep the old normalized representation as well so that
+    # existing detection logic does not break.
+    # ---------------------------------------------------------
+    diagnostic_reports = []
+
+    for lab_result in context.get("lab_results", []):
+        test = lab_result.get("test") or {}
+
+        diagnostic_reports.append(
+            {
+                "id": lab_result.get("lab_result_id"),
+                "patient_id": lab_result.get(
+                    "patient_id",
+                    patient_id,
+                ),
+                "encounter_id": lab_result.get(
+                    "encounter_id"
+                ),
+                "system": test.get("system"),
+                "code": test.get("code"),
+                "display": test.get("display"),
+                "conclusion": lab_result.get(
+                    "conclusion"
+                ),
+                "status": lab_result.get(
+                    "report_status"
+                ),
+            }
+        )
+
+    # ---------------------------------------------------------
+    # Encounters
+    # ---------------------------------------------------------
     encounters = [
         {
             "id": encounter.get("encounter_id"),
-            "patient_id": encounter.get("patient_id", patient_id),
+            "patient_id": encounter.get(
+                "patient_id",
+                patient_id,
+            ),
             "type": encounter.get("encounter_type"),
             "status": encounter.get("status"),
             "start_time": encounter.get("start_time"),
@@ -68,6 +174,9 @@ def canonical_context_to_detection_input(
         for encounter in context.get("encounters", [])
     ]
 
+    # ---------------------------------------------------------
+    # Final normalized detection input
+    # ---------------------------------------------------------
     return {
         "patient": {
             **patient,
@@ -75,7 +184,13 @@ def canonical_context_to_detection_input(
         },
         "conditions": conditions,
         "observations": observations,
+
+        # NEW: preserve canonical LabResult collection
+        "lab_results": lab_results,
+
+        # Keep existing representation for compatibility
         "diagnostic_reports": diagnostic_reports,
+
         "medications": [],
         "procedures": [],
         "encounters": encounters,

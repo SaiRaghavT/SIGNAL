@@ -32,6 +32,10 @@ class FormRenderingResponse(BaseModel):
 
     form_id: str
 
+    render_id: Optional[str] = None
+
+    retrieval_url: Optional[str] = None
+
     form_version: Optional[str] = None
 
     status: str
@@ -53,3 +57,17 @@ class FormRenderingResponse(BaseModel):
     )
 
     rendered_document: Optional[str] = None
+
+
+class FormFieldDefinition(BaseModel):
+    field: str
+    source: str | None = None
+    required: bool = False
+
+
+class FormDefinitionResponse(BaseModel):
+    form_id: str
+    form_version: str
+    disease: str
+    jurisdiction: str
+    fields: List[FormFieldDefinition] = Field(default_factory=list)

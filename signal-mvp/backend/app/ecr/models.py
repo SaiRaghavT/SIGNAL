@@ -17,6 +17,7 @@ class ECRPayload:
     ai_evidence: Dict[str, Any]
     reportability_decision: str
     reportability_evidence_status: str
+    report_fields: Dict[str, Any] = field(default_factory=dict)
     status: str = "DRAFT"
     warnings: List[str] = field(default_factory=list)
     final_decision: Optional[str] = None

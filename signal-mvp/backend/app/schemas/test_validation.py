@@ -18,6 +18,8 @@ def make_ecr(**overrides):
         },
         "provider": {
             "name": "Dr. Test",
+            "phone": "555-0100",
+            "address": "Test address",
         },
         "clinical_evidence": {
             "symptoms": ["fever", "rash"],
@@ -45,7 +47,7 @@ def test_valid_ecr():
     assert result.errors == []
 
 
-def test_missing_patient_dob_is_error():
+def test_missing_patient_dob_requires_completion():
     ecr = make_ecr(
         patient={}
     )
@@ -53,10 +55,10 @@ def test_missing_patient_dob_is_error():
     result = validate_ecr(ecr)
 
     assert result.valid is False
-    assert "Patient date of birth is missing." in result.errors
+    assert "Patient date of birth is missing." in result.completion_required
 
 
-def test_missing_provider_is_error():
+def test_missing_provider_requires_completion():
     ecr = make_ecr(
         provider={}
     )
@@ -64,10 +66,10 @@ def test_missing_provider_is_error():
     result = validate_ecr(ecr)
 
     assert result.valid is False
-    assert "Provider information is missing." in result.errors
+    assert "Provider information requires completion: name, phone, address." in result.completion_required
 
 
-def test_missing_required_form_fields_are_errors():
+def test_missing_required_form_fields_require_completion():
     ecr = make_ecr()
 
     smart_fields = SimpleNamespace(
@@ -86,9 +88,7 @@ def test_missing_required_form_fields_are_errors():
     result = validate_ecr(ecr, smart_fields)
 
     assert result.valid is False
-    assert "Required report field is missing: patient.date_of_birth" in result.errors
-    assert "Required report field is missing: patient.sex" in result.errors
-    assert "Required report field is missing: laboratory.igm" in result.errors
+    assert result.completion_required == ["patient.date_of_birth", "patient.sex", "laboratory.igm"]
 
 
 def test_missing_optional_form_fields_are_warnings():
@@ -128,10 +128,7 @@ def test_needs_review_status_generates_warning():
     result = validate_ecr(ecr)
 
     assert result.valid is True
-    assert (
-        "ECR status is NEEDS_REVIEW; submission should not proceed."
-        in result.warnings
-    )
+    assert "ECR status is NEEDS_REVIEW; submission should not proceed." in result.warnings
 
 
 def test_missing_ecr_identity_is_error():

@@ -64,3 +64,29 @@ class PatientContext(BaseModel):
     observations: list[Observation] = Field(default_factory=list)
     lab_results: list[LabResult] = Field(default_factory=list)
     clinical_documents: list[ClinicalDocument] = Field(default_factory=list)
+
+
+class PatientListCondition(BaseModel):
+    code: str | None = None
+    display: str | None = None
+
+
+class PatientListItem(BaseModel):
+    patient_id: str
+    source_patient_id: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    date_of_birth: date | None = None
+    condition: str | None = None
+    severity: str | None = None
+    facility: str | None = None
+    conditions: list[PatientListCondition] = Field(default_factory=list)
+
+
+class PatientListResponse(BaseModel):
+    items: list[PatientListItem] = Field(default_factory=list)
+    page: int
+    page_size: int
+    total: int
+    pages: int
+    facilities: list[str] = Field(default_factory=list)

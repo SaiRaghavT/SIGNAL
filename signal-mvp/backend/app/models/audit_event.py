@@ -68,7 +68,10 @@ class AuditEvent(Base):
         nullable=True,
     )
 
-    metadata: Mapped[dict] = mapped_column(
+    # ``metadata`` is reserved by SQLAlchemy declarative models. Keep the
+    # existing database column name while exposing it under a safe attribute.
+    metadata_json: Mapped[dict] = mapped_column(
+        "metadata",
         JSONB,
         nullable=False,
         default=dict,
