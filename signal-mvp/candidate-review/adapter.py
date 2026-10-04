@@ -9,14 +9,9 @@ def canonical_context_to_detection_input(
     patient = context["patient"]
     patient_id = patient["patient_id"]
 
-    # ---------------------------------------------------------
-    # Conditions
-    # ---------------------------------------------------------
     conditions = []
-
     for condition in context.get("conditions", []):
         code = condition.get("code") or {}
-
         conditions.append(
             {
                 "id": condition.get("condition_id"),
@@ -29,21 +24,13 @@ def canonical_context_to_detection_input(
             }
         )
 
-    # ---------------------------------------------------------
-    # Observations
-    # ---------------------------------------------------------
     observations = []
-
     for observation in context.get("observations", []):
         code = observation.get("code") or {}
-
         observations.append(
             {
                 "id": observation.get("observation_id"),
-                "patient_id": observation.get(
-                    "patient_id",
-                    patient_id,
-                ),
+                "patient_id": observation.get("patient_id", patient_id),
                 "encounter_id": observation.get("encounter_id"),
                 "system": code.get("system"),
                 "code": code.get("code"),
@@ -53,61 +40,26 @@ def canonical_context_to_detection_input(
             }
         )
 
-    # ---------------------------------------------------------
-    # Diagnostic Reports / Lab Results
-    # ---------------------------------------------------------
-    #
-    # Lab results are represented as diagnostic_reports for the
-    # detector. The linked lab observations are preserved so
-    # structured lab triggers can inspect the actual test result.
-    #
-    # Example:
-    #
-    # Lab Result
-    #   ├── test
-    #   ├── conclusion
-    #   ├── status
-    #   └── observations
-    #         ├── code
-    #         ├── display
-    #         └── value
-    #
-    # ---------------------------------------------------------
     diagnostic_reports = []
-
     for lab_result in context.get("lab_results", []):
         test = lab_result.get("test") or {}
-
         diagnostic_reports.append(
             {
                 "id": lab_result.get("lab_result_id"),
-                "patient_id": lab_result.get(
-                    "patient_id",
-                    patient_id,
-                ),
+                "patient_id": lab_result.get("patient_id", patient_id),
                 "encounter_id": lab_result.get("encounter_id"),
                 "system": test.get("system"),
                 "code": test.get("code"),
                 "display": test.get("display"),
                 "conclusion": lab_result.get("conclusion"),
                 "status": lab_result.get("report_status"),
-                "observations": lab_result.get(
-                    "observations",
-                    [],
-                ),
             }
         )
 
-    # ---------------------------------------------------------
-    # Encounters
-    # ---------------------------------------------------------
     encounters = [
         {
             "id": encounter.get("encounter_id"),
-            "patient_id": encounter.get(
-                "patient_id",
-                patient_id,
-            ),
+            "patient_id": encounter.get("patient_id", patient_id),
             "type": encounter.get("encounter_type"),
             "status": encounter.get("status"),
             "start_time": encounter.get("start_time"),
@@ -116,9 +68,6 @@ def canonical_context_to_detection_input(
         for encounter in context.get("encounters", [])
     ]
 
-    # ---------------------------------------------------------
-    # Final normalized detection input
-    # ---------------------------------------------------------
     return {
         "patient": {
             **patient,

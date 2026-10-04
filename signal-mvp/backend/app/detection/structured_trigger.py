@@ -15,32 +15,17 @@ from typing import Any, Dict, List
 # potential public-health reporting candidate."
 #
 # Jurisdiction and reportability decisions happen downstream.
-#
-# Important:
-# - Condition triggers operate on canonical Condition data.
-# - LabResult triggers operate on canonical LabResult data.
-# - These triggers do NOT determine final reportability.
 # ---------------------------------------------------------
 
 STRUCTURED_TRIGGERS: List[Dict[str, Any]] = [
-    # -----------------------------------------------------
-    # Measles condition — SNOMED CT
-    # -----------------------------------------------------
     {
         "trigger_id": "measles-snomed-condition",
         "trigger_type": "CONDITION_CODE",
         "resource_type": "Condition",
         "code_system": "http://snomed.info/sct",
-        "codes": [
-            "14168008",
-            "14189004",
-        ],
+        "codes": ["14168008", "14189004"],
         "disease_id": "measles",
     },
-
-    # -----------------------------------------------------
-    # Measles condition — ICD-10-CM
-    # -----------------------------------------------------
     {
         "trigger_id": "measles-icd10cm-condition",
         "trigger_type": "CONDITION_CODE",
@@ -59,35 +44,35 @@ STRUCTURED_TRIGGERS: List[Dict[str, Any]] = [
         ],
         "disease_id": "measles",
     },
-
-    # -----------------------------------------------------
-    # Measles IgM laboratory result
-    # -----------------------------------------------------
-    #
-    # Canonical SIGNAL LabResult structure:
-    #
-    # {
-    #     "test": {
-    #         "system": "http://loinc.org",
-    #         "code": "5195-3",
-    #         "display": "Measles virus IgM Ab [Presence] in Serum"
-    #     },
-    #     "report_status": "final",
-    #     "conclusion": "Positive for measles IgM"
-    # }
-    #
-    # This is a DETECTION trigger only.
-    # It does not independently determine reportability.
-    # -----------------------------------------------------
+    {
+        "trigger_id": "measles-pcr-positive-lab",
+        "trigger_type": "LAB_RESULT",
+        "resource_type": "DiagnosticReport",
+        "disease_id": "measles",
+        "test_terms": [
+            "measles pcr",
+            "measles polymerase chain reaction",
+            "rubeola pcr",
+        ],
+        "positive_terms": [
+            "positive",
+            "detected",
+        ],
+    },
     {
         "trigger_id": "measles-igm-positive-lab",
         "trigger_type": "LAB_RESULT",
-        "resource_type": "LabResult",
-        "code_system": "http://loinc.org",
-        "codes": [
-            "5195-3",
-        ],
+        "resource_type": "DiagnosticReport",
         "disease_id": "measles",
+        "test_terms": [
+            "measles igm",
+            "measles immunoglobulin m",
+            "rubeola igm",
+        ],
+        "positive_terms": [
+            "positive",
+            "reactive",
+        ],
     },
 ]
 
@@ -101,19 +86,41 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _matches_code(
+    resource: Dict[str, Any],
+    trigger: Dict[str, Any],
+) -> bool:
+    """
+    Determine whether a normalized clinical resource matches
+    a configured structured code trigger.
+    """
+
+    expected_system = trigger.get("code_system")
+    expected_codes = trigger.get("codes", [])
+
+    resource_system = resource.get("system")
+    resource_code = resource.get("code")
+
+    if expected_system and resource_system != expected_system:
+        return False
+
+    if expected_codes and resource_code not in expected_codes:
+        return False
+
+    return True
+
+
 def _get_resource_list(
     normalized_patient: Dict[str, Any],
     resource_type: str,
 ) -> List[Dict[str, Any]]:
     """
-    Map canonical SIGNAL resource types to the corresponding
-    normalized patient collections.
+    Map resource types to the normalized SIGNAL structure.
     """
 
     resource_mapping = {
         "Condition": "conditions",
         "Observation": "observations",
-        "LabResult": "lab_results",
         "DiagnosticReport": "diagnostic_reports",
         "MedicationRequest": "medications",
         "Procedure": "procedures",
@@ -130,149 +137,144 @@ def _get_resource_list(
     return resources if isinstance(resources, list) else []
 
 
-def _get_resource_code_data(
-    resource: Dict[str, Any],
-    resource_type: str,
-) -> tuple[str | None, str | None, str | None]:
-    """
-    Extract terminology information from a normalized SIGNAL
-    resource.
+def _normalize_text(value: Any) -> str:
+    """Convert a value to normalized lowercase text."""
 
-    Most structured resources expose:
+    if value is None:
+        return ""
 
-        system
-        code
-        display
-
-    Canonical LabResult exposes terminology under:
-
-        test.system
-        test.code
-        test.display
-    """
-
-    if resource_type == "LabResult":
-        test = resource.get("test")
-
-        if not isinstance(test, dict):
-            return None, None, None
-
-        return (
-            test.get("system"),
-            test.get("code"),
-            test.get("display"),
-        )
-
-    return (
-        resource.get("system"),
-        resource.get("code"),
-        resource.get("display"),
-    )
+    return str(value).strip().lower()
 
 
-def _matches_code(
+# ---------------------------------------------------------
+# Lab Trigger Helpers
+# ---------------------------------------------------------
+
+def _lab_test_matches(
     resource: Dict[str, Any],
     trigger: Dict[str, Any],
 ) -> bool:
     """
-    Determine whether a normalized clinical resource matches
-    a configured structured trigger.
+    Determine whether the diagnostic report represents
+    the configured measles laboratory test.
     """
 
-    resource_type = trigger.get("resource_type")
+    test_terms = trigger.get("test_terms", [])
 
-    expected_system = trigger.get("code_system")
-    expected_codes = trigger.get("codes", [])
+    test_code = _normalize_text(resource.get("code"))
+    test_display = _normalize_text(resource.get("display"))
+    conclusion = _normalize_text(resource.get("conclusion"))
 
-    resource_system, resource_code, _ = _get_resource_code_data(
-        resource,
-        resource_type,
+    searchable_text = " ".join(
+        value
+        for value in [
+            test_code,
+            test_display,
+            conclusion,
+        ]
+        if value
     )
 
-    # If a trigger specifies a terminology system, it must match.
-    if expected_system and resource_system != expected_system:
-        return False
-
-    # If a trigger specifies codes, the resource code must match.
-    if expected_codes and resource_code not in expected_codes:
-        return False
-
-    return True
+    return any(
+        term.lower() in searchable_text
+        for term in test_terms
+    )
 
 
-def _get_source_id(
+def _get_lab_observations(
     resource: Dict[str, Any],
-    resource_type: str,
-) -> str | None:
+) -> List[Dict[str, Any]]:
     """
-    Return the best source identifier for the evidence.
-
-    Canonical resources normally use `id`.
-
-    Canonical LabResult uses:
-        source_lab_result_id
-        lab_result_id
+    Return linked observations from a diagnostic report.
     """
 
-    if resource_type == "LabResult":
-        return (
-            resource.get("source_lab_result_id")
-            or resource.get("lab_result_id")
-            or resource.get("id")
-        )
+    observations = resource.get("observations", [])
 
-    return resource.get("id")
+    return (
+        observations
+        if isinstance(observations, list)
+        else []
+    )
 
 
-def _get_lab_result_status(
+def _lab_result_is_positive(
     resource: Dict[str, Any],
-) -> str | None:
-    """
-    Return the canonical laboratory report status.
-    """
-
-    status = resource.get("report_status")
-
-    if status is None:
-        return None
-
-    return str(status)
-
-
-def _is_positive_lab_result(
-    resource: Dict[str, Any],
+    trigger: Dict[str, Any],
 ) -> bool:
     """
-    Determine whether a canonical LabResult contains positive
-    evidence.
+    Determine whether a measles laboratory result is positive.
 
-    This function is intentionally conservative.
+    Positive evidence can come from:
+    - linked observation value_text
+    - linked observation value_code
+    - diagnostic report conclusion
 
-    A positive result is recognized from the canonical
-    `conclusion` text.
-
-    If no conclusion is available, the result is not treated
-    as positive by this helper.
+    Negative results such as "negative" or "not detected"
+    do not trigger a candidate signal.
     """
+
+    positive_terms = [
+        term.lower()
+        for term in trigger.get("positive_terms", [])
+    ]
+
+    evidence_values: List[str] = []
 
     conclusion = resource.get("conclusion")
 
-    if conclusion is None:
-        return False
+    if conclusion:
+        evidence_values.append(
+            _normalize_text(conclusion)
+        )
 
-    if not isinstance(conclusion, str):
-        return False
+    for observation in _get_lab_observations(resource):
+        if not isinstance(observation, dict):
+            continue
 
-    normalized = conclusion.strip().lower()
+        value = observation.get("value")
 
-    positive_terms = (
-        "positive",
-        "detected",
-        "reactive",
-        "present",
+        if isinstance(value, dict):
+            for key in (
+                "text",
+                "code",
+            ):
+                value_part = value.get(key)
+
+                if value_part is not None:
+                    evidence_values.append(
+                        _normalize_text(value_part)
+                    )
+
+        elif value is not None:
+            evidence_values.append(
+                _normalize_text(value)
+            )
+
+    return any(
+        any(
+            positive_term in evidence
+            for positive_term in positive_terms
+        )
+        for evidence in evidence_values
     )
 
-    return any(term in normalized for term in positive_terms)
+
+def _matches_lab_trigger(
+    resource: Dict[str, Any],
+    trigger: Dict[str, Any],
+) -> bool:
+    """
+    Determine whether a diagnostic report represents
+    a positive configured measles laboratory result.
+    """
+
+    if not _lab_test_matches(resource, trigger):
+        return False
+
+    if not _lab_result_is_positive(resource, trigger):
+        return False
+
+    return True
 
 
 # ---------------------------------------------------------
@@ -293,47 +295,70 @@ def _create_candidate_signal(
 
     patient_id = resource.get("patient_id")
 
-    (
-        code_system,
-        code,
-        display,
-    ) = _get_resource_code_data(
-        resource,
-        resource_type,
-    )
-
-    source_id = _get_source_id(
-        resource,
-        resource_type,
-    )
-
-    evidence: Dict[str, Any] = {
-        "source_type": resource_type,
-        "source_id": source_id,
-        "code_system": code_system,
-        "code": code,
-        "display": display,
-    }
-
-    # Add laboratory-specific evidence without changing
-    # the structure of non-lab signals.
-    if resource_type == "LabResult":
-        evidence["report_status"] = _get_lab_result_status(resource)
-        evidence["conclusion"] = resource.get("conclusion")
-        evidence["positive"] = _is_positive_lab_result(resource)
-
     signal: Dict[str, Any] = {
         "patient_id": patient_id,
         "encounter_id": resource.get("encounter_id"),
         "trigger_id": trigger.get("trigger_id"),
         "trigger_type": trigger.get("trigger_type"),
         "disease_id": trigger.get("disease_id"),
-        "evidence": evidence,
+        "evidence": {
+            "source_type": resource_type,
+            "source_id": resource.get("id"),
+            "code_system": resource.get("system"),
+            "code": resource.get("code"),
+            "display": resource.get("display"),
+        },
         "confidence": 1.0,
         "detected_at": _utc_now(),
     }
 
     return signal
+
+
+def _create_lab_candidate_signal(
+    resource: Dict[str, Any],
+    trigger: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Create a candidate signal from a positive laboratory result.
+    """
+
+    observations = _get_lab_observations(resource)
+
+    observation_evidence = []
+
+    for observation in observations:
+        if not isinstance(observation, dict):
+            continue
+
+        observation_evidence.append(
+            {
+                "id": observation.get("observation_id"),
+                "code": observation.get("code"),
+                "display": observation.get("display"),
+                "value": observation.get("value"),
+                "status": observation.get("status"),
+            }
+        )
+
+    return {
+        "patient_id": resource.get("patient_id"),
+        "encounter_id": resource.get("encounter_id"),
+        "trigger_id": trigger.get("trigger_id"),
+        "trigger_type": "LAB_RESULT",
+        "disease_id": trigger.get("disease_id"),
+        "evidence": {
+            "source_type": "DiagnosticReport",
+            "source_id": resource.get("id"),
+            "code_system": resource.get("system"),
+            "code": resource.get("code"),
+            "display": resource.get("display"),
+            "conclusion": resource.get("conclusion"),
+            "observations": observation_evidence,
+        },
+        "confidence": 1.0,
+        "detected_at": _utc_now(),
+    }
 
 
 # ---------------------------------------------------------
@@ -348,11 +373,14 @@ def detect_structured_triggers(
     Detect potential candidate signals from structured
     clinical information.
 
+    This includes:
+    - Condition-based triggers
+    - Laboratory-result triggers
+
     Parameters
     ----------
     normalized_patient:
-        SIGNAL normalized patient object produced by the
-        canonical/FHIR normalization layer.
+        SIGNAL normalized patient object.
 
     triggers:
         Optional trigger configuration. If omitted,
@@ -360,13 +388,11 @@ def detect_structured_triggers(
 
     Returns
     -------
-    List[Dict[str, Any]]
-        Detected candidate signals.
+    List of candidate signals.
 
-    Important
-    ---------
-    Detection does not determine jurisdiction,
-    reportability, or case confirmation.
+    Important:
+        Detection does not determine jurisdiction,
+        reportability, or case confirmation.
     """
 
     if not isinstance(normalized_patient, dict):
@@ -402,20 +428,29 @@ def detect_structured_triggers(
             if not isinstance(resource, dict):
                 continue
 
-            if not _matches_code(
-                resource,
-                trigger,
-            ):
+            # ---------------------------------------------
+            # Laboratory trigger
+            # ---------------------------------------------
+            if trigger.get("trigger_type") == "LAB_RESULT":
+                if not _matches_lab_trigger(
+                    resource,
+                    trigger,
+                ):
+                    continue
+
+                signal = _create_lab_candidate_signal(
+                    resource,
+                    trigger,
+                )
+
+                candidate_signals.append(signal)
                 continue
 
-            # For LabResult triggers, require an explicitly
-            # positive result.
-            #
-            # This prevents every measles IgM test order/result
-            # from automatically becoming a positive signal.
-            if resource_type == "LabResult":
-                if not _is_positive_lab_result(resource):
-                    continue
+            # ---------------------------------------------
+            # Existing structured code trigger
+            # ---------------------------------------------
+            if not _matches_code(resource, trigger):
+                continue
 
             signal = _create_candidate_signal(
                 resource,

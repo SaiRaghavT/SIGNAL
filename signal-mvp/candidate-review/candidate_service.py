@@ -36,75 +36,24 @@ def detect_candidates(
     if not isinstance(normalized_patient, dict):
         raise ValueError("normalized_patient must be a dictionary.")
 
-    # ---------------------------------------------------------
-    # Structured detection
-    # ---------------------------------------------------------
-
     signals = detect_structured_triggers(
         normalized_patient,
         triggers=triggers,
     )
 
-    # ---------------------------------------------------------
-    # Document detection
-    # ---------------------------------------------------------
-
     document_signals = detect_document_triggers(
         document_evidence or [],
-        patient_id=str(
-            normalized_patient.get("patient", {}).get("id") or ""
-        ),
+        patient_id=str(normalized_patient.get("patient", {}).get("id") or ""),
     )
-
-    # ---------------------------------------------------------
-    # Combine signals
-    # ---------------------------------------------------------
-
     all_signals = signals + document_signals
-
-    # ---------------------------------------------------------
-    # Signal counts
-    # ---------------------------------------------------------
-
-    condition_signal_count = sum(
-        1
-        for signal in signals
-        if signal.get("trigger_type") == "CONDITION_CODE"
-    )
-
-    lab_signal_count = sum(
-        1
-        for signal in signals
-        if signal.get("trigger_type") == "LAB_RESULT"
-    )
-
-    # ---------------------------------------------------------
-    # Candidate fusion
-    # ---------------------------------------------------------
-
     candidates = fuse_candidate_signals(all_signals)
-
-    # ---------------------------------------------------------
-    # Response
-    # ---------------------------------------------------------
 
     return {
         "patient_id": normalized_patient.get("patient", {}).get("id"),
-
-        # Total signal count
         "signal_count": len(all_signals),
-
-        # Structured signal breakdown
         "structured_signal_count": len(signals),
-        "condition_signal_count": condition_signal_count,
-        "lab_signal_count": lab_signal_count,
-
-        # Document signal count
         "document_signal_count": len(document_signals),
-
-        # Candidates
         "candidate_count": len(candidates),
-
         "signals": all_signals,
         "candidates": candidates,
     }
