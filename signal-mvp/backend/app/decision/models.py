@@ -11,6 +11,8 @@ class ReconciliationInput:
     rule_decision: Optional[str]
     jurisdiction_status: str = "RESOLVED"
     reportability_decision: Optional[str] = None
+    human_review_required: bool = False
+    conflicts: List[str] = field(default_factory=list)
 
 
 @dataclass

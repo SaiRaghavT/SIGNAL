@@ -9,7 +9,7 @@ class ValidationResult:
     warnings: List[str] = field(default_factory=list)
 
 
-def validate_ecr(ecr: Any) -> ValidationResult:
+def validate_ecr(ecr: Any, smart_fields: Any | None = None) -> ValidationResult:
     errors = []
     warnings = []
 
@@ -30,7 +30,10 @@ def validate_ecr(ecr: Any) -> ValidationResult:
 
     if not ecr.patient:
         errors.append("Patient information is missing.")
-    elif not (ecr.patient.get("dob") or ecr.patient.get("date_of_birth")):
+
+    if not ecr.patient or not (
+        ecr.patient.get("dob") or ecr.patient.get("date_of_birth")
+    ):
         errors.append("Patient date of birth is missing.")
 
     if not ecr.facility:
@@ -50,6 +53,20 @@ def validate_ecr(ecr: Any) -> ValidationResult:
 
     if not ecr.reportability_evidence_status:
         errors.append("Reportability evidence status is missing.")
+
+    if smart_fields is not None:
+        required_missing_fields = set(
+            getattr(smart_fields, "required_missing_fields", [])
+        )
+        for field_name in getattr(smart_fields, "missing_fields", []):
+            if field_name in required_missing_fields:
+                errors.append(
+                    f"Required report field is missing: {field_name}"
+                )
+            else:
+                warnings.append(
+                    f"Optional report field is missing: {field_name}"
+                )
 
     if ecr.status in {"HOLD", "NEEDS_REVIEW"}:
         warnings.append(

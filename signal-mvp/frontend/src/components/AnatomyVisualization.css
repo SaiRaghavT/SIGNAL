@@ -1,0 +1,203 @@
+.candidate-anatomy-panel {
+  margin-bottom: 14px;
+}
+
+.clinical-visual {
+  height: auto;
+  min-height: 0;
+  margin-inline: 15px;
+  overflow: hidden;
+}
+
+.clinical-visual img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(68vh, 720px);
+  object-fit: contain;
+  object-position: center;
+}
+
+.candidate-workflow-action {
+  padding: 14px 15px 16px;
+  border-top: 1px solid #e8edf0;
+}
+
+.workflow-action-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workflow-action-heading b,
+.workflow-action-heading small {
+  display: block;
+}
+
+.workflow-action-heading small,
+.workflow-api-results small {
+  margin-top: 4px;
+  color: #718398;
+  font-size: 10px;
+}
+
+.workflow-api-results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.workflow-api-results > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.workflow-api-results p,
+.workflow-api-error {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  color: #6f7f8f;
+  font-size: 11px;
+}
+
+.workflow-api-error {
+  color: #a73e38;
+}
+
+.interaction-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(12 35 55 / 48%);
+}
+
+.interaction-dialog {
+  width: min(520px, 100%);
+  max-height: min(82vh, 720px);
+  overflow-y: auto;
+  padding: 22px;
+  border: 1px solid #dce4eb;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 18px 56px rgb(12 35 55 / 24%);
+}
+
+.interaction-dialog-heading,
+.notification-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.interaction-dialog-heading h2 {
+  margin: 0;
+  color: #122f4c;
+  font-size: 18px;
+}
+
+.interaction-dialog p,
+.interaction-dialog small {
+  color: #64778a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.interaction-dialog dl {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 8px;
+}
+
+.interaction-dialog dl > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.interaction-dialog dt {
+  color: #64778a;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.interaction-dialog dd {
+  min-width: 0;
+  margin: 0;
+  color: #1d354b;
+  font-size: 12px;
+}
+
+.source-record-text {
+  white-space: pre-line;
+}
+
+.dialog-actions,
+.notification-list {
+  display: grid;
+  gap: 9px;
+  margin: 15px 0;
+}
+
+.dialog-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.notification-list a {
+  display: grid;
+  gap: 5px;
+  padding: 11px 0;
+  border-bottom: 1px solid #e8edf0;
+  color: #173a56;
+  text-decoration: none;
+}
+
+.notification-list a:hover {
+  color: #087b79;
+}
+
+.notification-list small {
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .clinical-visual img {
+    max-height: 52vh;
+  }
+
+  .workflow-action-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workflow-action-heading .button {
+    width: 100%;
+  }
+
+  .workflow-api-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .interaction-backdrop {
+    padding: 12px;
+  }
+
+  .interaction-dialog {
+    padding: 17px;
+  }
+
+  .interaction-dialog dl > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .dialog-actions {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,6 +6,9 @@ def populate_report_fields(candidate: dict) -> SmartFieldResult:
     fields = {}
     populated_fields = []
     missing_fields = []
+    required_missing_fields = []
+    sources = {}
+    confidence = {}
     warnings = []
 
     patient = candidate.get("patient") or {}
@@ -23,6 +26,9 @@ def populate_report_fields(candidate: dict) -> SmartFieldResult:
         "patient.city": patient.get("city"),
         "patient.state": patient.get("state"),
         "patient.zip": patient.get("zip"),
+        "patient.county": patient.get("county"),
+        "patient.phone": patient.get("phone"),
+        "patient.sex": patient.get("sex"),
     }
 
     # Provider fields
@@ -40,6 +46,7 @@ def populate_report_fields(candidate: dict) -> SmartFieldResult:
 
     # Clinical fields
     clinical_mapping = {
+        "clinical.diagnosis": candidate.get("disease"),
         "clinical.symptoms": clinical.get("symptoms"),
         "clinical.onset_date": clinical.get("onset_date"),
     }
@@ -50,14 +57,25 @@ def populate_report_fields(candidate: dict) -> SmartFieldResult:
         **facility_mapping,
         **clinical_mapping,
     }
+    required_fields = {
+        "patient.date_of_birth",
+        "clinical.diagnosis",
+        "laboratory",
+    }
 
     for field_name, value in all_mappings.items():
 
         if value is not None and value != "":
             fields[field_name] = value
             populated_fields.append(field_name)
+            sources[field_name] = (
+                "disease" if field_name == "clinical.diagnosis" else field_name
+            )
+            confidence[field_name] = 1.0
         else:
             missing_fields.append(field_name)
+            if field_name in required_fields:
+                required_missing_fields.append(field_name)
 
     # Laboratory fields
     if labs:
@@ -65,6 +83,7 @@ def populate_report_fields(candidate: dict) -> SmartFieldResult:
         populated_fields.append("laboratory")
     else:
         missing_fields.append("laboratory")
+        required_missing_fields.append("laboratory")
 
     if missing_fields:
         warnings.append(
@@ -75,5 +94,8 @@ def populate_report_fields(candidate: dict) -> SmartFieldResult:
         fields=fields,
         populated_fields=populated_fields,
         missing_fields=missing_fields,
+        required_missing_fields=required_missing_fields,
+        sources=sources,
+        confidence=confidence,
         warnings=warnings,
     )

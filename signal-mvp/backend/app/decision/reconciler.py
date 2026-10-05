@@ -21,6 +21,14 @@ def reconcile_decisions(data: ReconciliationInput) -> ReconciliationResult:
             warnings=["A resolved jurisdiction is required before reporting."],
         )
 
+    if data.human_review_required or data.conflicts:
+        return ReconciliationResult(
+            candidate_id=data.candidate_id,
+            final_decision="NEEDS_REVIEW",
+            reasons=["Human review is required before an automatic decision."],
+            warnings=list(data.conflicts),
+        )
+
     if data.reportability_decision == "HOLD":
         return ReconciliationResult(
             candidate_id=data.candidate_id,
@@ -35,6 +43,16 @@ def reconcile_decisions(data: ReconciliationInput) -> ReconciliationResult:
             final_decision="NEEDS_REVIEW",
             reasons=["Reportability assessment requires review."],
             warnings=["Conflicting or incomplete evidence must be reviewed."],
+        )
+
+    if rule == "HOLD":
+        if lab == "POSITIVE":
+            warnings.append("Positive laboratory evidence conflicts with the rule hold.")
+        return ReconciliationResult(
+            candidate_id=data.candidate_id,
+            final_decision="HOLD",
+            reasons=["Rule engine placed the case on hold."],
+            warnings=warnings,
         )
 
     # Strong laboratory evidence takes priority over AI alone.
@@ -89,14 +107,6 @@ def reconcile_decisions(data: ReconciliationInput) -> ReconciliationResult:
             candidate_id=data.candidate_id,
             final_decision="REPORT",
             reasons=["Rule engine supports reporting."],
-            warnings=warnings,
-        )
-
-    if rule == "HOLD":
-        return ReconciliationResult(
-            candidate_id=data.candidate_id,
-            final_decision="HOLD",
-            reasons=["Rule engine placed the case on hold."],
             warnings=warnings,
         )
 

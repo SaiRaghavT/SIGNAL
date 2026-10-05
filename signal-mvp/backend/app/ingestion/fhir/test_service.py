@@ -1,30 +1,16 @@
 import json
-from pathlib import Path
 
 from backend.app.database import SessionLocal
+from backend.app.ingestion.fhir.test_fixtures import find_synthea_bundle
 from backend.app.ingestion.fhir.service import ingest_fhir_bundle
 
 
-FHIR_DIR = Path(
-    r"C:\Users\i-nandhini.annikalla"
-    r"\OneDrive - Feuji Software Solutions Pvt Ltd"
-    r"\Desktop\Signal\SIGNAL\synthea\output\fhir"
-)
-
-
-def find_first_fhir_bundle() -> Path:
-    files = sorted(FHIR_DIR.glob("*.json"))
-
-    if not files:
-        raise FileNotFoundError(
-            f"No FHIR JSON files found in: {FHIR_DIR}"
-        )
-
-    return files[0]
-
-
 def main():
-    bundle_path = find_first_fhir_bundle()
+    bundle_path = find_synthea_bundle()
+    if bundle_path is None:
+        raise FileNotFoundError(
+            "Set SYNTHEA_FHIR_BUNDLE or provide data/seed/fhir fixtures."
+        )
 
     print(f"Processing: {bundle_path.name}")
 

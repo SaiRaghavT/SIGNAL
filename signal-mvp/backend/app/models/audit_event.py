@@ -68,7 +68,8 @@ class AuditEvent(Base):
         nullable=True,
     )
 
-    metadata: Mapped[dict] = mapped_column(
+    event_metadata: Mapped[dict] = mapped_column(
+        "metadata",
         JSONB,
         nullable=False,
         default=dict,

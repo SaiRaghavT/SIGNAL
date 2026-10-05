@@ -1,26 +1,21 @@
 import json
-from pathlib import Path
+import pytest
 
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
-
-
-SYNTHEA_BUNDLE = Path(
-    r"C:\Users\i-nandhini.annikalla\OneDrive - Feuji Software Solutions Pvt Ltd\Desktop\Signal\SIGNAL\synthea\output\fhir\Agustin437_Lindgren255_1f8b4384-cb39-6fab-3ca5-adb869c3ab03.json"
-)
+from backend.app.ingestion.fhir.test_fixtures import find_synthea_bundle
 
 
 client = TestClient(app)
 
 
 def test_fhir_batch_api():
+    bundle_path = find_synthea_bundle()
+    if bundle_path is None:
+        pytest.skip("Set SYNTHEA_FHIR_BUNDLE or provide data/seed/fhir fixtures.")
 
-    assert SYNTHEA_BUNDLE.exists(), (
-        f"Synthea Bundle not found: {SYNTHEA_BUNDLE}"
-    )
-
-    with SYNTHEA_BUNDLE.open(
+    with bundle_path.open(
         "r",
         encoding="utf-8",
     ) as file:
