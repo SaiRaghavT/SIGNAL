@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {
+      "disease": "measles",
+      "jurisdiction": "TX",
+      "rule_id": "MEASLES-TX",
+      "rule_version": "1.0",
+      "evaluator": "backend.app.rules.Measles_rules:evaluate_measles_rules",
+      "reporting": {
+        "timing": "HOURS",
+        "value": 24,
+        "method": "CRF"
+      }
+    }
+  ]
+}
