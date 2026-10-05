@@ -144,3 +144,26 @@
   .reporting-data-row{grid-template-columns:minmax(0,1fr);grid-template-areas:"label" "value" "source" "status"}
   .reporting-data-status{justify-self:start}
 }
+
+.priority-panel .table-wrapper{max-width:100%;overflow-x:visible}
+.priority-panel .priority-candidate-table{width:100%;min-width:0;table-layout:fixed}
+.priority-panel .priority-candidate-table th,.priority-panel .priority-candidate-table td{white-space:normal;overflow-wrap:anywhere}
+.priority-panel .priority-candidate-table th:nth-child(1){width:23%}
+.priority-panel .priority-candidate-table th:nth-child(2){width:21%}
+.priority-panel .priority-candidate-table th:nth-child(3){width:18%}
+.priority-panel .priority-candidate-table th:nth-child(4){width:10%}
+.priority-panel .priority-candidate-table th:nth-child(5){width:15%}
+.priority-panel .priority-candidate-table th:nth-child(6){width:13%}
+.priority-panel .priority-candidate-table .table-patient{min-width:0;gap:6px}
+.priority-panel .priority-candidate-table .table-patient>div:last-child{min-width:0;overflow-wrap:anywhere}
+@media(max-width:700px){
+  .priority-panel .table-wrapper{overflow-x:hidden}
+  .priority-panel .priority-candidate-table th,.priority-panel .priority-candidate-table td{padding:9px 5px;font-size:8px}
+  .priority-panel .priority-candidate-table th:nth-child(3),.priority-panel .priority-candidate-table td:nth-child(3),.priority-panel .priority-candidate-table th:nth-child(4),.priority-panel .priority-candidate-table td:nth-child(4){display:none}
+  .priority-panel .priority-candidate-table th:nth-child(1){width:34%}
+  .priority-panel .priority-candidate-table th:nth-child(2){width:30%}
+  .priority-panel .priority-candidate-table th:nth-child(5){width:18%}
+  .priority-panel .priority-candidate-table th:nth-child(6){width:18%}
+  .priority-panel .priority-candidate-table .small-avatar{width:25px;height:25px;flex:none}
+  .priority-panel .priority-candidate-table .button{min-height:28px;padding:0 5px;font-size:8px;white-space:normal}
+}
