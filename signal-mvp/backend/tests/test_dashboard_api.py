@@ -1,4 +1,6 @@
+from datetime import datetime, timezone
 from types import SimpleNamespace
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -8,6 +10,7 @@ from backend.app.database import get_db
 from backend.app.main import app
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
+from backend.app.models.encounter import Encounter
 from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 
@@ -45,6 +48,28 @@ class FakeQuery:
         self.is_distinct = True
         return self
 
+    def order_by(self, expression):
+        column = expression
+        while not getattr(column, "key", None):
+            column = getattr(column, "element", None)
+            if column is None:
+                return self
+
+        self.rows.sort(
+            key=lambda row: (
+                getattr(row, column.key) is not None,
+                getattr(row, column.key),
+            ),
+            reverse=True,
+        )
+        return self
+
+    def all(self):
+        return self.rows
+
+    def first(self):
+        return self.rows[0] if self.rows else None
+
     def count(self):
         if not self.is_distinct:
             return len(self.rows)
@@ -53,16 +78,24 @@ class FakeQuery:
 
 
 class FakeSession:
-    def __init__(self, cases=None, submissions=None, follow_ups=None, deadlines=None):
+    def __init__(
+        self,
+        cases=None,
+        encounters=None,
+        submissions=None,
+        follow_ups=None,
+        deadlines=None,
+    ):
         self.rows = {
             Case: list(cases or []),
+            Encounter: list(encounters or []),
             Submission: list(submissions or []),
             FollowUp: list(follow_ups or []),
             DeadlineEscalation: list(deadlines or []),
         }
 
     def query(self, entity):
-        model = entity.class_
+        model = entity if isinstance(entity, type) else entity.class_
         return FakeQuery(self.rows[model], entity)
 
 
@@ -130,6 +163,58 @@ def test_dashboard_summary_returns_zero_for_empty_database():
         "follow_up_cases": 0,
         "upcoming_deadlines": 0,
     }
+
+
+def test_dashboard_work_items_include_the_latest_patient_encounter():
+    patient_with_encounters = uuid4()
+    patient_without_encounter = uuid4()
+    earlier = datetime(2026, 1, 5, tzinfo=timezone.utc)
+    latest = datetime(2026, 2, 10, tzinfo=timezone.utc)
+    cases = [
+        SimpleNamespace(
+            case_id=uuid4(),
+            candidate_id="candidate-1",
+            patient={
+                "patient_id": str(patient_with_encounters),
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+            },
+            disease="measles",
+            status="NEEDS_REVIEW",
+            reportability_decision="NEEDS_REVIEW",
+            final_decision="NEEDS_REVIEW",
+            updated_at=latest,
+        ),
+        SimpleNamespace(
+            case_id=uuid4(),
+            candidate_id="candidate-2",
+            patient={"patient_id": str(patient_without_encounter)},
+            disease="measles",
+            status="HOLD",
+            reportability_decision="HOLD",
+            final_decision="HOLD",
+            updated_at=earlier,
+        ),
+    ]
+    encounters = [
+        SimpleNamespace(patient_id=patient_with_encounters, start_time=earlier),
+        SimpleNamespace(patient_id=patient_with_encounters, start_time=latest),
+    ]
+    client = client_for(FakeSession(cases=cases, encounters=encounters))
+    try:
+        response = client.get("/api/dashboard/work-items")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert items[0]["patient_id"] == str(patient_with_encounters)
+    assert items[0]["patient_name"] == "Ada Lovelace"
+    assert datetime.fromisoformat(
+        items[0]["last_encounter"].replace("Z", "+00:00")
+    ) == latest
+    assert items[1]["patient_id"] == str(patient_without_encounter)
+    assert items[1]["last_encounter"] is None
 
 
 def test_existing_health_endpoint_still_works():

@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class DashboardSummaryResponse(BaseModel):
@@ -8,3 +10,19 @@ class DashboardSummaryResponse(BaseModel):
     submitted_cases: int
     follow_up_cases: int
     upcoming_deadlines: int
+
+
+class DashboardWorkItem(BaseModel):
+    case_id: str
+    candidate_id: str
+    patient_id: str | None = None
+    patient_name: str | None = None
+    disease: str | None = None
+    status: str
+    reportability_decision: str
+    final_decision: str | None = None
+    last_encounter: datetime | None = None
+
+
+class DashboardWorkItemsResponse(BaseModel):
+    items: list[DashboardWorkItem] = Field(default_factory=list)

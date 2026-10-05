@@ -3,30 +3,46 @@
 }
 
 .patients-shell {
-  background: #f7f7f4;
+  background: #f5f6f5;
 }
 
 .patients-shell .sidebar {
-  background: #1d3431;
-  color: #dce5e1;
+  background: linear-gradient(180deg, #102d4d 0%, #173c5d 100%);
+  color: #fff;
+}
+
+.patients-shell .brand-mark {
+  background: #f26d3d;
+  color: #fff;
 }
 
 .patients-shell .nav-item {
-  color: #dce5e1;
+  color: rgb(255 255 255 / 72%);
 }
 
-.patients-shell .nav-item:hover,
-.patients-shell .nav-item.active {
-  background: #304945;
-  color: #dce5e1;
+.patients-shell .nav-item:hover {
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
 }
 
 .patients-shell .nav-item.active {
-  box-shadow: inset 3px 0 #e99a73;
+  background: #f26d3d;
+  color: #fff;
+  box-shadow: none;
 }
 
 .patients-shell .main > section {
-  background: #f7f7f4;
+  background: #f5f6f5;
+}
+
+.patients-shell .topbar {
+  border-color: #e7e8e7;
+}
+
+.patients-shell .role-chip {
+  border-color: #ccebdd;
+  background: #f0faf5;
+  color: #16845f;
 }
 
 .patients-page .page-header {
@@ -143,7 +159,7 @@
 }
 
 .patient-name {
-  color: #19322f;
+  color: #102d4d;
   font-weight: 600;
 }
 

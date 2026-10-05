@@ -206,7 +206,7 @@ export default function Patients() {
               <table className="patients-table">
                 <thead>
                   <tr>
-                    <th scope="col">First Name</th>
+                    <th scope="col">Patient</th>
                     <th scope="col">DOB</th>
                     <th scope="col">Condition</th>
                     <th scope="col">Deadline</th>
@@ -220,7 +220,7 @@ export default function Patients() {
                         <span
                           className={`patient-name${patient.first_name ? "" : " patient-name-missing"}`}
                         >
-                          {patient.first_name || "Name not provided"}
+                          {[patient.first_name, patient.last_name].filter(Boolean).join(" ") || "Name not provided"}
                         </span>
                         {patient.source_patient_id && (
                           <span className="patient-source-id">
@@ -246,6 +246,7 @@ export default function Patients() {
                         <button
                           className="patients-view"
                           type="button"
+                          aria-label={`View ${[patient.first_name, patient.last_name].filter(Boolean).join(" ") || "patient"} workspace`}
                           onClick={() =>
                             navigate(
                               `/patients/${encodeURIComponent(patient.patient_id)}`,
