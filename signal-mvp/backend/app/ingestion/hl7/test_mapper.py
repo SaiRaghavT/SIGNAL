@@ -27,6 +27,7 @@ def test_map_hl7_message():
     patient = result["patient"]
 
     assert patient["source_patient_id"] == "PAT001"
+    assert patient["name"] == {"family": "DOE", "given": "JOHN"}
     assert patient["date_of_birth"].isoformat() == "1990-01-01"
     assert patient["sex"] == "M"
     assert patient["source"] == "hl7"

@@ -13,6 +13,16 @@ from backend.app.models import (
     Observation,
     LabResult,
     ClinicalDocument,
+    Case,
+    Submission,
+    FollowUp,
+    AuditEvent,
+    DeadlineEscalation,
+    Candidate,
+    CaseWorkflowRecord,
+    Report,
+    Acknowledgement,
+    SubmissionAttempt,
 )
 
 # Alembic Config object

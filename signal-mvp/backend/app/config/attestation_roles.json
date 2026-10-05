@@ -1,0 +1,8 @@
+{
+  "authorized_roles": [
+    "NURSE",
+    "REPORTING_STAFF",
+    "PUBLIC_HEALTH_OFFICIAL",
+    "PHYSICIAN"
+  ]
+}

@@ -1,0 +1,43 @@
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+async function request(path, options = {}) {
+  const headers = new Headers(options.headers);
+  if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json") ? await response.json() : await response.text();
+  if (!response.ok) {
+    const detail = typeof data === "object" ? data?.detail : null;
+    const message = typeof detail === "string"
+      ? detail
+      : typeof detail?.message === "string"
+        ? detail.message
+        : Array.isArray(detail)
+          ? detail.map((item) => item?.msg).filter(Boolean).join("; ") || `Request failed (${response.status})`
+          : `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+  return data;
+}
+async function requestBlob(path) {
+  const response = await fetch(`${API_BASE_URL}${path}`);
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json") ? await response.json() : await response.text();
+    const detail = typeof data === "object" ? data?.detail : null;
+    const message = typeof detail === "string"
+      ? detail
+      : typeof detail?.message === "string"
+        ? detail.message
+        : Array.isArray(detail)
+          ? detail.map((item) => item?.msg).filter(Boolean).join("; ") || `Request failed (${response.status})`
+        : `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+  return response.blob();
+}
+const apiBaseUrl = API_BASE_URL;
+export {
+  apiBaseUrl,
+  request,
+  requestBlob
+};

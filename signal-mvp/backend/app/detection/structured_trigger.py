@@ -15,13 +15,6 @@ from typing import Any, Dict, List
 # potential public-health reporting candidate."
 #
 # Jurisdiction and reportability decisions happen downstream.
-# Texas DSHS's 2026 Epi Case Criteria Guide assigns measles
-# surveillance condition code 10140 and provides the Texas case
-# criteria. That code is not identified as a FHIR terminology
-# system here, so it must not be matched as SNOMED CT or ICD-10-CM.
-# Texas DSHS also requires immediate reporting of suspected and
-# confirmed measles cases; these code matches do not determine that
-# a patient meets Texas case criteria.
 # ---------------------------------------------------------
 
 STRUCTURED_TRIGGERS: List[Dict[str, Any]] = [
@@ -30,7 +23,7 @@ STRUCTURED_TRIGGERS: List[Dict[str, Any]] = [
         "trigger_type": "CONDITION_CODE",
         "resource_type": "Condition",
         "code_system": "http://snomed.info/sct",
-        "codes": ["14189004"],
+        "codes": ["14168008", "14189004"],
         "disease_id": "measles",
     },
     {
@@ -51,6 +44,36 @@ STRUCTURED_TRIGGERS: List[Dict[str, Any]] = [
         ],
         "disease_id": "measles",
     },
+    {
+        "trigger_id": "measles-pcr-positive-lab",
+        "trigger_type": "LAB_RESULT",
+        "resource_type": "DiagnosticReport",
+        "disease_id": "measles",
+        "test_terms": [
+            "measles pcr",
+            "measles polymerase chain reaction",
+            "rubeola pcr",
+        ],
+        "positive_terms": [
+            "positive",
+            "detected",
+        ],
+    },
+    {
+        "trigger_id": "measles-igm-positive-lab",
+        "trigger_type": "LAB_RESULT",
+        "resource_type": "DiagnosticReport",
+        "disease_id": "measles",
+        "test_terms": [
+            "measles igm",
+            "measles immunoglobulin m",
+            "rubeola igm",
+        ],
+        "positive_terms": [
+            "positive",
+            "reactive",
+        ],
+    },
 ]
 
 
@@ -69,7 +92,7 @@ def _matches_code(
 ) -> bool:
     """
     Determine whether a normalized clinical resource matches
-    a configured structured trigger.
+    a configured structured code trigger.
     """
 
     expected_system = trigger.get("code_system")
@@ -92,7 +115,7 @@ def _get_resource_list(
     resource_type: str,
 ) -> List[Dict[str, Any]]:
     """
-    Map FHIR resource types to the normalized SIGNAL structure.
+    Map resource types to the normalized SIGNAL structure.
     """
 
     resource_mapping = {
@@ -112,6 +135,146 @@ def _get_resource_list(
     resources = normalized_patient.get(field, [])
 
     return resources if isinstance(resources, list) else []
+
+
+def _normalize_text(value: Any) -> str:
+    """Convert a value to normalized lowercase text."""
+
+    if value is None:
+        return ""
+
+    return str(value).strip().lower()
+
+
+# ---------------------------------------------------------
+# Lab Trigger Helpers
+# ---------------------------------------------------------
+
+def _lab_test_matches(
+    resource: Dict[str, Any],
+    trigger: Dict[str, Any],
+) -> bool:
+    """
+    Determine whether the diagnostic report represents
+    the configured measles laboratory test.
+    """
+
+    test_terms = trigger.get("test_terms", [])
+
+    test_code = _normalize_text(resource.get("code"))
+    test_display = _normalize_text(resource.get("display"))
+    conclusion = _normalize_text(resource.get("conclusion"))
+
+    searchable_text = " ".join(
+        value
+        for value in [
+            test_code,
+            test_display,
+            conclusion,
+        ]
+        if value
+    )
+
+    return any(
+        term.lower() in searchable_text
+        for term in test_terms
+    )
+
+
+def _get_lab_observations(
+    resource: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """
+    Return linked observations from a diagnostic report.
+    """
+
+    observations = resource.get("observations", [])
+
+    return (
+        observations
+        if isinstance(observations, list)
+        else []
+    )
+
+
+def _lab_result_is_positive(
+    resource: Dict[str, Any],
+    trigger: Dict[str, Any],
+) -> bool:
+    """
+    Determine whether a measles laboratory result is positive.
+
+    Positive evidence can come from:
+    - linked observation value_text
+    - linked observation value_code
+    - diagnostic report conclusion
+
+    Negative results such as "negative" or "not detected"
+    do not trigger a candidate signal.
+    """
+
+    positive_terms = [
+        term.lower()
+        for term in trigger.get("positive_terms", [])
+    ]
+
+    evidence_values: List[str] = []
+
+    conclusion = resource.get("conclusion")
+
+    if conclusion:
+        evidence_values.append(
+            _normalize_text(conclusion)
+        )
+
+    for observation in _get_lab_observations(resource):
+        if not isinstance(observation, dict):
+            continue
+
+        value = observation.get("value")
+
+        if isinstance(value, dict):
+            for key in (
+                "text",
+                "code",
+            ):
+                value_part = value.get(key)
+
+                if value_part is not None:
+                    evidence_values.append(
+                        _normalize_text(value_part)
+                    )
+
+        elif value is not None:
+            evidence_values.append(
+                _normalize_text(value)
+            )
+
+    return any(
+        any(
+            positive_term in evidence
+            for positive_term in positive_terms
+        )
+        for evidence in evidence_values
+    )
+
+
+def _matches_lab_trigger(
+    resource: Dict[str, Any],
+    trigger: Dict[str, Any],
+) -> bool:
+    """
+    Determine whether a diagnostic report represents
+    a positive configured measles laboratory result.
+    """
+
+    if not _lab_test_matches(resource, trigger):
+        return False
+
+    if not _lab_result_is_positive(resource, trigger):
+        return False
+
+    return True
 
 
 # ---------------------------------------------------------
@@ -152,6 +315,52 @@ def _create_candidate_signal(
     return signal
 
 
+def _create_lab_candidate_signal(
+    resource: Dict[str, Any],
+    trigger: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Create a candidate signal from a positive laboratory result.
+    """
+
+    observations = _get_lab_observations(resource)
+
+    observation_evidence = []
+
+    for observation in observations:
+        if not isinstance(observation, dict):
+            continue
+
+        observation_evidence.append(
+            {
+                "id": observation.get("observation_id"),
+                "code": observation.get("code"),
+                "display": observation.get("display"),
+                "value": observation.get("value"),
+                "status": observation.get("status"),
+            }
+        )
+
+    return {
+        "patient_id": resource.get("patient_id"),
+        "encounter_id": resource.get("encounter_id"),
+        "trigger_id": trigger.get("trigger_id"),
+        "trigger_type": "LAB_RESULT",
+        "disease_id": trigger.get("disease_id"),
+        "evidence": {
+            "source_type": "DiagnosticReport",
+            "source_id": resource.get("id"),
+            "code_system": resource.get("system"),
+            "code": resource.get("code"),
+            "display": resource.get("display"),
+            "conclusion": resource.get("conclusion"),
+            "observations": observation_evidence,
+        },
+        "confidence": 1.0,
+        "detected_at": _utc_now(),
+    }
+
+
 # ---------------------------------------------------------
 # Structured Trigger Detection
 # ---------------------------------------------------------
@@ -164,11 +373,14 @@ def detect_structured_triggers(
     Detect potential candidate signals from structured
     clinical information.
 
+    This includes:
+    - Condition-based triggers
+    - Laboratory-result triggers
+
     Parameters
     ----------
     normalized_patient:
-        SIGNAL normalized patient object produced by the
-        FHIR normalization layer.
+        SIGNAL normalized patient object.
 
     triggers:
         Optional trigger configuration. If omitted,
@@ -184,7 +396,9 @@ def detect_structured_triggers(
     """
 
     if not isinstance(normalized_patient, dict):
-        raise ValueError("normalized_patient must be a dictionary.")
+        raise ValueError(
+            "normalized_patient must be a dictionary."
+        )
 
     configured_triggers = (
         STRUCTURED_TRIGGERS
@@ -214,6 +428,34 @@ def detect_structured_triggers(
             if not isinstance(resource, dict):
                 continue
 
+            # ---------------------------------------------
+            # Laboratory trigger
+            # ---------------------------------------------
+            if trigger.get("trigger_type") == "LAB_RESULT":
+                if resource_type == "Observation" and trigger.get("codes"):
+                    if _matches_code(resource, trigger):
+                        candidate_signals.append(
+                            _create_candidate_signal(resource, trigger)
+                        )
+                    continue
+
+                if not _matches_lab_trigger(
+                    resource,
+                    trigger,
+                ):
+                    continue
+
+                signal = _create_lab_candidate_signal(
+                    resource,
+                    trigger,
+                )
+
+                candidate_signals.append(signal)
+                continue
+
+            # ---------------------------------------------
+            # Existing structured code trigger
+            # ---------------------------------------------
             if not _matches_code(resource, trigger):
                 continue
 

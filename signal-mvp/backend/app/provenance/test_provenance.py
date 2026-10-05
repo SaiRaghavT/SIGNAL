@@ -1,34 +1,45 @@
-from sqlalchemy import select
+from types import SimpleNamespace
 
-from backend.app.database import SessionLocal
-from backend.app.models.patient import Patient
 from backend.app.provenance.provenance import get_provenance
 
 
-def test_real_patient_provenance():
+def test_patient_provenance():
 
-    db = SessionLocal()
+    patient = SimpleNamespace(
+        source_patient_id="patient-001",
+        source="synthea",
+        source_resource="Patient",
+    )
 
-    try:
-        patient = db.execute(
-            select(Patient)
-            .where(Patient.source == "synthea")
-            .limit(1)
-        ).scalar_one_or_none()
+    result = get_provenance(
+        patient,
+        "Patient",
+    )
 
-        assert patient is not None, (
-            "No Synthea patient found in the database."
-        )
+    assert result == {
+        "entity_type": "Patient",
+        "source": "synthea",
+        "source_id": "patient-001",
+        "source_resource": "Patient",
+    }
 
-        result = get_provenance(
-            patient,
-            "Patient",
-        )
 
-        assert result["entity_type"] == "Patient"
-        assert result["source"] == "synthea"
-        assert result["source_id"] == patient.source_patient_id
-        assert result["source_resource"] == "Patient"
+def test_observation_provenance():
 
-    finally:
-        db.close()
+    observation = SimpleNamespace(
+        source_observation_id="observation-001",
+        source="synthea",
+        source_resource="Observation",
+    )
+
+    result = get_provenance(
+        observation,
+        "Observation",
+    )
+
+    assert result == {
+        "entity_type": "Observation",
+        "source": "synthea",
+        "source_id": "observation-001",
+        "source_resource": "Observation",
+    }
