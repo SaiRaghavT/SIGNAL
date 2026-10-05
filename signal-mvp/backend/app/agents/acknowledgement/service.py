@@ -2,7 +2,10 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from backend.app.agents.audit_ledger.schemas import AuditEventCreate
+from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.models.submissions import Submission
+from backend.app.models.workflow_records import Acknowledgement
 
 from .schemas import (
     AcknowledgementRequest,
@@ -68,6 +71,8 @@ class AcknowledgementService:
         # 4. Update submission status
         # ---------------------------------------------------------
         submission.status = "ACKNOWLEDGED"
+        submission.acknowledgement_id = acknowledgement_id
+        submission.pha_case_id = pha_case_id
 
         submission.warnings = list(
             submission.warnings or []
@@ -78,8 +83,31 @@ class AcknowledgementService:
             "no real PHA response received."
         )
 
+        acknowledgement = Acknowledgement(
+            acknowledgement_id=acknowledgement_id,
+            submission_id=submission.submission_id,
+            pha_id=pha_case_id,
+            status="ACKNOWLEDGED",
+            response={"simulated": True, "status": "ACKNOWLEDGED"},
+            errors=[],
+        )
+        db.add(acknowledgement)
         db.commit()
         db.refresh(submission)
+        AuditLedgerService().record_event(
+            AuditEventCreate(
+                entity_type="SUBMISSION",
+                entity_id=submission.submission_id,
+                event_type="ACKNOWLEDGED",
+                actor_type="SYSTEM",
+                actor_id="SIGNAL",
+                source_agent="acknowledgement",
+                status="SIMULATED",
+                new_value={"acknowledgement_id": acknowledgement_id, "pha_case_id": pha_case_id},
+                workflow_stage="ACKNOWLEDGEMENT",
+            ),
+            db,
+        )
 
         # ---------------------------------------------------------
         # 5. Return acknowledgement

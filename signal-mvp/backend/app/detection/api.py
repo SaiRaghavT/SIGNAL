@@ -12,6 +12,7 @@ from backend.app.canonical.query_service import (
     get_patient_context,
 )
 from backend.app.database import get_db
+from backend.app.candidate.service import persist_detection_candidates
 from backend.app.detection.adapter import canonical_context_to_detection_input
 from backend.app.detection.candidate_service import detect_candidates
 
@@ -90,6 +91,18 @@ def detect_patient_candidates(
 
         result["document_evidence_status"] = document_evidence_status
         result["document_evidence_count"] = len(document_evidence)
+        result["candidates"] = [
+            {
+                **candidate,
+                "candidate_id": candidate_row.candidate_id,
+                "status": candidate_row.status,
+            }
+            for candidate_row, candidate in zip(
+                persist_detection_candidates(db, result),
+                result["candidates"],
+                strict=True,
+            )
+        ]
 
         return result
 

@@ -88,6 +88,8 @@ def test_ingest_hl7_message():
             .scalar_one()
         )
 
+        assert patient.first_name == "JOHN"
+        assert patient.last_name == "DOE"
         assert encounter.patient_id == patient.patient_id
         assert observation.patient_id == patient.patient_id
         assert observation.encounter_id == encounter.encounter_id

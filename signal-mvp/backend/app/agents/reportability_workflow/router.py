@@ -3,8 +3,11 @@ from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.canonical.query_service import CanonicalPatientNotFoundError
+from backend.app.agents.audit_ledger.schemas import AuditEventCreate
+from backend.app.agents.audit_ledger.service import AuditLedgerService
+from backend.app.models.candidate import Candidate
 
-from .schemas import CandidateProcessRequest, CandidateProcessResponse
+from .schemas import CandidateProcessRequest, CandidateProcessResponse, CandidateWorkflowInput
 from .service import process_candidate
 
 
@@ -19,10 +22,59 @@ def process_candidate_endpoint(
     request: CandidateProcessRequest,
     db: Session = Depends(get_db),
 ) -> CandidateProcessResponse:
-    """Run the end-to-end candidate reportability workflow."""
+    """Process a persisted candidate using canonical evidence as source of truth."""
 
     try:
-        return process_candidate(request, db)
+        candidate = (
+            db.query(Candidate)
+            .filter(Candidate.candidate_id == request.candidate_id)
+            .first()
+        )
+        if candidate is None:
+            raise HTTPException(status_code=404, detail="Candidate not found.")
+        if candidate.status in {"PROCESSED", "CLOSED", "REJECTED"}:
+            raise HTTPException(status_code=409, detail=f"Candidate is not processable from status {candidate.status}.")
+
+        evidence = candidate.evidence or []
+        signals = candidate.signals or []
+        lab_evidence = [
+            item for item in signals
+            if isinstance(item, dict) and item.get("trigger_type") == "LAB_RESULT"
+        ]
+        result = process_candidate(
+            CandidateWorkflowInput(
+                candidate_id=candidate.candidate_id,
+                patient_id=candidate.patient_id,
+                disease=candidate.disease_id,
+                clinical_evidence={
+                    "candidate_evidence": evidence,
+                    "candidate_signals": signals,
+                },
+                laboratory_evidence=lab_evidence,
+                ai_evidence={"confidence": candidate.confidence},
+            ),
+            db,
+        )
+        candidate.status = "PROCESSED"
+        candidate.case_id = result["case"]["case_id"]
+        candidate.jurisdiction = result["jurisdiction"].get("value")
+        AuditLedgerService().record_event(
+            AuditEventCreate(
+                entity_type="CANDIDATE",
+                entity_id=candidate.candidate_id,
+                event_type="CANDIDATE_PROCESSED",
+                actor_type="SYSTEM",
+                actor_id="SIGNAL",
+                source_agent="reportability_workflow",
+                status="SUCCESS",
+                new_value={"case_id": candidate.case_id, "workflow_status": result["workflow_status"]},
+            ),
+            db,
+        )
+        db.commit()
+        return result
+    except HTTPException:
+        raise
     except CanonicalPatientNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

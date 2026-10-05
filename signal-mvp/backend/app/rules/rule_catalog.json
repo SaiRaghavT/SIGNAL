@@ -6,6 +6,7 @@
       "rule_id": "MEASLES-TX",
       "rule_version": "1.0",
       "evaluator": "backend.app.rules.Measles_rules:evaluate_measles_rules",
+      "severity_warning_minutes": 60,
       "reporting": {
         "timing": "HOURS",
         "value": 24,

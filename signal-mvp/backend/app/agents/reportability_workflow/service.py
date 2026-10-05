@@ -21,11 +21,11 @@ from backend.app.schemas.validation import validate_ecr
 from backend.app.smart_field_population.mapper import populate_report_fields
 from backend.app.submission.service import submit_ecr
 
-from .schemas import CandidateProcessRequest
+from .schemas import CandidateWorkflowInput
 
 
 def _get_canonical_patient_id(
-    request: CandidateProcessRequest,
+    request: CandidateWorkflowInput,
 ) -> UUID:
     """
     Resolve the canonical patient UUID used by the workflow.
@@ -259,7 +259,7 @@ def _build_provider_context(
 
 
 def _build_laboratory_evidence(
-    request: CandidateProcessRequest,
+    request: CandidateWorkflowInput,
     canonical_context: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """
@@ -305,6 +305,11 @@ def _build_laboratory_evidence(
         lab_id = (
             lab.get("lab_result_id")
             or lab.get("source_lab_result_id")
+            or (
+                (lab.get("evidence") or {}).get("source_id")
+                if isinstance(lab.get("evidence"), dict)
+                else None
+            )
         )
 
         canonical_lab = (
@@ -463,7 +468,7 @@ def _calculate_laboratory_decision(
 
 
 def process_candidate(
-    request: CandidateProcessRequest,
+    request: CandidateWorkflowInput,
     db: Session,
 ) -> dict[str, Any]:
     """

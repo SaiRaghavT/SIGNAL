@@ -3,7 +3,9 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
+from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
 
 from .schemas import (
     DeadlineEscalationRequest,
@@ -69,6 +71,34 @@ class DeadlineEscalationService:
                 f"{minutes_remaining} minutes remaining."
             )
 
+        try:
+            from uuid import UUID
+
+            case_uuid = UUID(request.case_id)
+        except ValueError as exc:
+            raise ValueError(f"Invalid case ID: {request.case_id}") from exc
+        case = db.query(Case).filter(Case.case_id == case_uuid).first()
+        if case is None:
+            raise ValueError(f"Case not found: {request.case_id}")
+        rule = DeadlineCalculationService()._load_rule(
+            disease=case.disease or "",
+            jurisdiction=request.jurisdiction or case.jurisdiction or "",
+            rule_id=request.rule_id or case.rule_id,
+        )
+        reporting = rule.get("reporting", {})
+        timing = str(reporting.get("timing", "")).upper()
+        value = reporting.get("value")
+        minutes_per_unit = {"MINUTES": 1, "HOURS": 60, "DAYS": 1440}
+        rule_window_minutes = int(value) * minutes_per_unit[timing] if timing in minutes_per_unit and isinstance(value, int) else 0
+        urgency = (
+            "CRITICAL" if minutes_remaining < 0
+            else "HIGH" if minutes_remaining <= request.warning_window_minutes
+            else "MEDIUM" if minutes_remaining <= rule_window_minutes
+            else "LOW"
+        )
+        case.deadline = deadline
+        case.severity = urgency
+
         escalation = DeadlineEscalation(
             escalation_id=f"ESC-{uuid4()}",
             case_id=request.case_id,
@@ -89,6 +119,7 @@ class DeadlineEscalationService:
             escalation_id=escalation.escalation_id,
             case_id=escalation.case_id,
             status=escalation.status,
+            urgency=urgency,
             escalation_required=escalation.escalation_required,
             minutes_remaining=escalation.minutes_remaining,
             deadline=escalation.deadline,

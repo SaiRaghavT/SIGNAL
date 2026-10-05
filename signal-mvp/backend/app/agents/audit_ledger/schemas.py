@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+from datetime import date
 
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,7 @@ class AuditEventCreate(BaseModel):
     new_value: Optional[Any] = None
 
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    workflow_stage: str | None = None
 
     event_timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)

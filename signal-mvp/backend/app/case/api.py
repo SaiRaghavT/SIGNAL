@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -45,6 +46,10 @@ def get_cases(
     disease: str | None = Query(default=None),
     jurisdiction: str | None = Query(default=None),
     patient_id: str | None = Query(default=None, min_length=1, max_length=255),
+    search: str | None = Query(default=None, max_length=200),
+    priority: str | None = Query(default=None, max_length=20),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> CaseListResponse:
     return list_cases(
@@ -55,4 +60,8 @@ def get_cases(
         disease=disease,
         jurisdiction=jurisdiction,
         patient_id=patient_id,
+        search=search,
+        priority=priority,
+        date_from=date_from,
+        date_to=date_to,
     )

@@ -115,6 +115,16 @@ def _get_lab_code(lab: Dict[str, Any]) -> Optional[str]:
     Supports both flat and nested representations.
     """
 
+    test = lab.get("test")
+    if isinstance(test, dict):
+        test_code = (
+            test.get("code")
+            or test.get("value")
+            or test.get("id")
+        )
+        if test_code:
+            return str(test_code)
+
     code = lab.get("code")
 
     if isinstance(code, dict):
@@ -139,6 +149,16 @@ def _get_lab_display(lab: Dict[str, Any]) -> Optional[str]:
     Extract the laboratory test/display name.
     """
 
+    test = lab.get("test")
+    if isinstance(test, dict):
+        test_display = (
+            test.get("display")
+            or test.get("name")
+            or test.get("text")
+        )
+        if test_display:
+            return str(test_display)
+
     code = lab.get("code")
 
     if isinstance(code, dict):
@@ -155,7 +175,7 @@ def _get_lab_display(lab: Dict[str, Any]) -> Optional[str]:
         lab.get("display")
         or lab.get("test_name")
         or lab.get("name")
-        or lab.get("test")
+        or (test if isinstance(test, str) else None)
     )
 
 

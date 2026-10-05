@@ -432,6 +432,13 @@ def detect_structured_triggers(
             # Laboratory trigger
             # ---------------------------------------------
             if trigger.get("trigger_type") == "LAB_RESULT":
+                if resource_type == "Observation" and trigger.get("codes"):
+                    if _matches_code(resource, trigger):
+                        candidate_signals.append(
+                            _create_candidate_signal(resource, trigger)
+                        )
+                    continue
+
                 if not _matches_lab_trigger(
                     resource,
                     trigger,

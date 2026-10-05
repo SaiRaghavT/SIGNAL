@@ -36,6 +36,33 @@ class FollowUp(Base):
         nullable=True,
     )
 
+    submission_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
+
+    patient_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+        index=True,
+    )
+
+    disease: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    next_action: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    due_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

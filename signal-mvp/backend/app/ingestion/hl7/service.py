@@ -37,10 +37,18 @@ def _get_or_create_patient(
     )
 
     if patient is not None:
+        name = patient_data.get("name") or {}
+        if patient.first_name is None and name.get("given"):
+            patient.first_name = name["given"]
+        if patient.last_name is None and name.get("family"):
+            patient.last_name = name["family"]
         return patient
 
+    name = patient_data.get("name") or {}
     patient = Patient(
         source_patient_id=source_patient_id,
+        first_name=name.get("given"),
+        last_name=name.get("family"),
         date_of_birth=patient_data.get(
             "date_of_birth"
         ),

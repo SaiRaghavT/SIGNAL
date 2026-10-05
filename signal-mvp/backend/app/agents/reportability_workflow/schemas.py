@@ -6,6 +6,12 @@ from pydantic import BaseModel, Field, model_validator
 
 class CandidateProcessRequest(BaseModel):
     candidate_id: str
+
+    model_config = {"extra": "forbid"}
+
+
+class CandidateWorkflowInput(BaseModel):
+    candidate_id: str
     # Canonical patient UUID. If omitted, candidate_id must itself be a UUID
     # for compatibility with detection flows that use the patient UUID as ID.
     patient_id: UUID | None = None

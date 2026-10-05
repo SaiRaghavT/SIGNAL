@@ -16,6 +16,8 @@ class CaseListItem(BaseModel):
     created_at: datetime
     updated_at: datetime
     warnings: list[Any] = Field(default_factory=list)
+    severity: str | None = None
+    deadline: datetime | None = None
 
 
 class CaseListResponse(BaseModel):
@@ -48,6 +50,10 @@ class CaseDetailResponse(BaseModel):
     required_missing_fields: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+    deadline: datetime | None = None
+    severity: str | None = None
+    submission: dict[str, Any] | None = None
+    follow_up: dict[str, Any] | None = None
 
 
 class CaseReportUpdateRequest(BaseModel):

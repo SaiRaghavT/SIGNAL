@@ -9,6 +9,8 @@ class JourneyStage(BaseModel):
     available: bool
     status: str | None = None
     occurred_at: datetime | None = None
+    entity_reference: str | None = None
+    error: str | None = None
     source: str | None = None
     agent: str | None = None
     data: dict[str, Any] = Field(default_factory=dict)

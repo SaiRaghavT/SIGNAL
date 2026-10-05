@@ -1,4 +1,4 @@
-from backend.app.agents.candidate_fusion.ml.features import (
+from backend.app.detection.candidate_fusion.ml.features import (
     extract_candidate_features,
 )
 

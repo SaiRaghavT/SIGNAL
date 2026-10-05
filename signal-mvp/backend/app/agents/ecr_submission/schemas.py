@@ -9,6 +9,7 @@ class ECRSubmissionRequest(BaseModel):
 
 class ECRSubmissionResponse(BaseModel):
     case_id: str
+    report_id: Optional[str] = None
     ecr_id: Optional[str] = None
     submission_id: Optional[str] = None
     status: str

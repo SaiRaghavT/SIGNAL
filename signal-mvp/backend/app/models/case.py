@@ -102,6 +102,18 @@ class Case(Base):
         nullable=True,
     )
 
+    deadline: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    severity: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        index=True,
+    )
+
     warnings: Mapped[list] = mapped_column(
         JSONB,
         nullable=False,

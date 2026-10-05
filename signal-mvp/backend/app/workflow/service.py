@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from backend.app.models.audit_event import AuditEvent
+from backend.app.models.candidate import Candidate
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.follow_up import FollowUp
@@ -141,6 +142,7 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         .order_by(DeadlineEscalation.created_at.asc())
         .all()
     )
+    candidate = db.query(Candidate).filter(Candidate.candidate_id == case.candidate_id).first()
 
     candidate_available = bool(case.candidate_id)
     reportability_available = any(
@@ -159,10 +161,15 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         if event.event_type == "CASE_MANUAL_REPORT_PREPARED"
     ]
 
+    validation_stage = _validation_stage(case)
+    if validation_stage.status == "READY":
+        validation_stage.status = "COMPLETED"
+    validation_stage.entity_reference = case_id_text
     stages = [
         JourneyStage(
             stage="DATA_INGESTION",
             available=False,
+            status="NOT_STARTED",
             limitations=[
                 "Ingestion history is not persisted as a run and is not reliably linked to this case."
             ],
@@ -170,6 +177,7 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         JourneyStage(
             stage="DETECTION",
             available=False,
+            status=None,
             limitations=[
                 "Detection results are transient; this journey does not rerun detection."
             ],
@@ -177,16 +185,24 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         JourneyStage(
             stage="CANDIDATE",
             available=candidate_available,
-            data={"candidate_id": case.candidate_id} if candidate_available else {},
+            status="COMPLETED" if candidate_available else "NOT_STARTED",
+            occurred_at=candidate.created_at if candidate else None,
+            entity_reference=case.candidate_id if candidate_available else None,
+            data={
+                "candidate_id": case.candidate_id,
+                "status": candidate.status if candidate else "linked_to_case",
+                "confidence": candidate.confidence if candidate else None,
+            } if candidate_available else {},
             limitations=[
-                "Candidate history and disposition are not persisted."
+                "Candidate history is not persisted; the current disposition is shown when available."
             ],
         ),
         JourneyStage(
             stage="REPORTABILITY",
             available=reportability_available,
-            status=case.final_decision or case.reportability_decision,
+            status="COMPLETED" if reportability_available else "NOT_STARTED",
             occurred_at=case.updated_at if reportability_available else None,
+            entity_reference=case.candidate_id,
             data={
                 "reportability_decision": case.reportability_decision,
                 "reportability_evidence_status": case.reportability_evidence_status,
@@ -204,8 +220,9 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         JourneyStage(
             stage="CASE",
             available=True,
-            status=case.status,
+            status="COMPLETED",
             occurred_at=case.created_at,
+            entity_reference=case_id_text,
             data={
                 "case_id": case_id_text,
                 "candidate_id": case.candidate_id,
@@ -224,12 +241,13 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
                 "The case record does not contain a foreign-key link to canonical patient or ingestion records."
             ],
         ),
-        _validation_stage(case),
+        validation_stage,
         JourneyStage(
             stage="REPORTING",
             available=bool(reporting_events),
-            status=reporting_events[-1].status if reporting_events else None,
+            status="COMPLETED" if reporting_events else "PENDING",
             occurred_at=reporting_events[-1].event_timestamp if reporting_events else None,
+            entity_reference=case_id_text if reporting_events else None,
             source=reporting_events[-1].actor_type if reporting_events else None,
             agent=reporting_events[-1].source_agent if reporting_events else None,
             data={"events": [_audit_data(event) for event in reporting_events]},
@@ -242,8 +260,9 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         JourneyStage(
             stage="SUBMISSION",
             available=bool(submissions),
-            status=submissions[-1].status if submissions else None,
+            status="COMPLETED" if submissions and submissions[-1].status in {"SUBMITTED", "ACKNOWLEDGED"} else "CURRENT" if submissions else "PENDING",
             occurred_at=submissions[-1].created_at if submissions else None,
+            entity_reference=submissions[-1].submission_id if submissions else None,
             data={"submissions": [_submission_data(item) for item in submissions]},
             limitations=(
                 ["A stored submission status does not establish actual public-health delivery."]
@@ -255,8 +274,9 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         JourneyStage(
             stage="PHA_FOLLOW_UP",
             available=bool(follow_ups),
-            status=follow_ups[-1].status if follow_ups else None,
+            status="COMPLETED" if follow_ups and follow_ups[-1].status == "CLOSED" else "CURRENT" if follow_ups else "PENDING",
             occurred_at=follow_ups[-1].created_at if follow_ups else None,
+            entity_reference=follow_ups[-1].followup_id if follow_ups else None,
             data={
                 "follow_ups": [_follow_up_data(item) for item in follow_ups],
                 "submission_statuses": [

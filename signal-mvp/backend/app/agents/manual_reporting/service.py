@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.models.case import Case
-from backend.app.case.report_fields import missing_report_fields
+from backend.app.case.report_fields import available_case_report_fields, missing_report_fields
 from backend.app.smart_field_population.form_config import (
     TEXAS_MEASLES_FORM,
 )
@@ -86,8 +86,9 @@ class ManualReportingService:
         # ---------------------------------------------------------
         # 4. Build the reporting package
         # ---------------------------------------------------------
+        available_fields = available_case_report_fields(case)
         report_data = {
-            **(case.report_fields or {}),
+            **available_fields,
             **{key: value for key, value in (case.patient or {}).items() if key in {"first_name", "last_name", "address", "city", "county", "zip", "phone", "date_of_birth"}},
             **{f"provider.{key}": value for key, value in (case.provider or {}).items() if key in {"name", "phone", "address"}},
             **{f"facility.{key}": value for key, value in (case.facility or {}).items() if key == "name"},
@@ -134,7 +135,7 @@ class ManualReportingService:
             if not (case.provider or {}).get(field):
                 missing_fields.append(f"provider.{field}")
 
-        _, required_missing = missing_report_fields(case.report_fields or {})
+        _, required_missing = missing_report_fields(available_fields)
         missing_fields.extend(name for name in required_missing if name not in missing_fields)
 
         # ---------------------------------------------------------
@@ -148,7 +149,21 @@ class ManualReportingService:
 
         # Include any warnings already recorded on the Case.
         if case.warnings:
-            warnings.extend(case.warnings)
+            stale_completeness_warnings = (
+                "Provider information needs human completion.",
+                "Facility name needs human completion.",
+            )
+            warnings.extend(
+                warning for warning in case.warnings
+                if warning not in stale_completeness_warnings
+                and "required reporting fields need human completion." not in warning
+            )
+        if any(not (case.provider or {}).get(field) for field in ("name", "phone", "address")):
+            warnings.append("Provider information needs human completion.")
+        if not (case.facility or {}).get("name"):
+            warnings.append("Facility name needs human completion.")
+        if required_missing:
+            warnings.append(f"{len(required_missing)} required reporting fields need human completion.")
 
         # ---------------------------------------------------------
         # 7. Determine package status

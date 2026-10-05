@@ -32,7 +32,10 @@ class AuditLedgerService:
             description=event.description,
             previous_value=event.previous_value,
             new_value=event.new_value,
-            metadata_json=event.metadata,
+            metadata_json={
+                **event.metadata,
+                **({"workflow_stage": event.workflow_stage} if event.workflow_stage else {}),
+            },
             event_timestamp=event.event_timestamp,
         )
 
@@ -53,5 +56,6 @@ class AuditLedgerService:
             previous_value=audit_event.previous_value,
             new_value=audit_event.new_value,
             metadata=audit_event.metadata_json,
+            workflow_stage=audit_event.metadata_json.get("workflow_stage"),
             event_timestamp=audit_event.event_timestamp,
         )

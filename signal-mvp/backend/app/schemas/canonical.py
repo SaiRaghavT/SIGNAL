@@ -71,6 +71,19 @@ class PatientListCondition(BaseModel):
     display: str | None = None
 
 
+class PatientDeadline(BaseModel):
+    deadline: datetime
+    status: str
+    calculation_basis: str | None = None
+    disease: str | None = None
+    jurisdiction: str | None = None
+    rule_id: str | None = None
+    reporting_timing: str | None = None
+    reporting_method: str | None = None
+    urgency: str | None = None
+    minutes_remaining: int | None = None
+
+
 class PatientListItem(BaseModel):
     patient_id: str
     source_patient_id: str | None = None
@@ -78,7 +91,8 @@ class PatientListItem(BaseModel):
     last_name: str | None = None
     date_of_birth: date | None = None
     condition: str | None = None
-    severity: str | None = None
+    deadline: PatientDeadline | None = None
+    deadline_reason: str | None = None
     facility: str | None = None
     conditions: list[PatientListCondition] = Field(default_factory=list)
 

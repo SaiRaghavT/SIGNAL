@@ -23,6 +23,19 @@ class Submission(Base):
         index=True,
     )
 
+    report_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+        index=True,
+    )
+
+    channel: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="eCR",
+        server_default="eCR",
+    )
+
     ecr_id: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -50,6 +63,22 @@ class Submission(Base):
         JSONB,
         nullable=False,
         default=list,
+    )
+
+    ecr_payload: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+    )
+
+    acknowledgement_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    pha_case_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

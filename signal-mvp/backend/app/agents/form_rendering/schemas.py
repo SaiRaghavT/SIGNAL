@@ -30,7 +30,9 @@ class RenderedField(BaseModel):
 class FormRenderingResponse(BaseModel):
     case_id: str
 
-    form_id: str
+    form_id: Optional[str] = None
+
+    report_id: Optional[str] = None
 
     render_id: Optional[str] = None
 

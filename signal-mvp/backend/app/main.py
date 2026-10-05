@@ -1,13 +1,20 @@
 from fastapi import FastAPI
 
 from backend.app.agents.cluster_signal.api import router as cluster_router
+from backend.app.agents.status_api import router as agent_status_router
+from backend.app.analytics.api import router as analytics_router
 from backend.app.canonical.api import router as canonical_router
+from backend.app.candidate.router import router as candidates_router
 from backend.app.case.api import router as cases_router
+from backend.app.case.workflow_api import router as case_workflow_router
+from backend.app.followup.api import router as followups_router
+from backend.app.submission.api import router as submissions_router
 from backend.app.dashboard.router import router as dashboard_router
 from backend.app.detection.api import router as detection_router
 from backend.app.ingestion.api.fhir import router as fhir_router
 from backend.app.ingestion.documents.api import router as document_router
 from backend.app.ingestion.hl7.api import router as hl7_router
+from backend.app.agents.audit_ledger.router import api_router as audit_api_router
 from backend.app.agents.audit_ledger.router import router as audit_ledger_router
 from backend.app.agents.document_intelligence.router import (
     router as document_intelligence_router,
@@ -41,6 +48,7 @@ from backend.app.agents.manual_reporting.router import (
 )
 
 from backend.app.agents.form_rendering.router import (
+    public_router as reporting_router,
     router as form_rendering_router,
 )
 
@@ -90,6 +98,7 @@ app.include_router(document_router)
 
 # Audit ledger
 app.include_router(audit_ledger_router)
+app.include_router(audit_api_router)
 
 app.include_router(deadline_calculation_router)
 
@@ -100,6 +109,7 @@ app.include_router(case_assembly_router)
 
 
 app.include_router(form_rendering_router)
+app.include_router(reporting_router)
 
 # ---------------------------------------------------------
 # Canonical Data APIs
@@ -107,9 +117,13 @@ app.include_router(form_rendering_router)
 
 # Read-only access to the standardized SIGNAL patient context
 app.include_router(canonical_router)
+app.include_router(candidates_router)
 
 # Persisted case summary list for the manager-facing Cases screen.
 app.include_router(cases_router)
+app.include_router(case_workflow_router)
+app.include_router(submissions_router)
+app.include_router(followups_router)
 app.include_router(dashboard_router)
 
 # Candidate detection
@@ -151,6 +165,8 @@ app.include_router(
 )
 
 app.include_router(workflow_router)
+app.include_router(agent_status_router)
+app.include_router(analytics_router)
 # ---------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------

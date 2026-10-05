@@ -31,7 +31,8 @@ def evaluate_deadline(
         return service.evaluate(request, db)
 
     except ValueError as exc:
+        status_code = 404 if str(exc).startswith("Case not found:") else 422
         raise HTTPException(
-            status_code=422,
+            status_code=status_code,
             detail=str(exc),
         ) from exc

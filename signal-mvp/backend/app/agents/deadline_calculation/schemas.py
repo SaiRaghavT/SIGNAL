@@ -12,6 +12,8 @@ class DeadlineCalculationRequest(BaseModel):
     jurisdiction: str
 
     rule_id: Optional[str] = None
+    candidate_id: str | None = None
+    case_id: str | None = None
 
 
 class DeadlineCalculationResponse(BaseModel):
@@ -30,3 +32,5 @@ class DeadlineCalculationResponse(BaseModel):
     reporting_timing: str
 
     reporting_method: str
+    urgency: str
+    minutes_remaining: int

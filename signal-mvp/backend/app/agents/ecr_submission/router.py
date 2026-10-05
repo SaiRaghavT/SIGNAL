@@ -34,7 +34,5 @@ def submit_ecr_endpoint(
         )
 
     except ValueError as exc:
-        raise HTTPException(
-            status_code=404,
-            detail=str(exc),
-        ) from exc
+        status_code = 404 if str(exc).startswith("Case not found:") else 409
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc

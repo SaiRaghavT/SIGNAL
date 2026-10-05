@@ -28,6 +28,8 @@ class DeadlineEscalationResponse(BaseModel):
 
     status: str
 
+    urgency: str
+
     escalation_required: bool
 
     minutes_remaining: Optional[int] = None

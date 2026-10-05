@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import "../styles/login.css";
 
-const DEMO_EMAIL = "reporting@signal.local";
-const DEMO_PASSWORD = "SIGNAL@123";
+const DEMO_EMAIL = "report@signal.local";
+const DEMO_PASSWORD = "SIGNAL2026";
 
 function Login() {
   const navigate = useNavigate();

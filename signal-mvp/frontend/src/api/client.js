@@ -6,13 +6,38 @@ async function request(path, options = {}) {
   const contentType = response.headers.get("content-type") || "";
   const data = contentType.includes("application/json") ? await response.json() : await response.text();
   if (!response.ok) {
-    const message = typeof data === "object" && data?.detail ? data.detail : `Request failed (${response.status})`;
+    const detail = typeof data === "object" ? data?.detail : null;
+    const message = typeof detail === "string"
+      ? detail
+      : typeof detail?.message === "string"
+        ? detail.message
+        : Array.isArray(detail)
+          ? detail.map((item) => item?.msg).filter(Boolean).join("; ") || `Request failed (${response.status})`
+          : `Request failed (${response.status})`;
     throw new Error(message);
   }
   return data;
 }
+async function requestBlob(path) {
+  const response = await fetch(`${API_BASE_URL}${path}`);
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json") ? await response.json() : await response.text();
+    const detail = typeof data === "object" ? data?.detail : null;
+    const message = typeof detail === "string"
+      ? detail
+      : typeof detail?.message === "string"
+        ? detail.message
+        : Array.isArray(detail)
+          ? detail.map((item) => item?.msg).filter(Boolean).join("; ") || `Request failed (${response.status})`
+        : `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+  return response.blob();
+}
 const apiBaseUrl = API_BASE_URL;
 export {
   apiBaseUrl,
-  request
+  request,
+  requestBlob
 };
