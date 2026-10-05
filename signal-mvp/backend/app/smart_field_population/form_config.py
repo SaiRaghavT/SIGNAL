@@ -46,6 +46,11 @@ TEXAS_MEASLES_FORM = {
             "required": True,
         },
         {
+            "field": "patient.age",
+            "source": "patient.age",
+            "required": False,
+        },
+        {
             "field": "patient.sex",
             "source": "patient.sex",
             "required": True,

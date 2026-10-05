@@ -1,0 +1,42 @@
+.seed-reporting-form{max-width:none}
+.seed-form-layout{display:grid;grid-template-columns:minmax(360px,.92fr) minmax(420px,1.08fr);gap:14px;align-items:start}
+.seed-form-editor{min-width:0;overflow:hidden;border:1px solid #e0e6e2;border-radius:8px;background:#fff}
+.seed-form-editor-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid #e7ece8}
+.seed-form-editor-header>div{min-width:0}
+.seed-form-editor-header>div>span{color:#82947f;font-size:10px;font-weight:750;letter-spacing:.1em}
+.seed-form-editor-header h2{margin:4px 0;color:#35483c;font-size:17px}
+.seed-form-editor-header p{margin:0;color:#77847d;font-size:11px;line-height:1.5}
+.seed-reset-button{display:inline-flex;flex:none;align-items:center;gap:6px;min-height:34px;padding:0 9px;font-size:10px}
+.seed-form-sections{display:grid;gap:12px;max-height:calc(100vh - 330px);min-height:420px;padding:14px;overflow:auto;overscroll-behavior:contain}
+.seed-form-section{min-width:0;margin:0;padding:12px;border:1px solid #e5ebe6;border-radius:6px}
+.seed-form-section>legend{padding:0 6px;color:#425b49;font-size:12px;font-weight:750}
+.seed-form-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px}
+.seed-form-field{display:grid;align-content:start;gap:5px;min-width:0;color:#53655a;font-size:10px;font-weight:650}
+.seed-form-field>span:first-child,.seed-form-race-field>legend{display:flex;align-items:center;justify-content:space-between;gap:5px}
+.seed-form-field input,.seed-form-field select{width:100%;min-width:0;height:36px;padding:0 9px;border:1px solid #dce5de;border-radius:5px;background:#fff;color:#35483c;font:inherit;font-weight:450}
+.seed-form-field input:focus,.seed-form-field select:focus{outline:2px solid #9cb9a3;outline-offset:1px}
+.seed-form-field small{color:#8b9790;font-size:9px;font-weight:450;overflow-wrap:anywhere}
+.seed-form-required{flex:none;color:#b85436;font-size:9px;font-weight:650}
+.seed-form-race-field{grid-column:1/-1;min-width:0;margin:0;padding:10px;border:1px solid #e5ebe6;border-radius:5px}
+.seed-form-race-field legend{padding:0 4px;color:#53655a;font-size:10px;font-weight:650}
+.seed-form-checkboxes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.seed-form-checkboxes label{display:flex;align-items:flex-start;gap:7px;color:#53655a;font-size:10px;font-weight:450;line-height:1.4}
+.seed-form-checkboxes input{width:14px;height:14px;flex:none;margin:0;accent-color:#286a51}
+.seed-form-race-field>small{display:block;margin-top:8px;color:#8b9790;font-size:9px}
+.seed-form-editor-footer{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-top:1px solid #e7ece8;background:#fff}
+.seed-form-editor-footer>span{display:flex;align-items:center;gap:6px;color:#748279;font-size:10px}
+.seed-form-editor-footer .button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 14px;white-space:nowrap}
+.seed-form-pdf-card{position:sticky;top:12px;min-width:0;margin:0}
+.seed-form-pdf-card .reporting-form-pdf-frame{height:calc(100vh - 250px);min-height:540px;max-height:900px}
+.seed-form-pdf-card .reporting-form-message{margin:0 0 10px;font-size:10px}
+.seed-form-pdf-card .reporting-form-actions .button{display:inline-flex;align-items:center;gap:6px}
+.seed-form-pdf-card .reporting-form-technical ul{max-height:180px;overflow:auto;font-size:10px}
+.seed-form-next-step{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding:12px;border:1px solid #d8e6dc;border-radius:6px;background:#f4f8f5}
+.seed-form-next-step>div{display:grid;gap:3px;min-width:0}
+.seed-form-next-step strong{color:#315341;font-size:12px}
+.seed-form-next-step span{color:#718078;font-size:10px;line-height:1.4}
+.seed-form-next-step .button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;flex:none;padding:0 12px;white-space:nowrap}
+.seed-form-next-step.is-pending{border-color:#ead9c9;background:#fbf7f2}
+.seed-form-next-step.is-pending strong{color:#875d32}
+@media(max-width:1100px){.seed-form-layout{grid-template-columns:minmax(0,1fr)}.seed-form-pdf-card{position:static}.seed-form-sections{max-height:none}.seed-form-pdf-card .reporting-form-pdf-frame{height:75vh;min-height:500px}}
+@media(max-width:600px){.seed-form-editor-header{flex-direction:column}.seed-form-sections{min-height:0;padding:10px}.seed-form-section{padding:10px}.seed-form-field-grid,.seed-form-checkboxes{grid-template-columns:minmax(0,1fr)}.seed-form-race-field{grid-column:auto}.seed-form-editor-footer{align-items:stretch;flex-direction:column}.seed-form-editor-footer .button{width:100%}.seed-form-pdf-card .reporting-form-pdf-frame{height:70vh;min-height:420px}.seed-form-next-step{align-items:stretch;flex-direction:column}.seed-form-next-step .button{width:100%;white-space:normal}}

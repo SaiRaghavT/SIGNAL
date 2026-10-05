@@ -1,4 +1,5 @@
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+let seedCandidatesRequest
 
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {})
@@ -58,6 +59,11 @@ export function processCandidateWorkflow(candidate) {
 }
 
 export const signalApi = {
+  getHealth: () => request('/health'),
+  getSeedFhirCandidates: () => {
+    seedCandidatesRequest ??= request('/api/ingestion/fhir/seed-candidates')
+    return seedCandidatesRequest
+  },
   getCanonicalPatient: patientId => request(`/api/canonical/patients/${encodeURIComponent(patientId)}`),
   detectCandidates: patientId => postJson('/api/detection/candidates', { patient_id: patientId }),
   resolveJurisdiction: body => postJson('/api/jurisdiction/resolve', body),

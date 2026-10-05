@@ -87,6 +87,10 @@
 .login-aside .login-stages strong{color:#fff}
 .login-form{color:#18334f}
 .login-form>label{color:#274a66}
+.password-field-control{position:relative;display:block;margin-top:7px}
+.password-field-control input{margin-top:0!important;padding-right:42px!important}
+.password-visibility-toggle{position:absolute;top:50%;right:4px;display:grid;width:32px;height:32px;place-items:center;transform:translateY(-50%);border:0;background:transparent;color:#596b60;cursor:pointer}
+.password-visibility-toggle:hover,.password-visibility-toggle:focus-visible{color:#156b52}
 .clinical-visual{display:block;height:auto;margin:0 15px 11px;padding:8px;background:#edf7f9;border-radius:5px}
 .clinical-visual img{display:block;width:100%;max-height:290px;object-fit:contain;border-radius:3px}
 .clinical-visual figcaption{padding:7px 3px 1px;color:#456d80;font-size:8px;text-align:left}
