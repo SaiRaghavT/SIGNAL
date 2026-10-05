@@ -1,7 +1,8 @@
 import json
-from pathlib import Path
+import pytest
 
 from backend.app.ingestion.fhir.parser import parse_fhir_bundle
+from backend.app.ingestion.fhir.test_fixtures import find_synthea_bundle
 from backend.app.ingestion.fhir.validator import validate_fhir_bundle
 from backend.app.quality.fhir_quality import validate_fhir_data_quality
 
@@ -15,13 +16,9 @@ def test_fhir_data_quality():
     # Synthea test Bundle
     # ---------------------------------------------------------
 
-    bundle_path = Path(
-        r"C:\Users\i-nandhini.annikalla\OneDrive - Feuji Software Solutions Pvt Ltd\Desktop\Signal\SIGNAL\synthea\output\fhir\Agustin437_Lindgren255_1f8b4384-cb39-6fab-3ca5-adb869c3ab03.json"
-    )
-
-    assert bundle_path.exists(), (
-        f"Synthea FHIR Bundle not found: {bundle_path}"
-    )
+    bundle_path = find_synthea_bundle()
+    if bundle_path is None:
+        pytest.skip("Set SYNTHEA_FHIR_BUNDLE or provide data/seed/fhir fixtures.")
 
     # ---------------------------------------------------------
     # Load FHIR Bundle
