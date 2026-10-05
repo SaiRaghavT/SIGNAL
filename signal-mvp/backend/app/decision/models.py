@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import List, Optional
 
 
 @dataclass
@@ -12,7 +12,7 @@ class ReconciliationInput:
     jurisdiction_status: str = "RESOLVED"
     reportability_decision: Optional[str] = None
     human_review_required: bool = False
-    conflicts: List[Any] = field(default_factory=list)
+    conflicts: List[str] = field(default_factory=list)
 
 
 @dataclass
