@@ -288,14 +288,14 @@ export function CasesPage() {
                 <table className="cases-table">
                   <thead>
                     <tr>
-                      <th scope="col">Patient / Condition</th>
-                      <th scope="col">Trigger / Evidence</th>
-                      <th scope="col">Jurisdiction / Rule</th>
-                      <th scope="col">Deadline</th>
-                      <th scope="col">Disposition</th>
-                      <th scope="col">Priority</th>
-                      <th scope="col">Missing Info</th>
-                      <th scope="col">Action</th>
+                      <th scope="col">PATIENT / CONDITION</th>
+                      <th scope="col">TRIGGER / EVIDENCE</th>
+                      <th scope="col">JURISDICTION / RULE</th>
+                      <th scope="col">DEADLINE</th>
+                      <th scope="col">DISPOSITION</th>
+                      <th scope="col">PRIORITY</th>
+                      <th scope="col">MISSING INFO</th>
+                      <th scope="col">ACTION</th>
                     </tr>
                   </thead>
                   <tbody>
