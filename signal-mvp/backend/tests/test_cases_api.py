@@ -51,6 +51,9 @@ class FakeQuery:
     def count(self):
         return len(self.rows)
 
+    def distinct(self):
+        return self
+
     def order_by(self, expression):
         column = expression.element.key if isinstance(expression, UnaryExpression) else expression.key
         reverse = isinstance(expression, UnaryExpression)
