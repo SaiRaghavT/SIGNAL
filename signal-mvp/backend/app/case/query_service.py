@@ -5,8 +5,11 @@ from sqlalchemy import String, cast, or_
 from sqlalchemy.orm import Session
 
 from backend.app.models.case import Case
+from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
+from backend.app.models.workflow_records import CaseWorkflowRecord
+from backend.app.case.workflow_api import _validation
 from .report_fields import available_case_report_fields, missing_report_fields
 
 from .schemas import CaseDetailResponse, CaseListItem, CaseListResponse
@@ -165,9 +168,56 @@ def list_cases(
         for case in records
     ]
 
+    all_cases = db.query(Case).all()
+    needs_review_count = sum(
+        any(
+            str(value or "").strip().upper() == "NEEDS_REVIEW"
+            for value in (
+                case.status,
+                case.final_decision,
+                case.reportability_decision,
+                case.jurisdiction_status,
+            )
+        )
+        for case in all_cases
+    )
+    at_risk_ids = {
+        str(case.case_id)
+        for case in all_cases
+        if case.deadline is not None
+        and str(case.severity or "").upper() in {"HIGH", "CRITICAL"}
+    }
+    at_risk_ids.update(
+        str(case_id)
+        for (case_id,) in db.query(DeadlineEscalation.case_id)
+        .filter(DeadlineEscalation.status == "UPCOMING")
+        .distinct()
+        .all()
+    )
+    ready_case_ids = {
+        str(case_id)
+        for (case_id,) in db.query(CaseWorkflowRecord.case_id)
+        .filter(
+            CaseWorkflowRecord.record_type == "SUBMISSION_READINESS",
+            CaseWorkflowRecord.status == "READY",
+        )
+        .distinct()
+        .all()
+    }
+    ready_count = sum(
+        str(case.case_id) in ready_case_ids and _validation(case)["valid"]
+        for case in all_cases
+    )
+
     return CaseListResponse(
         items=items,
         total=total,
         page=page,
         page_size=page_size,
+        metrics={
+            "candidate_cases": len(all_cases),
+            "at_risk_deadlines": len(at_risk_ids),
+            "needs_review": needs_review_count,
+            "report_ready": ready_count,
+        },
     )
