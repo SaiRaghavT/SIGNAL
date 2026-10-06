@@ -16,13 +16,13 @@ from backend.app.models.follow_up import FollowUp
 from backend.app.models.lab_result import LabResult
 from backend.app.models.observation import Observation
 from backend.app.models.patient import Patient
+from backend.app.config.demo import DEMO_FACILITY_ID, DEMO_PATIENT_SOURCE_ID
 
 
-PATIENT_SOURCE_ID = "PAT-HL7-001"
+PATIENT_SOURCE_ID = DEMO_PATIENT_SOURCE_ID
 LEGACY_PATIENT_SOURCE_ID = "MEASLES-MVP-001"
 LEGACY_PATIENT_SOURCE = "signal_demo"
 EVENT_TIME = datetime(2026, 10, 4, 10, 0, tzinfo=timezone.utc)
-DEMO_FACILITY_ID = "SIGNAL-MVP-TX-DEMO"
 
 
 def _one_or_none(rows, description: str):

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -10,9 +10,7 @@ class FormRenderingRequest(BaseModel):
 
     form_version: Optional[str] = None
 
-    report_data: Dict[str, Any] = Field(
-        default_factory=dict
-    )
+    field_values: dict[str, Any] = Field(default_factory=dict)
 
 
 class RenderedField(BaseModel):
@@ -53,6 +51,10 @@ class FormRenderingResponse(BaseModel):
     missing_fields: List[str] = Field(
         default_factory=list
     )
+
+    missing_required_fields: List[str] = Field(default_factory=list)
+
+    demo_mode: bool = False
 
     warnings: List[str] = Field(
         default_factory=list

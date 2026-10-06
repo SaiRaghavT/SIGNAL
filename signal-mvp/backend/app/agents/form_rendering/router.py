@@ -10,10 +10,12 @@ from .schemas import (
     FormRenderingResponse,
 )
 from .service import FormRenderingService, get_rendered_pdf_path
-from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
+from backend.app.smart_field_population.form_config import DEMO_FORM_INPUT_FIELDS, TEXAS_MEASLES_FORM
 from backend.app.database import get_db
 from backend.app.models.case import Case
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
+from backend.app.case.report_fields import available_case_report_fields, missing_report_fields
+from backend.app.config.demo import is_demo_case
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 
@@ -51,16 +53,16 @@ def render_form(
         case = db.query(Case).filter(Case.case_id == case_uuid).first()
         if case is None:
             raise HTTPException(status_code=404, detail=f"Case not found: {request.case_id}")
-        if case.jurisdiction != TEXAS_MEASLES_FORM["jurisdiction"] or (case.disease or "").casefold() != TEXAS_MEASLES_FORM["disease"].casefold():
+        case_disease = " ".join((case.disease or "").casefold().replace("(disorder)", "").split())
+        form_disease = TEXAS_MEASLES_FORM["disease"].casefold()
+        case_jurisdiction = (case.jurisdiction or "").strip().casefold()
+        form_jurisdiction = TEXAS_MEASLES_FORM["jurisdiction"].casefold()
+        if case_jurisdiction not in {form_jurisdiction, "texas"} or case_disease != form_disease:
             raise HTTPException(status_code=422, detail="No Texas measles form is configured for this case.")
         if request.form_id != TEXAS_MEASLES_FORM["form_id"]:
             raise HTTPException(status_code=422, detail=f"Unsupported form: {request.form_id}")
-        review = (
-            db.query(CaseWorkflowRecord)
-            .filter(CaseWorkflowRecord.case_id == str(case.case_id), CaseWorkflowRecord.record_type == "REVIEW")
-            .order_by(CaseWorkflowRecord.created_at.desc())
-            .first()
-        )
+        if request.form_version not in (None, TEXAS_MEASLES_FORM["form_version"]):
+            raise HTTPException(status_code=422, detail=f"Unsupported form version: {request.form_version}")
         validation = (
             db.query(CaseWorkflowRecord)
             .filter(CaseWorkflowRecord.case_id == str(case.case_id), CaseWorkflowRecord.record_type == "VALIDATION")
@@ -73,12 +75,6 @@ def render_form(
             .order_by(CaseWorkflowRecord.created_at.desc())
             .first()
         )
-        if review is None or review.status != "APPROVE":
-            raise HTTPException(status_code=409, detail="An approved review is required before form rendering.")
-        if validation is None or validation.status != "VALID":
-            raise HTTPException(status_code=409, detail="A valid case validation is required before form rendering.")
-        if attestation is None or attestation.status != "ATTESTED":
-            raise HTTPException(status_code=409, detail="A current attestation is required before form rendering.")
         # Use the same persisted record shown in Case Workspace as the source
         # for PDF population. Keep explicit report-field edits highest priority
         # and never replace them with absent values from the patient record.
@@ -99,7 +95,6 @@ def render_form(
             "rash_fever": clinical,
             "laboratory": laboratory,
         }
-        report_data.update(request.report_data)
         report_data.update(case.report_fields or {})
         derived_values = {
             "patient.first_name": patient.get("first_name"),
@@ -124,7 +119,35 @@ def render_form(
         for key, value in derived_values.items():
             if value not in (None, ""):
                 report_data.setdefault(key, value)
-        result = service.render_form(request.model_copy(update={"report_data": report_data}))
+        _, required_missing_fields = missing_report_fields(available_case_report_fields(case))
+        demo_case = is_demo_case(case)
+        if demo_case:
+            # Demo form entries are supplied from the browser for this render
+            # only. Ignore any legacy values persisted before preview mode.
+            for field in DEMO_FORM_INPUT_FIELDS:
+                report_data.pop(field, None)
+            transient_fields = {
+                field: value for field, value in request.field_values.items()
+                if field in DEMO_FORM_INPUT_FIELDS and str(value or "").strip()
+            }
+            report_data.update(transient_fields)
+            demo_missing_fields = [
+                field for field in DEMO_FORM_INPUT_FIELDS
+                if field not in transient_fields
+            ]
+            required_missing_fields = [
+                field for field in required_missing_fields
+                if field not in DEMO_FORM_INPUT_FIELDS
+            ]
+            required_missing_fields = list(dict.fromkeys([*required_missing_fields, *demo_missing_fields]))
+        result = service.render_form(
+            request,
+            report_data,
+            demo_fill=demo_case,
+            required_missing_fields=required_missing_fields,
+        )
+        result.missing_required_fields = required_missing_fields
+        result.demo_mode = demo_case
         if not result.render_id:
             raise HTTPException(
                 status_code=500,
@@ -133,35 +156,36 @@ def render_form(
         retrieval_url = f"{router.prefix}/{result.render_id}"
         result.retrieval_url = retrieval_url
         result.rendered_document = retrieval_url
-        report = Report(
-            case_id=str(case.case_id),
-            form_id=result.form_id,
-            form_version=result.form_version,
-            render_id=result.render_id,
-            disease=case.disease,
-            jurisdiction=case.jurisdiction,
-            validation=validation.payload,
-            attestation=attestation.payload,
-            status="GENERATED",
-        )
-        db.add(report)
-        db.commit()
-        db.refresh(report)
-        result.report_id = report.report_id
-        AuditLedgerService().record_event(
-            AuditEventCreate(
-                entity_type="CASE",
-                entity_id=str(case.case_id),
-                event_type="FORM_RENDERED",
-                actor_type="SYSTEM",
-                actor_id="SIGNAL",
-                source_agent="form_rendering",
-                status="SUCCESS",
-                new_value={"render_id": result.render_id, "report_id": report.report_id},
-                workflow_stage="REPORTING",
-            ),
-            db,
-        )
+        if not demo_case:
+            report = Report(
+                case_id=str(case.case_id),
+                form_id=result.form_id,
+                form_version=result.form_version,
+                render_id=result.render_id,
+                disease=case.disease,
+                jurisdiction=case.jurisdiction,
+                validation=validation.payload if validation else {},
+                attestation=attestation.payload if attestation else {},
+                status="GENERATED",
+            )
+            db.add(report)
+            db.commit()
+            db.refresh(report)
+            result.report_id = report.report_id
+            AuditLedgerService().record_event(
+                AuditEventCreate(
+                    entity_type="CASE",
+                    entity_id=str(case.case_id),
+                    event_type="FORM_RENDERED",
+                    actor_type="SYSTEM",
+                    actor_id="SIGNAL",
+                    source_agent="form_rendering",
+                    status="SUCCESS",
+                    new_value={"render_id": result.render_id, "report_id": report.report_id},
+                    workflow_stage="REPORTING",
+                ),
+                db,
+            )
         return result
 
     except HTTPException:

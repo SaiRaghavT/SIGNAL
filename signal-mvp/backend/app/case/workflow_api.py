@@ -8,13 +8,17 @@ from sqlalchemy.orm import Session
 
 from backend.app.agents.attestation_control.schemas import AttestationRequest
 from backend.app.agents.attestation_control.service import AttestationControlService
+from backend.app.config.demo import is_demo_case
+from backend.app.config.settings import settings
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.database import get_db
+from backend.app.demo.reset_service import reset_demo
 from backend.app.ecr.builder import build_ecr
 from backend.app.models.case import Case
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.workflow_records import CaseWorkflowRecord
+from backend.app.case.report_fields import available_case_report_fields, missing_report_fields
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
 from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
@@ -22,6 +26,7 @@ from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
 router = APIRouter(tags=["Case Workflow"])
 
 RECORD_TYPES = {"notification": "IMMEDIATE_NOTIFICATION", "investigation": "INVESTIGATION", "validation": "VALIDATION", "review": "REVIEW", "attestation": "ATTESTATION"}
+SUBMISSION_READINESS_TYPE = "SUBMISSION_READINESS"
 audit = AuditLedgerService()
 
 
@@ -51,6 +56,17 @@ class AttestationBody(BaseModel):
     reviewer_role: str = Field(min_length=1, max_length=100)
     attestation_status: str = "ATTESTED"
     comments: str | None = None
+
+
+class SubmissionReadinessRequest(BaseModel):
+    actor_id: str = Field(min_length=1, max_length=255)
+    review_confirmed: bool = False
+    review_decision: str | None = None
+    attestation_confirmed: bool = False
+
+
+class DemoWorkflowResetRequest(BaseModel):
+    reset_scope: str = Field(pattern="^REPORTING_WORKFLOW$")
 
 
 class WorkflowRecordResponse(BaseModel):
@@ -113,6 +129,81 @@ def _record(
         db,
     )
     return row
+
+
+def _workflow_record_data(row: CaseWorkflowRecord | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    return {
+        "record_id": row.record_id,
+        "case_id": row.case_id,
+        "record_type": row.record_type,
+        "status": row.status,
+        "actor_id": row.actor_id,
+        "payload": row.payload or {},
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+
+
+def _reporting_field_summary(case: Case) -> dict[str, Any]:
+    fields = TEXAS_MEASLES_FORM["fields"]
+    missing_fields, _ = missing_report_fields(available_case_report_fields(case))
+    missing = set(missing_fields)
+    groups = {
+        "patient_identification": {"total": 0, "validated": 0},
+        "clinical_information": {"total": 0, "validated": 0},
+        "laboratory_evidence": {"total": 0, "validated": 0},
+        "reporting_information": {"total": 0, "validated": 0},
+    }
+    for item in fields:
+        field = item["field"]
+        prefix = field.split(".", 1)[0]
+        group = (
+            "patient_identification" if prefix == "patient"
+            else "clinical_information" if prefix in {"clinical", "rash_fever"}
+            else "laboratory_evidence" if prefix == "laboratory"
+            else "reporting_information"
+        )
+        groups[group]["total"] += 1
+        if field not in missing:
+            groups[group]["validated"] += 1
+    return {
+        "validated": sum(group["validated"] for group in groups.values()),
+        "total": len(fields),
+        "sections": groups,
+    }
+
+
+def _submission_readiness_response(case: Case, ready: bool, row: CaseWorkflowRecord | None) -> dict[str, Any]:
+    return {
+        "ready": ready,
+        "record": _workflow_record_data(row),
+        "reporting_fields": _reporting_field_summary(case),
+    }
+
+
+@router.post("/api/demo/cases/{case_id}/reset-workflow")
+def reset_demo_case_workflow(
+    case_id: UUID,
+    request: DemoWorkflowResetRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    case = _case(db, case_id)
+    if not settings.demo_mode:
+        raise HTTPException(status_code=403, detail="Demo workflow reset is disabled. Set DEMO_MODE=true in a development environment.")
+    if not is_demo_case(case):
+        return {"case_id": str(case_id), "demo_case": False, "reset": False, "reset_scope": request.reset_scope}
+    result = reset_demo(db, requested_case_id=case_id)
+    return {**result, "demo_case": True, "reset_scope": request.reset_scope}
+
+
+@router.post("/api/demo/reset")
+def reset_signal_demo(db: Session = Depends(get_db)) -> dict[str, Any]:
+    # DEMO ONLY: never enable this workflow reset in production.
+    if not settings.demo_mode:
+        raise HTTPException(status_code=403, detail="Demo workflow reset is disabled. Set DEMO_MODE=true in a development environment.")
+    return reset_demo(db)
 
 
 @router.post("/api/workflow/cases/{case_id}/immediate-notification", response_model=WorkflowRecordResponse, status_code=201)
@@ -193,6 +284,16 @@ def create_review(case_id: UUID, request: ReviewRequest, db: Session = Depends(g
     validation = _validation(case)
     if decision == "APPROVE" and not validation["valid"]:
         raise HTTPException(status_code=409, detail={"message": "Case is not valid for approval.", "validation": validation})
+    if decision == "APPROVE":
+        prior_attestations = db.query(CaseWorkflowRecord).filter(
+            CaseWorkflowRecord.case_id == str(case_id),
+            CaseWorkflowRecord.record_type == RECORD_TYPES["attestation"],
+            CaseWorkflowRecord.status == "ATTESTED",
+        ).all()
+        for row in prior_attestations:
+            row.status = "SUPERSEDED"
+        case.status = "REPORT"
+        db.commit()
     return _record(db, case_id, RECORD_TYPES["review"], decision, request.model_dump(mode="json"), request.reviewer_id)
 
 
@@ -231,6 +332,52 @@ def create_attestation(case_id: UUID, request: AttestationBody, db: Session = De
     if not result.authorized:
         raise HTTPException(status_code=403, detail=result.message)
     return _record(db, case_id, RECORD_TYPES["attestation"], "ATTESTED", result.model_dump(mode="json"), request.reviewer_id)
+
+
+@router.get("/api/cases/{case_id}/submission-readiness")
+def get_submission_readiness(case_id: UUID, db: Session = Depends(get_db)) -> dict[str, Any]:
+    case = _case(db, case_id)
+    row = _latest(db, case_id, SUBMISSION_READINESS_TYPE)
+    current = (
+        row is not None
+        and row.status == "READY"
+        and _validation(case)["valid"]
+    )
+    return _submission_readiness_response(case, current, row)
+
+
+@router.post("/api/cases/{case_id}/submission-readiness")
+def mark_submission_ready(
+    case_id: UUID,
+    request: SubmissionReadinessRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    case = _case(db, case_id)
+    validation = _validation(case)
+    review = _latest(db, case_id, RECORD_TYPES["review"])
+    attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
+    if not validation["valid"]:
+        raise HTTPException(status_code=409, detail={"message": "Case validation is incomplete.", "validation": validation})
+    session_review_confirmed = (
+        request.review_confirmed
+        and (request.review_decision or "").strip().upper() == "APPROVE"
+    )
+    if (review is None or review.status != "APPROVE") and not session_review_confirmed:
+        raise HTTPException(status_code=409, detail="An approved human review is required before queue readiness.")
+    if (attestation is None or attestation.status != "ATTESTED") and not request.attestation_confirmed:
+        raise HTTPException(status_code=409, detail="An attestation confirmation is required before queue readiness.")
+    existing = _latest(db, case_id, SUBMISSION_READINESS_TYPE)
+    if existing is not None and existing.status == "READY":
+        return _submission_readiness_response(case, True, existing)
+    row = _record(
+        db,
+        case_id,
+        SUBMISSION_READINESS_TYPE,
+        "READY",
+        {"ready_for_authorized_reporting": True},
+        request.actor_id.strip(),
+    )
+    return _submission_readiness_response(case, True, row)
 
 
 @router.get("/api/cases/{case_id}/reportability")

@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
 
+from backend.app.config.demo import is_demo_case
+from backend.app.models.candidate import Candidate
 from backend.app.models.case import Case
+from backend.app.demo.reset_service import store_demo_baseline
 
 from .models import CaseAssemblyInput, SignalCase
 
@@ -8,6 +11,7 @@ from .models import CaseAssemblyInput, SignalCase
 def assemble_case(
     data: CaseAssemblyInput,
     db: Session,
+    existing_case_id: str | None = None,
 ) -> SignalCase:
     warnings = []
 
@@ -39,27 +43,42 @@ def assemble_case(
         if not (data.facility or {}).get("name"):
             warnings.append("Facility name needs human completion.")
 
-    case = Case(
-        candidate_id=data.candidate_id,
-        patient=data.patient,
-        facility=data.facility,
-        provider=data.provider,
-        disease=data.disease,
-        clinical_evidence=data.clinical_evidence,
-        laboratory_evidence=data.laboratory_evidence,
-        ai_evidence=data.ai_evidence,
-        report_fields=data.report_fields,
-        jurisdiction=data.jurisdiction,
-        jurisdiction_status=data.jurisdiction_status,
-        reportability_decision=data.reportability_decision,
-        reportability_evidence_status=data.reportability_evidence_status,
-        status=status,
-        final_decision=final_decision,
-        rule_id=data.rule_id,
-        warnings=warnings,
-    )
+    values = {
+        "candidate_id": data.candidate_id,
+        "patient": data.patient,
+        "facility": data.facility,
+        "provider": data.provider,
+        "disease": data.disease,
+        "clinical_evidence": data.clinical_evidence,
+        "laboratory_evidence": data.laboratory_evidence,
+        "ai_evidence": data.ai_evidence,
+        "report_fields": data.report_fields,
+        "jurisdiction": data.jurisdiction,
+        "jurisdiction_status": data.jurisdiction_status,
+        "reportability_decision": data.reportability_decision,
+        "reportability_evidence_status": data.reportability_evidence_status,
+        "status": status,
+        "final_decision": final_decision,
+        "rule_id": data.rule_id,
+        "warnings": warnings,
+    }
+    if existing_case_id:
+        case = db.query(Case).filter(
+            Case.case_id == existing_case_id,
+            Case.candidate_id == data.candidate_id,
+        ).first()
+        if case is None or not is_demo_case(case):
+            raise ValueError("Only the linked SIGNAL demo case can be reassembled after demo reset.")
+        for key, value in values.items():
+            setattr(case, key, value)
+    else:
+        case = Case(**values)
+        db.add(case)
+        db.flush()
 
-    db.add(case)
+    candidate = db.query(Candidate).filter(Candidate.candidate_id == data.candidate_id).first()
+    if is_demo_case(case):
+        store_demo_baseline(db, case, candidate)
     db.commit()
     db.refresh(case)
 

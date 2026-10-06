@@ -16,6 +16,7 @@ from backend.app.models.workflow_records import (
     Report,
     SubmissionAttempt,
 )
+from backend.app.models.demo_case_baseline import DemoCaseBaseline
 
 
 __all__ = [
@@ -35,4 +36,5 @@ __all__ = [
     "Report",
     "Acknowledgement",
     "SubmissionAttempt",
+    "DemoCaseBaseline",
 ]

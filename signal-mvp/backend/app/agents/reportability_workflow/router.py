@@ -6,6 +6,8 @@ from backend.app.canonical.query_service import CanonicalPatientNotFoundError
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.models.candidate import Candidate
+from backend.app.models.case import Case
+from backend.app.config.demo import is_demo_case
 
 from .schemas import CandidateProcessRequest, CandidateProcessResponse, CandidateWorkflowInput
 from .service import process_candidate
@@ -34,6 +36,11 @@ def process_candidate_endpoint(
             raise HTTPException(status_code=404, detail="Candidate not found.")
         if candidate.status in {"PROCESSED", "CLOSED", "REJECTED"}:
             raise HTTPException(status_code=409, detail=f"Candidate is not processable from status {candidate.status}.")
+        existing_case_id = None
+        if candidate.case_id:
+            linked_case = db.query(Case).filter(Case.case_id == candidate.case_id).first()
+            if linked_case is not None and linked_case.candidate_id == candidate.candidate_id and is_demo_case(linked_case):
+                existing_case_id = str(linked_case.case_id)
 
         evidence = candidate.evidence or []
         signals = candidate.signals or []
@@ -44,6 +51,7 @@ def process_candidate_endpoint(
         result = process_candidate(
             CandidateWorkflowInput(
                 candidate_id=candidate.candidate_id,
+                existing_case_id=existing_case_id,
                 patient_id=candidate.patient_id,
                 disease=candidate.disease_id,
                 clinical_evidence={

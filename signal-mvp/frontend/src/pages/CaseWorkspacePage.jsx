@@ -1,1350 +1,1984 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { SignalLoading } from "../components/ui/SignalLoading.jsx";
-import { useDemoWorkflow } from "../hooks/useDemoWorkflow.js";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+
 import {
   getCase,
-  getJourney,
-  updateCaseReport,
-  attestation,
-  persistAttestation,
+  getCaseJourney,
+  getCaseTimeline,
+  updateCaseReportFields,
+} from "../api/cases.js";
+
+import {
   getCaseValidation,
-  getCaseAttestation,
-  getCaseReview,
-  reviewCase,
-  getImmediateNotification,
-  recordImmediateNotification,
+  markSubmissionReady,
   validateCase,
-  calculateDeadline,
-  evaluateDeadlineEscalation,
-} from "../api/signal.js";
+  getImmediateNotification,
+} from "../api/workflow.js";
+
+import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { readCaseWorkflowSession, writeCaseWorkflowSession } from "../utils/caseWorkflowSessionStorage.js";
 import "../styles/case-workspace.css";
-import "../styles/case-report-fields.css";
-import "../styles/case-data-completion.css";
-import "../styles/case-evidence.css";
 
-const WORKFLOW_STEPS = [
-  { key: "reportability", label: "Reportability" },
-  { key: "case", label: "Case" },
-  { key: "validation", label: "Validation" },
-  { key: "review", label: "Human Review" },
-  { key: "attestation", label: "Attestation" },
-  { key: "notification", label: "Immediate Notification" },
-  { key: "reporting", label: "Reporting" },
-];
 
-function normalizeStatus(value) {
-  return String(value || "").toUpperCase();
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+const pretty = (value) => {
+  if (value === null || value === undefined) return "Not available";
+
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value);
+};
+
+const readable = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return "Not available";
+  }
+
+  if (typeof value === "object") {
+    return pretty(value);
+  }
+
+  return String(value);
+};
+
+const hasValue = (value) =>
+  value !== null &&
+  value !== undefined &&
+  value !== "";
+
+const hasEvidence = (value) => {
+  if (!hasValue(value)) return false;
+
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === "object") {
+    return Object.keys(value).length > 0;
+  }
+
+  return true;
+};
+
+
+function formatDate(value) {
+  if (!value) return "Not available";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString();
 }
 
-function validEventTime(value) {
-  return typeof value === "string" && value.includes("T") && Number.isFinite(Date.parse(value)) ? value : null;
-}
 
-function caseEventTime(data) {
-  const clinical = data?.clinical_evidence || {};
-  const candidateSignals = Array.isArray(clinical.candidate_signals) ? clinical.candidate_signals : [];
-  const labEvidence = Array.isArray(data?.laboratory_evidence) ? data.laboratory_evidence : [];
-  const candidates = [
-    clinical.illness_onset_datetime,
-    clinical.onset_datetime,
-    clinical.event_time,
-    clinical.detected_at,
-    ...candidateSignals.flatMap((signal) => [signal?.detected_at, signal?.evidence?.effective_time, signal?.evidence?.issued_time]),
-    ...labEvidence.flatMap((item) => [item?.effective_time, item?.issued_time, item?.evidence?.effective_time, item?.evidence?.issued_time, ...(item?.observations || []).map((observation) => observation?.effective_time)]),
-    data?.created_at,
-  ];
-  return candidates.map(validEventTime).find(Boolean) || null;
-}
-
-function deadlineDateLabel(value) {
-  if (!value || !Number.isFinite(Date.parse(value))) return "Not available";
-  return new Date(value).toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" });
-}
-
-function getJourneyStage(journey, key) {
-  if (!journey) return null;
-
-  const stages = Array.isArray(journey)
-    ? journey
-    : journey?.stages ||
-      journey?.journey ||
-      journey?.items ||
-      [];
-
-  return stages.find(
-    (stage) =>
-      normalizeStatus(stage?.stage || stage?.name || stage?.key) ===
-      normalizeStatus(key)
+function patientName(patient) {
+  return (
+    [
+      patient?.first_name,
+      patient?.last_name,
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    patient?.name ||
+    "Patient"
   );
 }
 
-const MISSING_FIELD_GROUPS = [
-  { key: "patient", label: "PATIENT" },
-  { key: "reporting", label: "REPORTING" },
-  { key: "clinical", label: "CLINICAL" },
-  { key: "rash_fever", label: "RASH / FEVER" },
-  { key: "laboratory", label: "LABORATORY" },
-  { key: "provider", label: "PROVIDER" },
-  { key: "facility", label: "FACILITY" },
+
+function currentReviewer() {
+  for (const storage of [sessionStorage, localStorage]) {
+    try {
+      const raw = storage.getItem("signal-user");
+
+      if (!raw) continue;
+
+      const user = JSON.parse(raw);
+
+      if (user) {
+        return {
+          id:
+            user.email ||
+            user.name ||
+            "reporting_user",
+
+          name:
+            user.name ||
+            "Reporting Staff",
+        };
+      }
+    } catch {
+      // Fall back to configured reporting user.
+    }
+  }
+
+  return {
+    id: "reporting_user",
+    name: "Reporting Staff",
+  };
+}
+
+
+/* =========================================================
+   VALIDATION GROUPS
+   ========================================================= */
+
+const VALIDATION_GROUPS = [
+  {
+    key: "patient",
+    label: "Patient & Administrative",
+  },
+  {
+    key: "clinical",
+    label: "Clinical Information",
+  },
+  {
+    key: "laboratory",
+    label: "Laboratory Information",
+  },
+  {
+    key: "reporting",
+    label: "Reporting Information",
+  },
+  {
+    key: "jurisdiction",
+    label: "Jurisdiction & Disease",
+  },
 ];
 
-const MISSING_FIELD_LABELS = {
-  "patient.case_name": "Patient name",
-  "patient.parent_guardian_name": "Parent or guardian name",
-  "patient.current_address": "Current address",
-  "patient.date_of_birth": "Date of birth",
-  "patient.country_of_residence": "Country of residence",
-  "patient.hispanic": "Hispanic or Latino",
-  "patient.zip": "ZIP code",
-  "reporting.reported_by": "Reported by",
-  "reporting.earliest_date_reported": "Earliest date reported",
-  "clinical.icu_admission": "ICU admission",
-  "clinical.admission_date": "Admission date",
-  "clinical.discharge_date": "Discharge date",
-  "clinical.hospital": "Hospital or facility",
-  "clinical.illness_onset_date": "Illness onset date",
-  "clinical.diagnosis_date": "Diagnosis date",
-  "rash_fever.rash_onset_date": "Rash onset date",
-  "rash_fever.rash_duration": "Rash duration",
-  "rash_fever.rash_location": "Rash location",
-  "rash_fever.fever_onset_date": "Fever onset date",
-  "rash_fever.highest_temperature": "Highest temperature",
-  "rash_fever.koplik_spots": "Koplik spots",
-  "provider.name": "Provider name",
-  "provider.phone": "Provider phone",
-  "provider.address": "Provider address",
-  "facility.name": "Facility name",
-};
 
-const CASE_VALUE_PATHS = {
-  "patient.case_name": "patient.name",
-  "patient.parent_guardian_name": "patient.parent_guardian_name",
-  "patient.current_address": "patient.address",
-  "patient.city": "patient.city",
-  "patient.county": "patient.county",
-  "patient.zip": "patient.zip",
-  "patient.phone": "patient.phone",
-  "patient.date_of_birth": "patient.date_of_birth",
-  "patient.sex": "patient.sex",
-  "patient.country_of_residence": "patient.country_of_residence",
-  "patient.hispanic": "patient.hispanic",
-  "patient.race": "patient.race",
-  "clinical.hospitalized": "clinical_evidence.hospitalized",
-  "clinical.icu_admission": "clinical_evidence.icu_admission",
-  "clinical.admission_date": "clinical_evidence.admission_date",
-  "clinical.discharge_date": "clinical_evidence.discharge_date",
-  "clinical.hospital": "facility.name",
-  "clinical.illness_onset_date": "clinical_evidence.onset_date",
-  "clinical.confirmation_method": "clinical_evidence.confirmation_method",
-  "clinical.diagnosis": "disease",
-  "clinical.diagnosis_date": "clinical_evidence.diagnosis_date",
-  "rash_fever.rash": "clinical_evidence.rash",
-  "rash_fever.rash_onset_date": "clinical_evidence.rash_onset_date",
-  "rash_fever.rash_duration": "clinical_evidence.rash_duration",
-  "rash_fever.rash_location": "clinical_evidence.rash_location",
-  "rash_fever.fever": "clinical_evidence.fever",
-  "rash_fever.fever_onset_date": "clinical_evidence.fever_onset_date",
-  "rash_fever.highest_temperature": "clinical_evidence.highest_temperature",
-  "rash_fever.cough": "clinical_evidence.cough",
-  "rash_fever.coryza": "clinical_evidence.coryza",
-  "rash_fever.conjunctivitis": "clinical_evidence.conjunctivitis",
-  "rash_fever.koplik_spots": "clinical_evidence.koplik_spots",
-};
+/* =========================================================
+   VALIDATION STATUS
+   ========================================================= */
 
-function getObjectPath(source, path) {
-  return path.split(".").reduce((value, key) => value?.[key], source);
-}
-
-function missingFieldLabel(field) {
-  return MISSING_FIELD_LABELS[field] || field.split(".").at(-1).replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function missingFieldControl(field, value, onChange) {
-  const normalized = String(value ?? "").toLowerCase();
-  const yesNoFields = new Set(["hospitalized", "icu_admission", "rash", "fever", "cough", "coryza", "conjunctivitis", "koplik_spots", "hispanic"]);
-  if (yesNoFields.has(field.split(".").at(-1))) {
-    const selected = ["true", "1", "y", "yes"].includes(normalized)
-      ? "yes"
-      : ["false", "0", "n", "no"].includes(normalized)
-        ? "no"
-        : normalized === "unknown"
-          ? "unknown"
-          : "";
-    return <select value={selected} onChange={(event) => onChange(event.target.value)}><option value="">Select an answer</option><option value="yes">Yes</option><option value="no">No</option><option value="unknown">Unknown</option></select>;
+function getValidationStatus(validation) {
+  if (!validation) {
+    return "NOT_CHECKED";
   }
-  if (field.endsWith(".date_of_birth") || field.endsWith("_date")) {
-    const dateValue = typeof value === "string" ? value.slice(0, 10) : "";
-    return <input type="date" value={dateValue} onChange={(event) => onChange(event.target.value)} />;
+
+  if (
+    validation.status === "VALID" &&
+    validation.valid === true &&
+    validation.ready_for_review === true
+  ) {
+    return "VALID";
   }
-  if (field.endsWith(".phone")) return <input type="tel" value={value ?? ""} onChange={(event) => onChange(event.target.value)} />;
-  if (field.endsWith(".highest_temperature") || field.endsWith(".rash_duration")) return <input type="number" step="any" value={value ?? ""} onChange={(event) => onChange(event.target.value)} />;
-  if (normalized.length > 90 || field.endsWith(".address")) return <textarea rows="3" value={value ?? ""} onChange={(event) => onChange(event.target.value)} />;
-  return <input type="text" value={value ?? ""} onChange={(event) => onChange(event.target.value)} />;
+
+  if (
+    validation.status === "INVALID" ||
+    validation.valid === false
+  ) {
+    return "INVALID";
+  }
+
+  return "ATTENTION";
 }
 
-export default function CaseWorkspace() {
-  const { patientId: routePatientId, caseId } = useParams();
+
+function getValidationCounts(validation) {
+  const errors = Array.isArray(validation?.errors)
+    ? validation.errors.length
+    : 0;
+
+  const warnings = Array.isArray(validation?.warnings)
+    ? validation.warnings.length
+    : 0;
+
+  const missing =
+    Array.isArray(validation?.missing_fields)
+      ? validation.missing_fields.length
+      : Array.isArray(validation?.completion_required)
+        ? validation.completion_required.length
+        : 0;
+
+  const total =
+    Number(
+      validation?.validated_field_count ??
+      validation?.valid_field_count ??
+      validation?.validated_fields_count ??
+      0
+    ) || 0;
+
+  const valid = Math.max(
+    0,
+    total - errors - missing
+  );
+
+  return {
+    valid,
+    attention: warnings + missing,
+    blocking: errors,
+    total,
+  };
+}
+
+
+/* =========================================================
+   FIELD GROUPING
+   ========================================================= */
+
+function getMissingFields(validation) {
+  const values = [
+    ...(Array.isArray(validation?.missing_fields)
+      ? validation.missing_fields
+      : []),
+
+    ...(Array.isArray(validation?.completion_required)
+      ? validation.completion_required
+      : []),
+  ];
+
+  return [
+    ...new Set(
+      values
+        .filter(Boolean)
+        .map((item) => String(item))
+    ),
+  ];
+}
+
+
+function fieldGroup(field) {
+  const prefix = String(field)
+    .split(".")[0]
+    .toLowerCase();
+
+  if (prefix === "patient") {
+    return "patient";
+  }
+
+  if (
+    prefix === "clinical" ||
+    prefix === "rash_fever"
+  ) {
+    return "clinical";
+  }
+
+  if (prefix === "laboratory") {
+    return "laboratory";
+  }
+
+  if (
+    prefix === "reporting" ||
+    prefix === "provider" ||
+    prefix === "facility"
+  ) {
+    return "reporting";
+  }
+
+  if (
+    prefix === "jurisdiction" ||
+    prefix === "disease"
+  ) {
+    return "jurisdiction";
+  }
+
+  return "reporting";
+}
+
+
+function validationGroupStatus(
+  validation,
+  groupKey
+) {
+  const missingFields = getMissingFields(validation);
+
+  const errors = Array.isArray(validation?.errors)
+    ? validation.errors.map(String)
+    : [];
+
+  const relevantMissing = missingFields.filter(
+    (field) => fieldGroup(field) === groupKey
+  );
+
+  const relevantErrors = errors.filter((item) => {
+    const lower = item.toLowerCase();
+
+    if (groupKey === "patient") {
+      return (
+        lower.includes("patient") ||
+        lower.includes("dob") ||
+        lower.includes("date of birth")
+      );
+    }
+
+    if (groupKey === "clinical") {
+      return (
+        lower.includes("clinical") ||
+        lower.includes("symptom") ||
+        lower.includes("onset") ||
+        lower.includes("rash") ||
+        lower.includes("fever")
+      );
+    }
+
+    if (groupKey === "laboratory") {
+      return (
+        lower.includes("laboratory") ||
+        lower.includes("lab") ||
+        lower.includes("test")
+      );
+    }
+
+    if (groupKey === "reporting") {
+      return (
+        lower.includes("report") ||
+        lower.includes("provider") ||
+        lower.includes("facility")
+      );
+    }
+
+    if (groupKey === "jurisdiction") {
+      return (
+        lower.includes("jurisdiction") ||
+        lower.includes("disease") ||
+        lower.includes("rule")
+      );
+    }
+
+    return false;
+  });
+
+  if (
+    relevantMissing.length > 0 ||
+    relevantErrors.length > 0
+  ) {
+    return "ATTENTION";
+  }
+
+  if (
+    validation?.status === "VALID" ||
+    validation?.valid === true
+  ) {
+    return "COMPLETE";
+  }
+
+  return "NOT_CHECKED";
+}
+
+
+/* =========================================================
+   COMPONENT
+   ========================================================= */
+
+export default function CaseWorkspacePage() {
+  const { patientId: routePatientId = "", caseId = "" } = useParams();
   const navigate = useNavigate();
-  const demo = useDemoWorkflow(caseId);
 
-  const [caseData, setCaseData] = useState(null);
+  const [data, setData] = useState(null);
   const [journey, setJourney] = useState(null);
-  const [validationRecord, setValidationRecord] = useState(null);
-  const [reviewRecord, setReviewRecord] = useState(null);
-  const [attestationRecord, setAttestationRecord] = useState(null);
-  const [notificationRecord, setNotificationRecord] = useState(null);
-  const [deadlineCalculation, setDeadlineCalculation] = useState(null);
-  const [deadlineEscalation, setDeadlineEscalation] = useState(null);
-  const [deadlineState, setDeadlineState] = useState("NOT CALCULATED");
-  const [deadlineError, setDeadlineError] = useState("");
-  const [deadlineLoading, setDeadlineLoading] = useState(false);
+  const [validation, setValidation] = useState(null);
+  const [review, setReview] = useState(null);
+  const [attestation, setAttestation] = useState(null);
+  const [timeline, setTimeline] = useState([]);
+  const [notification, setNotification] = useState(null);
 
-  const [reportFields, setReportFields] = useState({});
-  const [provider, setProvider] = useState({});
-  const [facility, setFacility] = useState({});
-
-  const [missingOpen, setMissingOpen] = useState(false);
-  const [notificationOpen, setNotificationOpen] = useState(false);
-
-  const [working, setWorking] = useState(false);
-  const [operation, setOperation] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    loadWorkspace();
+  const [reviewDecision, setReviewDecision] =
+    useState("APPROVE");
+
+  const [reviewComments, setReviewComments] =
+    useState("");
+
+  const [attestationComments, setAttestationComments] =
+    useState("");
+
+  const [reviewChecked, setReviewChecked] =
+    useState(false);
+
+  const [refreshKey, setRefreshKey] =
+    useState(0);
+
+  function saveSessionWorkflow(update) {
+    const next = {
+      ...readCaseWorkflowSession(caseId),
+      ...update,
+    };
+    return writeCaseWorkflowSession(caseId, next);
+  }
+
+  function restoreSessionWorkflow() {
+    const saved = readCaseWorkflowSession(caseId);
+    setReview(saved.review || null);
+    setAttestation(saved.attestation || null);
+    setReviewDecision(saved.reviewDecision || saved.review?.payload?.decision || "APPROVE");
+    setReviewComments(saved.reviewComments || saved.review?.payload?.comments || "");
+    setAttestationComments(saved.attestationComments || saved.attestation?.payload?.comments || "");
+    setReviewChecked(saved.reviewChecked === true);
+  }
+
+
+  /* =======================================================
+     LOAD DATA
+     ======================================================= */
+
+  const reload = useCallback(async () => {
+    const [
+      caseResponse,
+      journeyResponse,
+      validationResponse,
+      timelineResponse,
+      notificationResponse,
+    ] = await Promise.all([
+      getCase(caseId),
+      getCaseJourney(caseId),
+      getCaseValidation(caseId),
+      getCaseTimeline(caseId),
+      getImmediateNotification(caseId),
+    ]);
+
+    setData(caseResponse);
+    setJourney(journeyResponse);
+    setValidation(validationResponse);
+    restoreSessionWorkflow();
+
+    setTimeline(
+      timelineResponse?.events || []
+    );
+
+    setNotification(
+      notificationResponse || null
+    );
+
   }, [caseId]);
 
-  async function loadWorkspace({ showLoading = true } = {}) {
-    try {
-      if (showLoading) setLoading(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function initialize() {
+      setLoading(true);
       setError("");
 
-      const [caseResponse, journeyResponse, validationResponse, reviewResponse, attestationResponse, notificationResponse] = await Promise.all([
-        getCase(caseId),
-        getJourney(caseId),
-        getCaseValidation(caseId),
-        getCaseReview(caseId),
-        getCaseAttestation(caseId),
-        getImmediateNotification(caseId),
-      ]);
+      try {
+        const [
+          caseResponse,
+          journeyResponse,
+          validationResponse,
+          timelineResponse,
+          notificationResponse,
+        ] = await Promise.all([
+          getCase(caseId),
+          getCaseJourney(caseId),
+          getCaseValidation(caseId),
+          getCaseTimeline(caseId),
+          getImmediateNotification(caseId),
+        ]);
 
-      const data = caseResponse?.data || caseResponse;
-      const journeyData = journeyResponse?.data || journeyResponse;
+        if (!active) return;
 
-      setCaseData(data);
-      setJourney(journeyData);
-      setValidationRecord(validationResponse?.data || validationResponse);
-      setReviewRecord(reviewResponse?.data || reviewResponse);
-      setAttestationRecord(attestationResponse?.data || attestationResponse);
-      setNotificationRecord(notificationResponse?.data || notificationResponse);
-      const escalations = Array.isArray(journeyData?.deadline_escalations) ? journeyData.deadline_escalations : [];
-      setDeadlineEscalation(escalations.at(-1) || null);
-      setDeadlineState(data?.deadline ? "DEADLINE CALCULATED" : caseEventTime(data) ? "NOT CALCULATED" : "DEADLINE UNAVAILABLE");
+        setData(caseResponse);
+        setJourney(journeyResponse);
+        setValidation(validationResponse);
+        restoreSessionWorkflow();
 
-      setReportFields(data?.report_fields || {});
-      setProvider(data?.provider || {});
-      setFacility(data?.facility || {});
+        setTimeline(
+          timelineResponse?.events || []
+        );
 
-    } catch (err) {
-      setError(
-        err?.response?.data?.detail ||
-          err?.message ||
-          "Unable to load case workspace."
-      );
-      return false;
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-    return true;
-  }
+        setNotification(
+          notificationResponse || null
+        );
 
-  const patient = caseData?.patient || {};
-  const patientId = routePatientId || patient.patient_id || caseData?.patient_id || "";
-  const patientPath = patientId ? `/patients/${encodeURIComponent(patientId)}` : "/patients";
-  const casePath = patientId
-    ? `${patientPath}/case/${encodeURIComponent(caseId)}`
-    : `/cases/${encodeURIComponent(caseId)}`;
-
-  const missingFields = useMemo(() => [...new Set([
-    ...(caseData?.missing_report_fields || []),
-    ...(caseData?.required_missing_fields || []),
-    ...(validationRecord?.missing_fields || []),
-    ...(validationRecord?.completion_required || []),
-  ].filter((field) => typeof field === "string" && field.trim()))], [caseData, validationRecord]);
-  const groupedMissingFields = useMemo(() => {
-    const groups = MISSING_FIELD_GROUPS.map((group) => ({ ...group, fields: [] }));
-    for (const field of missingFields) {
-      const groupKey = field.split(".")[0];
-      const group = groups.find((item) => item.key === groupKey) || groups.find((item) => item.key === "clinical");
-      group.fields.push(field);
-    }
-    return groups.filter((group) => group.fields.length);
-  }, [missingFields]);
-
-  function getMissingFieldValue(field) {
-    if (field.startsWith("provider.")) return provider[field.slice("provider.".length)] ?? "";
-    if (field.startsWith("facility.")) return facility[field.slice("facility.".length)] ?? "";
-    return reportFields[field] ?? getObjectPath(caseData, CASE_VALUE_PATHS[field] || "") ?? "";
-  }
-
-  function setMissingFieldValue(field, value) {
-    if (field.startsWith("provider.")) {
-      const key = field.slice("provider.".length);
-      setProvider((current) => ({ ...current, [key]: value }));
-    } else if (field.startsWith("facility.")) {
-      const key = field.slice("facility.".length);
-      setFacility((current) => ({ ...current, [key]: value }));
-    } else {
-      setReportFields((current) => ({ ...current, [field]: value }));
-    }
-  }
-
-  const reportabilityDecision = normalizeStatus(caseData?.reportability_decision);
-  const finalDecision = normalizeStatus(caseData?.final_decision);
-  const jurisdictionResolved = normalizeStatus(caseData?.jurisdiction_status) === "RESOLVED";
-  const reportabilityPending = reportabilityDecision === "PROCEED_TO_RULES";
-  const isReportable = reportabilityDecision === "REPORT";
-  const backendValidationReady = isReportable && validationRecord?.valid === true && validationRecord?.ready_for_review === true;
-  const validationReady = demo.active
-    ? demo.stages.validation === "COMPLETED" && backendValidationReady
-    : backendValidationReady;
-  const validationState = reportabilityPending
-    ? "PENDING REPORTABILITY"
-    : !isReportable
-      ? "PENDING REPORTABILITY"
-      : validationReady
-        ? "READY"
-        : "NEEDS COMPLETION";
-  const reviewApproved = demo.active
-    ? demo.stages.review === "COMPLETED"
-    : normalizeStatus(reviewRecord?.status) === "APPROVE";
-  const humanReviewReady = validationReady;
-  const attested = demo.active
-    ? demo.stages.attestation === "COMPLETED"
-    : normalizeStatus(attestationRecord?.status) === "ATTESTED";
-  const attestationReady = humanReviewReady && reviewApproved && finalDecision === "REPORT" && jurisdictionResolved;
-  const notificationComplete = demo.active
-    ? demo.stages.notification === "COMPLETED"
-    : normalizeStatus(notificationRecord?.status) === "COMPLETED";
-  const reportingReady = attested && notificationComplete;
-  const deadlineValue = deadlineCalculation?.deadline || caseData?.deadline || null;
-  const escalationStatus = deadlineEscalation?.status || null;
-
-  async function handleCalculateDeadline() {
-    const eventTime = caseEventTime(caseData);
-    if (!eventTime) {
-      setDeadlineState("DEADLINE UNAVAILABLE");
-      setDeadlineError("No valid event timestamp is available in the case or workflow data.");
-      return;
-    }
-    if (deadlineLoading || !caseData?.disease || !caseData?.jurisdiction) return;
-    let calculationCompleted = false;
-    try {
-      setDeadlineLoading(true);
-      setDeadlineState("CALCULATING");
-      setDeadlineError("");
-      const calculation = await calculateDeadline({
-        event_time: eventTime,
-        disease: caseData.disease,
-        jurisdiction: caseData.jurisdiction,
-        // caseData.rule_id is the reportability decision rule (for example,
-        // MEASLES-003). Deadline rules are selected separately by disease
-        // and jurisdiction from the deadline catalog.
-        case_id: caseId,
-      });
-      if (!calculation?.deadline || !Number.isFinite(Date.parse(calculation.deadline))) {
-        throw new Error("Deadline Agent response did not contain a valid deadline.");
+      } catch (requestError) {
+        if (active) {
+          setError(
+            requestError?.message ||
+            "Unable to load the case."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
-      setDeadlineCalculation(calculation);
-      calculationCompleted = true;
-      const escalation = await evaluateDeadlineEscalation({
-        case_id: caseId,
-        deadline: calculation.deadline,
-        warning_window_minutes: 60,
-        jurisdiction: caseData.jurisdiction,
-        rule_id: calculation.rule_id || caseData.rule_id || undefined,
-      });
-      setDeadlineEscalation(escalation);
-      setDeadlineState("DEADLINE CALCULATED");
-      await loadWorkspace({ showLoading: false });
-    } catch (err) {
-      setDeadlineState(calculationCompleted ? "DEADLINE CALCULATED" : "ERROR");
-      setDeadlineError(calculationCompleted
-        ? `Deadline calculated, but escalation status could not be evaluated: ${err?.message || "Backend error."}`
-        : err?.message || "Reporting deadline could not be calculated.");
-    } finally {
-      setDeadlineLoading(false);
     }
-  }
 
-  async function saveCase() {
-    try {
-      setWorking(true);
-      setError("");
-      setMessage("");
+    initialize();
 
-      await updateCaseReport(caseId, {
-        report_fields: (() => {
-          const fields = { ...reportFields };
-          if (Object.hasOwn(fields, "reported_by")) {
-            fields["reporting.reported_by"] ??= fields.reported_by;
-            delete fields.reported_by;
-          }
-          return fields;
-        })(),
-        provider,
-        facility,
-        reviewer_id: "reporting_user",
-      });
+    return () => {
+      active = false;
+    };
+  }, [caseId, refreshKey]);
 
-      const refreshed = await loadWorkspace({ showLoading: false });
-      if (!refreshed) return false;
-      setMessage("Information saved successfully.");
-      return true;
-    } catch (err) {
-      setError(
-        err?.response?.data?.detail ||
-          err?.message ||
-          "Unable to save case information."
-      );
-      return false;
-    } finally {
-      setWorking(false);
-    }
-  }
+
+  /* =======================================================
+     DERIVED DATA
+     ======================================================= */
+
+  const validationCounts = useMemo(
+    () => getValidationCounts(validation),
+    [validation]
+  );
+
+  const validationStatus = useMemo(
+    () => getValidationStatus(validation),
+    [validation]
+  );
+
+  const missingFields = useMemo(
+    () => getMissingFields(validation),
+    [validation]
+  );
+
+  const reviewApproved =
+    review?.status === "APPROVE";
+
+  const attested =
+    attestation?.status === "ATTESTED";
+
+  const readyForReview =
+    validationStatus === "VALID" &&
+    validation?.ready_for_review === true;
+
+  const canSubmitToQueue =
+    readyForReview &&
+    reviewApproved &&
+    attested &&
+    reviewChecked;
+
+
+  /* =======================================================
+     CASE DATA
+     ======================================================= */
+
+  const patient = data?.patient || {};
+
+  const condition =
+    data?.disease ||
+    data?.condition ||
+    "Measles";
+
+  const jurisdiction =
+    data?.jurisdiction ||
+    data?.reporting_jurisdiction ||
+    "Texas";
+
+  const facility =
+    data?.facility?.name ||
+    data?.facility?.facility_name ||
+    data?.facility?.facility_id ||
+    "Not available";
+
+  const provider =
+    data?.provider?.name ||
+    "Not available";
+
+  const reportability =
+    data?.final_decision ||
+    data?.reportability_decision ||
+    data?.reportability ||
+    "Not available";
+
+  const reportingRule =
+    data?.rule_id ||
+    data?.reportability_rule ||
+    data?.reporting_rule ||
+    "Not available";
+
+  const deadline =
+    data?.deadline ||
+    data?.reporting_deadline ||
+    null;
+
+
+  /* =======================================================
+     REPORTING DATA
+     ======================================================= */
+
+  const reportingData = [
+    {
+      group: "Clinical",
+      items: [
+        [
+          "Illness Onset Date",
+          data?.clinical_evidence?.illness_onset_date ||
+          data?.clinical?.illness_onset_date ||
+          data?.report_fields?.["clinical.illness_onset_date"] ||
+          "Not available",
+        ],
+        [
+          "Hospitalized",
+          data?.clinical_evidence?.hospitalized ??
+          data?.clinical?.hospitalized ??
+          data?.report_fields?.["clinical.hospitalized"] ??
+          "Not available",
+        ],
+        [
+          "Key Symptoms",
+          data?.clinical_evidence?.symptoms ||
+          data?.clinical_evidence?.key_symptoms ||
+          data?.clinical?.symptoms ||
+          data?.report_fields?.["clinical.symptoms"] ||
+          "Not available",
+        ],
+      ],
+    },
+
+    {
+      group: "Laboratory",
+      items: [
+        [
+          "Test",
+          data?.laboratory_evidence?.test_name ||
+          data?.laboratory_evidence?.test ||
+          data?.laboratory?.test_name ||
+          data?.report_fields?.["laboratory.test_name"] ||
+          "Not available",
+        ],
+        [
+          "Result",
+          data?.laboratory_evidence?.result ||
+          data?.laboratory?.result ||
+          data?.report_fields?.["laboratory.result"] ||
+          "Not available",
+        ],
+        [
+          "Test Date",
+          data?.laboratory_evidence?.test_date ||
+          data?.laboratory?.test_date ||
+          data?.report_fields?.["laboratory.test_date"] ||
+          "Not available",
+        ],
+      ],
+    },
+
+    {
+      group: "Reporting",
+      items: [
+        [
+          "Reporting Facility",
+          facility,
+        ],
+        [
+          "Reporting Provider",
+          provider,
+        ],
+      ],
+    },
+
+    {
+      group: "Reporting Decision",
+      items: [
+        [
+          "Reportability",
+          reportability,
+        ],
+        [
+          "Reporting Rule",
+          reportingRule,
+        ],
+        [
+          "Deadline",
+          formatDate(deadline),
+        ],
+      ],
+    },
+  ];
+
+
+  /* =======================================================
+     ACTIONS
+     ======================================================= */
 
   async function runValidation() {
+    setBusy("validate");
+    setError("");
+
     try {
-      setWorking(true);
-      setOperation("validation");
-      setError("");
-      setMessage("");
-      const response = await validateCase(caseId);
-      const result = response?.data || response;
-      if (result?.valid === true && result?.ready_for_review === true) demo.complete("validation");
-      await loadWorkspace({ showLoading: false });
-      setMessage("Backend validation completed. Review the returned status and required fields.");
-    } catch (err) {
-      setError(err?.response?.data?.detail?.message || err?.response?.data?.detail || err?.message || "Unable to validate case.");
-      await loadWorkspace({ showLoading: false });
+      await validateCase(caseId);
+      await reload();
+    } catch (requestError) {
+      setError(
+        requestError?.message ||
+        "Validation failed."
+      );
     } finally {
-      setWorking(false);
-      setOperation("");
+      setBusy("");
     }
   }
 
-  async function handleReview() {
-    if (!validationReady) {
-      setMissingOpen(true);
+
+  async function saveReview() {
+    if (!reviewChecked) {
+      setError(
+        "Confirm that you reviewed the reporting values and available evidence."
+      );
       return;
     }
 
+    setBusy("review");
+    setError("");
+
     try {
-      setWorking(true);
-      setOperation("review");
-      setError("");
-      const response = await reviewCase(caseId, {
-        reviewer_id: "reporting_user",
-        reviewer_role: "REPORTING_STAFF",
-        decision: "APPROVE",
-        comments: "Case reviewed and approved for reporting.",
-      });
-      if (normalizeStatus((response?.data || response)?.status) === "APPROVE") demo.complete("review");
-      setReviewRecord(response?.data || response);
-      await loadWorkspace({ showLoading: false });
-      setMessage("Human review approval saved.");
-    } catch (err) {
-      setError(err?.response?.data?.detail || err?.message || "Unable to save human review.");
+      const reviewer = currentReviewer();
+      const timestamp = new Date().toISOString();
+      const temporaryReview = {
+        status: reviewDecision,
+        actor_id: reviewer.id,
+        created_at: timestamp,
+        payload: {
+          reviewer_id: reviewer.id,
+          decision: reviewDecision,
+          comments: reviewComments.trim() || undefined,
+          temporary_session_only: true,
+        },
+      };
+      if (!saveSessionWorkflow({ review: temporaryReview, reviewDecision, reviewComments, reviewChecked })) {
+        throw new Error("Browser session storage is unavailable. The review was not saved.");
+      }
+      setReview(temporaryReview);
+    } catch (requestError) {
+      setError(
+        requestError?.message ||
+        "Unable to save the reviewer decision."
+      );
     } finally {
-      setWorking(false);
-      setOperation("");
+      setBusy("");
     }
   }
 
-  async function handleAttestation() {
-      if (!attestationReady) {
+
+  async function saveAttestation() {
+    if (!reviewApproved) {
+      setError("Approve the Human Review before completing attestation.");
       return;
     }
+    setBusy("attest");
+    setError("");
 
     try {
-      setWorking(true);
-      setOperation("attestation");
-      setError("");
-      setMessage("");
-
-      const response = await attestation({
-        case_reference: caseId,
-        reviewer_id: "reporting_user",
-        reviewer_role: "REPORTING_STAFF",
-        attestation_status: "ATTESTED",
-        comments: "Case reviewed and approved for reporting.",
-      });
-
-      const data = response?.data || response;
-
-      if (data?.authorized !== true || data?.attestation_status !== "ATTESTED") {
-        setMessage(data?.message || "Backend did not authorize attestation.");
-        return;
+      const reviewer = currentReviewer();
+      const temporaryAttestation = {
+        status: "ATTESTED",
+        actor_id: reviewer.id,
+        created_at: new Date().toISOString(),
+        payload: {
+          reviewer_id: reviewer.id,
+          comments: attestationComments.trim() || undefined,
+          temporary_session_only: true,
+        },
+      };
+      if (!saveSessionWorkflow({ attestation: temporaryAttestation, attestationComments })) {
+        throw new Error("Browser session storage is unavailable. The attestation was not saved.");
       }
-      const savedResponse = await persistAttestation(caseId, {
-        reviewer_id: "reporting_user",
-        reviewer_role: "REPORTING_STAFF",
-        attestation_status: "ATTESTED",
-        comments: "Case reviewed and approved for reporting.",
-      });
-      const savedAttestation = savedResponse?.data || savedResponse;
-      if (normalizeStatus(savedAttestation?.status || savedAttestation?.attestation_status) !== "ATTESTED") {
-        throw new Error("The backend did not confirm that the case was attested.");
-      }
-      demo.complete("attestation");
-      await loadWorkspace({ showLoading: false });
-
-      setMessage(
-        "Case attested successfully. Immediate notification is now required."
-      );
-    } catch (err) {
+      setAttestation(temporaryAttestation);
+    } catch (requestError) {
       setError(
-        err?.response?.data?.detail ||
-          err?.message ||
-          "Unable to attest case."
+        requestError?.message ||
+        "Unable to complete attestation."
       );
     } finally {
-      setWorking(false);
-      setOperation("");
+      setBusy("");
     }
   }
 
-  async function handlePrepareNotification() {
+
+  async function submitToQueue() {
+    if (!caseId || busy) return;
+    setBusy("queue");
+    setError("");
     try {
-      setWorking(true);
-      setOperation("notification");
-      setError("");
-      setMessage("");
-
-      if (!attested) return;
-      const response = await recordImmediateNotification(caseId, {
-        notification_time: new Date().toISOString(),
-        reporting_user: "SIGNAL Reporting User",
-        notification_method: "PHONE",
-        status: "COMPLETED",
-        notes: "Phone notification recorded.",
+      const reviewer = currentReviewer();
+      const result = await markSubmissionReady(caseId, {
+        actor_id: reviewer.id,
+        review_confirmed: true,
+        review_decision: review?.status,
+        attestation_confirmed: true,
       });
-      demo.complete("notification");
-      setNotificationRecord(response?.data || response);
-      await loadWorkspace({ showLoading: false });
-      setNotificationOpen(false);
-
-      setMessage(
-        "Immediate notification recorded. The case can now proceed to the Texas reporting form."
-      );
-    } catch (err) {
-      setError(
-        err?.response?.data?.detail ||
-          err?.message ||
-          "Unable to prepare immediate notification."
-      );
+      const queueResult = result?.data ?? result;
+      if (queueResult?.ready !== true || queueResult?.record?.status !== "READY") {
+        throw new Error("SIGNAL did not confirm that this case is ready for the reporting queue.");
+      }
+      const patientId = routePatientId || data?.patient?.patient_id || data?.patient_id;
+      const queuePath = patientId
+        ? `/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}/queue`
+        : `/cases/${encodeURIComponent(caseId)}/queue`;
+      navigate(queuePath, { state: { queueResult } });
+    } catch (requestError) {
+      const detail = requestError?.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : detail?.message || requestError?.message || "Unable to confirm queue readiness.");
     } finally {
-      setWorking(false);
-      setOperation("");
+      setBusy("");
     }
   }
 
-  function goToReportingForm() {
-    navigate(`${casePath}/reporting-form`);
-  }
 
-  function updateReportField(key, value) {
-    setReportFields((previous) => ({
-      ...previous,
-      [key]: value,
-    }));
-  }
+  /* =======================================================
+     LOADING
+     ======================================================= */
 
   if (loading) {
     return (
-      <div className="case-workspace-page">
-        <SignalLoading title="Loading Case" message="Retrieving case details, reportability, validation, and workflow status." />
-      </div>
+      <section className="review-validation-page">
+        <SignalLoading
+          title="Loading Review & Validation"
+          message="Loading the case, validation state, reviewer decision, and attestation status from SIGNAL."
+        />
+      </section>
     );
   }
 
-  if (!caseData) {
+
+  /* =======================================================
+     ERROR
+     ======================================================= */
+
+  if (!data) {
     return (
-      <div className="case-workspace-page">
-        <div className="case-error-card">
-          <h2>Case unavailable</h2>
-          <p>{error || "The requested case was not found."}</p>
-          <button onClick={() => navigate(routePatientId ? `/patients/${encodeURIComponent(routePatientId)}` : "/cases")}>
-            {routePatientId ? "Back to Patient" : "Back to Cases"}
+      <section className="review-validation-page">
+        <div className="review-validation-empty">
+          <h2>
+            Unable to load reporting case
+          </h2>
+
+          <p>
+            {error ||
+              "The requested case could not be loaded."}
+          </p>
+
+          <button
+            type="button"
+            className="review-validation-submit"
+            onClick={() =>
+              setRefreshKey(
+                (value) => value + 1
+              )
+            }
+          >
+            Retry
           </button>
         </div>
-      </div>
+      </section>
     );
   }
 
-  return (
-    <div className="case-workspace-page">
-      <header className="case-header">
-        <div>
-          <button
-            className="case-back"
-            onClick={() => navigate(patientPath)}
-          >
-            ← {patientId ? "Patient" : "Cases"}
-          </button>
 
-          <div className="case-kicker">CASE WORKSPACE</div>
+  /* =======================================================
+     RENDER
+     ======================================================= */
+
+  return (
+    <section className="review-validation-page">
+
+      {/* HEADER */}
+
+      <header className="review-validation-header">
+
+        <div>
+          <span className="review-validation-eyebrow">
+            SIGNAL · PATIENT WORKSPACE
+          </span>
 
           <h1>
-            {patient.first_name || ""}{" "}
-            {patient.last_name || ""}
+            Review & Validation
           </h1>
 
           <p>
-            Review, validate and authorize this reportable measles
-            case before public-health reporting.
+            Review mapped reporting values, validation
+            checks, and source evidence before authorized
+            submission.
           </p>
         </div>
 
-        <div className="case-header-right">
-          <span className="case-status">
-            {caseData.status || "NEEDS_REVIEW"}
-          </span>
+        <button
+          type="button"
+          className="review-validation-back"
+          onClick={() =>
+            navigate(-1)
+          }
+        >
+          ← Back
+        </button>
 
-          <span className="case-jurisdiction">
-            {caseData.jurisdiction || "TX"}
-          </span>
-        </div>
       </header>
 
-      {(error || message) && (
+
+      {/* BREADCRUMB */}
+
+      <nav
+        className="review-validation-breadcrumb"
+        aria-label="Reporting workflow"
+      >
+        {[
+          "Patient",
+          "Active Patient",
+          "Data Extraction",
+          "Texas Measles CRF",
+        ].map((item) => (
+          <span
+            key={item}
+            className="review-validation-breadcrumb-item"
+          >
+            {item}
+          </span>
+        ))}
+
+        <span className="review-validation-breadcrumb-separator">
+          ›
+        </span>
+
+        <span className="review-validation-breadcrumb-item active">
+          Review & Validation
+        </span>
+      </nav>
+
+
+      {/* ERROR */}
+
+      {error && (
         <div
-          className={`case-message ${
-            error ? "error" : "success"
-          }`}
+          className="review-validation-message error"
+          role="alert"
         >
-          {error || message}
+          <strong>
+            Unable to complete action.
+          </strong>
+
+          <span>
+            {error}
+          </span>
         </div>
       )}
 
-      {working && operation && <SignalLoading
-        title={operation === "validation" ? "Validating Case" : operation === "review" ? "Recording Human Review" : operation === "attestation" ? "Recording Attestation" : "Recording Immediate Notification"}
-        message={operation === "validation" ? "Checking required reporting information and submission readiness." : operation === "review" ? "Saving the case review decision." : operation === "attestation" ? "Requesting and recording the reporting attestation." : "Recording the case notification details."}
-      />}
 
-      <main className="case-layout">
-        <section className="case-main">
-          <div className="patient-context">
-            <div>
-              <span>MRN</span>
-              <strong>
-                {patient.source_patient_id ||
-                  patient.patient_id ||
-                  "Not available"}
-              </strong>
-            </div>
+      {/* MAIN GRID */}
 
-            <div>
-              <span>DOB</span>
-              <strong>
-                {patient.date_of_birth || "Not available"}
-              </strong>
-            </div>
+      <div className="review-validation-grid">
 
-            <div>
-              <span>DISEASE</span>
-              <strong>{caseData.disease}</strong>
-            </div>
+        {/* =================================================
+            LEFT
+            ================================================= */}
 
-            <div>
-              <span>RULE</span>
-              <strong>{caseData.rule_id || "Not available"}</strong>
-            </div>
+        <div className="review-validation-left">
 
-            <div>
-              <span>CASE ID</span>
-              <strong className="case-id">
-                {caseData.case_id}
-              </strong>
-            </div>
-          </div>
+          {/* REPORTING DATA */}
 
-          <section className="workflow-card">
-            <div className="workflow-header">
+          <section className="review-validation-card review-validation-reporting-data">
+
+            <div className="review-validation-card-header">
+
               <div>
-                <span className="card-kicker">CASE JOURNEY</span>
-                <h2>Reporting Workflow</h2>
+                <h2>
+                  Reporting Data
+                </h2>
+
+                <p>
+                  Mapped values from available patient
+                  records
+                </p>
               </div>
+
             </div>
 
-            <div className="workflow-stepper">
-              {WORKFLOW_STEPS.map((step, index) => {
-                let complete = false;
-                let active = false;
 
-                if (step.key === "reportability") {
-                  complete = isReportable;
-                }
+            <div className="review-validation-data-list">
 
-                if (step.key === "case") {
-                  complete = Boolean(caseData.case_id);
-                }
-
-                if (step.key === "validation") {
-                  complete = validationReady;
-                  active = !complete;
-                }
-
-                if (step.key === "review") {
-                  complete = reviewApproved;
-                  active =
-                    validationReady && !reviewApproved;
-                }
-
-                if (step.key === "attestation") {
-                  complete = attested;
-                  active =
-                    reviewApproved && !attested;
-                }
-
-                if (step.key === "notification") {
-                  complete = notificationComplete;
-                  active =
-                    attested && !notificationComplete;
-                }
-
-                if (step.key === "reporting") {
-                  complete = reportingReady;
-                  active = notificationComplete;
-                }
+              {reportingData.map((section) => {
+                const groupKey = section.group === "Clinical"
+                  ? "clinical"
+                  : section.group === "Laboratory"
+                    ? "laboratory"
+                    : section.group === "Reporting Decision"
+                      ? "jurisdiction"
+                      : "reporting";
+                const status = validationGroupStatus(validation, groupKey);
+                const heading = {
+                  Clinical: "Clinical Information",
+                  Laboratory: "Laboratory Information",
+                  Reporting: "Reporting Information",
+                  "Reporting Decision": "Reporting Decision",
+                }[section.group] || section.group;
 
                 return (
-                  <React.Fragment key={step.key}>
-                    <div
-                      className={`workflow-item ${
-                        complete ? "complete" : ""
-                      } ${active ? "active" : ""}`}
+                  <div className="review-validation-data-row" key={section.group}>
+                    <span className="review-validation-data-label">{heading}</span>
+                    <span
+                      className={`review-validation-section-status ${status.toLowerCase()}`}
+                      role="img"
+                      aria-label={`${heading}: ${status === "COMPLETE" ? "complete" : status === "ATTENTION" ? "needs attention" : "not checked"}`}
+                      title={status === "COMPLETE" ? "Complete" : status === "ATTENTION" ? "Needs attention" : "Not checked"}
                     >
-                      <div className="workflow-circle">
-                        {complete ? "✓" : index + 1}
-                      </div>
-
-                      <span>{step.label}</span>
-                    </div>
-
-                    {index < WORKFLOW_STEPS.length - 1 && (
-                      <div
-                        className={`workflow-line ${
-                          complete ? "complete" : ""
-                        }`}
-                      />
-                    )}
-                  </React.Fragment>
+                      {status === "COMPLETE" ? "✓" : status === "ATTENTION" ? "!" : "○"}
+                    </span>
+                  </div>
                 );
               })}
+
             </div>
+
           </section>
 
-          <section className="summary-grid">
-            <div className="summary-card">
-              <span>REPORTABILITY</span>
-              <strong className={isReportable ? "green" : "warning"}>
-                {reportabilityPending ? "Reportability Decision Pending" : caseData.reportability_decision || "Not available"}
-              </strong>
-              <small>
-                Rule: {caseData.rule_id || "Not available"}
-              </small>
-            </div>
 
-            <div className="summary-card">
-              <span>JURISDICTION</span>
-              <strong>
-                {caseData.jurisdiction || "Not available"}
-              </strong>
-              <small>
-                {caseData.jurisdiction_status ||
-                  "Not available"}
-              </small>
-            </div>
+          {/* SOURCE EVIDENCE */}
 
-            <div className="summary-card">
-              <span>CASE STATUS</span>
-              <strong>{caseData.status}</strong>
-              <small>
-                Updated{" "}
-                {caseData.updated_at
-                  ? new Date(
-                      caseData.updated_at
-                    ).toLocaleString()
-                  : "Not available"}
-              </small>
-            </div>
-          </section>
+          <section className="review-validation-card review-validation-source-evidence">
 
-          <section className="case-card deadline-card">
-            <div className="card-header">
+            <div className="review-validation-card-header">
+
               <div>
-                <span className="card-kicker">CALCULATED BY SIGNAL</span>
-                <h2>Reporting Deadline</h2>
+                <h2>
+                  Source Evidence
+                </h2>
+
+                <p>
+                  Records used to populate reporting values
+                </p>
               </div>
-              <span className={`review-state ${deadlineState === "DEADLINE CALCULATED" ? "approved" : ""}`}>
-                {deadlineLoading ? "CALCULATING" : deadlineState}
+
+              <span className="review-validation-badge neutral">
+                {[
+                  data?.clinical_evidence,
+                  data?.laboratory_evidence,
+                  data?.ai_evidence,
+                ].filter(hasEvidence).length}{" "}
+                source records
               </span>
+
             </div>
-            <div className="deadline-content">
-              {deadlineValue ? (
-                <dl className="deadline-details">
-                  <div><dt>Deadline</dt><dd>{deadlineDateLabel(deadlineValue)}</dd></div>
-                  {(deadlineCalculation?.event_time || caseEventTime(caseData)) && <div><dt>Event time</dt><dd>{deadlineDateLabel(deadlineCalculation?.event_time || caseEventTime(caseData))}</dd></div>}
-                  <div><dt>Rule</dt><dd>{deadlineCalculation?.rule_id || caseData.rule_id || "Not available"}</dd></div>
-                  <div><dt>Disease</dt><dd>{deadlineCalculation?.disease || caseData.disease || "Not available"}</dd></div>
-                  <div><dt>Jurisdiction</dt><dd>{deadlineCalculation?.jurisdiction || caseData.jurisdiction || "Not available"}</dd></div>
-                  <div><dt>Status</dt><dd className={`deadline-status ${escalationStatus === "OVERDUE" ? "overdue" : escalationStatus === "UPCOMING" ? "warning" : "normal"}`}>
-                    {escalationStatus === "OVERDUE" ? "Overdue" : escalationStatus === "UPCOMING" ? "Warning" : escalationStatus === "WITHIN_WINDOW" ? "Normal" : deadlineCalculation?.urgency || caseData.severity || "Not evaluated"}
-                  </dd></div>
-                  {(deadlineEscalation?.minutes_remaining ?? deadlineCalculation?.minutes_remaining) !== undefined && <div><dt>Time remaining</dt><dd>{deadlineEscalation?.minutes_remaining ?? deadlineCalculation?.minutes_remaining} minutes</dd></div>}
-                  {deadlineEscalation?.message && <div className="deadline-message"><dt>Agent message</dt><dd>{deadlineEscalation.message}</dd></div>}
-                </dl>
-              ) : (
-                <p className="deadline-empty">{deadlineState === "DEADLINE UNAVAILABLE" ? "Deadline cannot be calculated yet" : "Not calculated"}</p>
-              )}
-              {deadlineError && <p className="deadline-error">{deadlineCalculation?.deadline ? "Deadline escalation could not be completed." : "Reporting deadline could not be calculated."}<span>{deadlineError}</span></p>}
-              <button className="outline-button" disabled={deadlineLoading || !caseEventTime(caseData) || !caseData.disease || !caseData.jurisdiction} onClick={handleCalculateDeadline}>
-                {deadlineLoading ? "Calculating…" : "Calculate Deadline"}
-              </button>
-              <details className="deadline-technical">
-                <summary>Technical Details</summary>
-                <pre>{JSON.stringify({ calculation_response: deadlineCalculation, escalation_response: deadlineEscalation, persisted_case_deadline: caseData.deadline || null, persisted_severity: caseData.severity || null }, null, 2)}</pre>
-              </details>
+
+
+            <div className="review-validation-evidence-list">
+
+              <EvidenceRow
+                date={
+                  data?.clinical_evidence?.date ||
+                  data?.clinical_evidence?.encounter_date
+                }
+                type="Clinical"
+                title="Clinical presentation evidence"
+                subtitle="Source evidence linked"
+                available={hasEvidence(
+                  data?.clinical_evidence
+                )}
+              />
+
+              <EvidenceRow
+                date={
+                  data?.laboratory_evidence?.test_date
+                }
+                type="Laboratory Result"
+                title="Laboratory evidence"
+                subtitle="Source evidence linked"
+                available={hasEvidence(
+                  data?.laboratory_evidence
+                )}
+              />
+
+              <EvidenceRow
+                date={
+                  data?.ai_evidence?.date
+                }
+                type="Detection"
+                title="Initial detection evidence"
+                subtitle="Detection evidence available"
+                available={hasEvidence(
+                  data?.ai_evidence
+                )}
+              />
+
             </div>
+
           </section>
 
-          <section className="case-card">
-            <div className="card-header">
+
+          {/* HUMAN REVIEW */}
+
+          <section
+            className="review-validation-card review-validation-human-card"
+            id="case-human-review"
+          >
+
+            <div className="review-validation-card-header">
+
               <div>
-                <span className="card-kicker">
-                  SMART FIELD POPULATION
-                </span>
-                <h2>Reporting Data</h2>
-              </div>
+                <h2>
+                  Human Review
+                </h2>
 
-              <button
-                className="small-button"
-                disabled={working}
-                onClick={saveCase}
-              >
-                Save
-              </button>
-            </div>
-
-            <div className="field-grid">
-              <label>
-                <span>Facility Name</span>
-                <input
-                  value={facility.name || ""}
-                  onChange={(e) =>
-                    setFacility({
-                      ...facility,
-                      name: e.target.value,
-                    })
-                  }
-                  placeholder="Facility name"
-                />
-              </label>
-
-              <label>
-                <span>Provider Name</span>
-                <input
-                  value={provider.name || ""}
-                  onChange={(e) =>
-                    setProvider({
-                      ...provider,
-                      name: e.target.value,
-                    })
-                  }
-                  placeholder="Provider name"
-                />
-              </label>
-
-              <label>
-                <span>Provider Phone</span>
-                <input
-                  value={provider.phone || ""}
-                  onChange={(e) =>
-                    setProvider({
-                      ...provider,
-                      phone: e.target.value,
-                    })
-                  }
-                  placeholder="Provider phone"
-                />
-              </label>
-
-              <label>
-                <span>Reported By</span>
-                <input
-                  value={reportFields["reporting.reported_by"] || reportFields.reported_by || ""}
-                  onChange={(e) =>
-                    updateReportField(
-                      "reporting.reported_by",
-                      e.target.value
-                    )
-                  }
-                  placeholder="Reporting staff"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="case-card validation-card">
-            <div className="card-header">
-              <div>
-                <span className="card-kicker">VALIDATION</span>
-                <h2>Case Validation</h2>
+                <p>
+                  Confirm the mapped reporting values
+                  before queue handoff.
+                </p>
+                <p className="review-session-only-note">
+                  Review confirmation is temporary and stays in this browser session.
+                </p>
               </div>
 
               <span
-                className={`validation-badge ${
-                  validationReady ? "valid" : "invalid"
+                className={`review-validation-badge ${
+                  reviewApproved
+                    ? "success"
+                    : "neutral"
                 }`}
               >
-                {validationState}
+                {reviewApproved
+                  ? "Session Confirmed"
+                  : "Pending"}
               </span>
-              <button className="small-button" disabled={working || !isReportable} onClick={runValidation}>
-                {working ? "Working..." : "Validate Case Again"}
-              </button>
+
             </div>
 
-            <div className="validation-content">
-              {validationReady ? (
-                <div className="validation-success">
-                  <div className="validation-icon">✓</div>
-                  <div>
+
+            {!reviewApproved && (
+              <>
+                <label className="review-validation-decision-option">
+
+                  <input
+                    type="radio"
+                    name="review-decision"
+                    value="APPROVE"
+                    checked={
+                      reviewDecision ===
+                      "APPROVE"
+                    }
+                    onChange={(event) =>
+                      (() => {
+                        setReviewDecision(event.target.value);
+                        saveSessionWorkflow({ reviewDecision: event.target.value });
+                      })()
+                    }
+                  />
+
+                  <span>
                     <strong>
-                      Required reporting information is complete.
+                      Ready to Add to Queue
                     </strong>
-                    <p>
-                      The case can proceed to human review.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="validation-warning">
-                  <div className="validation-icon">!</div>
-                  <div>
-                    <strong>{reportabilityPending || !isReportable
-                      ? "Reportability decision is not finalized."
-                      : missingFields.length
-                        ? `${missingFields.length} required item${missingFields.length === 1 ? "" : "s"} need attention.`
-                        : "Backend validation has not marked this case ready."}</strong>
-                    <p>{reportabilityPending || !isReportable
-                      ? "Validation and review stay locked until the case is classified as reportable."
-                      : missingFields.length
-                        ? "Complete the backend-reported information, save it, then validate the case again."
-                        : "Check the backend validation result and resolve its issues before human review."}</p>
-                  </div>
+
+                    <span>
+                      All available reporting
+                      information has been reviewed.
+                    </span>
+                  </span>
+
+                </label>
+
+
+                <label className="review-validation-decision-option">
+
+                  <input
+                    type="radio"
+                    name="review-decision"
+                    value="REQUEST_INFORMATION"
+                    checked={
+                      reviewDecision ===
+                      "REQUEST_INFORMATION"
+                    }
+                    onChange={(event) =>
+                      (() => {
+                        setReviewDecision(event.target.value);
+                        saveSessionWorkflow({ reviewDecision: event.target.value });
+                      })()
+                    }
+                  />
+
+                  <span>
+                    <strong>
+                      Request Information
+                    </strong>
+
+                    <span>
+                      Additional information is required
+                      before queue handoff.
+                    </span>
+                  </span>
+
+                </label>
+
+
+                <label className="review-validation-review-check">
+
+                  <input
+                    type="checkbox"
+                    checked={reviewChecked}
+                    onChange={(event) =>
+                      (() => {
+                        setReviewChecked(event.target.checked);
+                        saveSessionWorkflow({ reviewChecked: event.target.checked });
+                      })()
+                    }
+                  />
+
+                  <span>
+                    I reviewed the reporting values and
+                    available source evidence.
+                  </span>
+
+                </label>
+
+
+                <label className="review-validation-comment-field">
+
+                  <span>
+                    Reviewer Comments
+                  </span>
+
+                  <textarea
+                    value={reviewComments}
+                    onChange={(event) =>
+                      (() => {
+                        setReviewComments(event.target.value);
+                        saveSessionWorkflow({ reviewComments: event.target.value });
+                      })()
+                    }
+                    placeholder="Add review comments if required..."
+                    maxLength={2000}
+                  />
+
+                </label>
+
+
+                <div className="review-validation-review-footer">
+
+                  <span>
+                    Reviewer:{" "}
+                    {currentReviewer().name}
+                  </span>
 
                   <button
-                    className="outline-button"
-                    onClick={() => setMissingOpen(true)}
+                    type="button"
+                    className="review-validation-secondary-button"
+                    disabled={
+                      busy !== "" ||
+                      !reviewChecked ||
+                      (
+                        reviewDecision ===
+                        "REQUEST_INFORMATION" &&
+                        !reviewComments.trim()
+                      )
+                    }
+                    onClick={saveReview}
                   >
-                    {missingFields.length ? "View Missing Information" : "View Validation Details"}
+                    {busy === "review"
+                      ? "Confirming..."
+                      : "Confirm for This Session"}
                   </button>
+
                 </div>
-              )}
-            </div>
-          </section>
-
-          <section className="case-card">
-            <div className="card-header">
-              <div>
-                <span className="card-kicker">
-                  HUMAN REVIEW
-                </span>
-                <h2>Review Decision</h2>
-              </div>
-
-              <span
-                className={`review-state ${
-                  reviewApproved ? "approved" : ""
-                }`}
-              >
-                {reviewApproved ? "APPROVED" : "PENDING"}
-              </span>
-            </div>
-
-            <p className="review-description">
-              A reporting user must review the assembled case before
-              attestation.
-            </p>
-
-            <button
-              className="primary-action"
-              disabled={!validationReady || working || reviewApproved}
-              onClick={handleReview}
-            >
-              {reviewApproved
-                ? "Human Review Approved"
-                : "Approve Human Review"}
-            </button>
-          </section>
-
-          <section className="case-card">
-            <div className="card-header">
-              <div>
-                <span className="card-kicker">
-                  ATTESTATION
-                </span>
-                <h2>Authorize Reporting</h2>
-              </div>
-
-              <span
-                className={`review-state ${
-                  attested ? "approved" : ""
-                }`}
-              >
-                {attested ? "ATTESTED" : "LOCKED"}
-              </span>
-            </div>
-
-            <p className="review-description">
-              Attestation confirms that the reportable case has been
-              reviewed and is authorized for reporting.
-            </p>
-
-            <button
-              className="primary-action"
-              disabled={
-                !attestationReady || working || attested
-              }
-              onClick={handleAttestation}
-            >
-              {attested
-                ? "Case Attested"
-                : "Attest Case"}
-            </button>
-          </section>
-
-          <section className="case-card notification-card">
-            <div className="card-header">
-              <div>
-                <span className="card-kicker">
-                  TEXAS REPORTING
-                </span>
-                <h2>Immediate Notification</h2>
-              </div>
-
-              <span
-                className={`review-state ${
-                  notificationComplete ? "approved" : ""
-                }`}
-              >
-                {notificationComplete
-                  ? "RECORDED"
-                  : "REQUIRED"}
-              </span>
-            </div>
-
-            <p className="review-description">
-              Suspected measles requires immediate public-health
-              notification. Record the notification before continuing
-              to the reporting form.
-            </p>
-
-            {!attested && !notificationComplete && <p className="review-description">Locked until successful backend attestation.</p>}
-
-            {attested && !notificationComplete && (
-              <button
-                className="primary-action notification-action"
-                disabled={working}
-                onClick={() => setNotificationOpen(true)}
-              >
-                Record Immediate Notification
-              </button>
+              </>
             )}
 
-            {attested && notificationComplete && (
-              <button
-                className="primary-action"
-                onClick={goToReportingForm}
-              >
-                Continue to Texas Reporting Form →
-              </button>
+
+            {reviewApproved && (
+              <div className="review-validation-approved">
+
+                <div className="review-validation-approved-icon">
+                  ✓
+                </div>
+
+                <div>
+                  <strong>
+                    Case approved for queue handoff in this browser session
+                  </strong>
+
+                  <span>
+                      Temporarily confirmed by{" "}
+                    {review?.payload?.reviewer_id ||
+                      review?.actor_id ||
+                      "Reporting Staff"}
+                  </span>
+
+                  {review?.payload?.comments && (
+                    <span>
+                      {review.payload.comments}
+                    </span>
+                  )}
+                </div>
+
+              </div>
             )}
+
           </section>
-          <details className="case-card technical-state">
-            <summary>Technical Case State</summary>
-            <dl>
-              {[["Status", caseData.status], ["Reportability decision", caseData.reportability_decision], ["Final decision", caseData.final_decision], ["Jurisdiction status", caseData.jurisdiction_status], ["Reportability evidence", caseData.reportability_evidence_status], ["Validation", validationState]].map(([label, value]) => (
-                <div key={label}><dt>{label}</dt><dd>{value || "Not available"}</dd></div>
-              ))}
-              <div><dt>Missing report fields</dt><dd>{JSON.stringify(caseData.missing_report_fields || [])}</dd></div>
-              <div><dt>Required missing fields</dt><dd>{JSON.stringify(caseData.required_missing_fields || [])}</dd></div>
-              <div><dt>Backend validation</dt><dd>{JSON.stringify(validationRecord || {})}</dd></div>
-            </dl>
-          </details>
-        </section>
 
-        <aside className="case-sidebar">
-          <div className="side-card">
-            <span className="side-label">PATIENT</span>
 
-            <h3>
-              {patient.first_name || ""}{" "}
-              {patient.last_name || ""}
-            </h3>
+          {/* ATTESTATION */}
 
-            <div className="side-row">
-              <span>MRN</span>
-              <strong>
-                {patient.source_patient_id ||
-                  patient.patient_id ||
-                  "—"}
-              </strong>
-            </div>
+          <section
+            className="review-validation-card review-validation-attestation-card"
+            id="case-attestation"
+          >
 
-            <div className="side-row">
-              <span>DOB</span>
-              <strong>
-                {patient.date_of_birth || "—"}
-              </strong>
-            </div>
+              <div className="review-validation-card-header">
 
-            <div className="side-row">
-              <span>Sex</span>
-              <strong>{patient.sex || "—"}</strong>
-            </div>
-          </div>
+                <div>
+                  <h2>
+                    Attestation
+                  </h2>
 
-          <div className="side-card">
-            <span className="side-label">CASE</span>
+                  <p>
+                    Final confirmation before authorized
+                    queue handoff.
+                  </p>
+                  <p className="review-session-only-note">
+                    Attestation is temporary and stays in this browser session.
+                  </p>
+                </div>
 
-            <div className="side-row">
-              <span>Disease</span>
-              <strong>{caseData.disease}</strong>
-            </div>
-
-            <div className="side-row">
-              <span>Jurisdiction</span>
-              <strong>{caseData.jurisdiction}</strong>
-            </div>
-
-            <div className="side-row">
-              <span>Rule</span>
-              <strong>{caseData.rule_id || "—"}</strong>
-            </div>
-
-          </div>
-
-          <div className="side-card next-card">
-            <span className="side-label">NEXT STEP</span>
-
-            {!validationReady && (
-              <>
-                <strong>Complete missing information</strong>
-                <p>
-                  Resolve the required reporting fields before
-                  review.
-                </p>
-
-                <button
-                  onClick={() => setMissingOpen(true)}
+                <span
+                  className={`review-validation-badge ${
+                    attested
+                      ? "success"
+                      : "warning"
+                  }`}
                 >
-                  View Missing Information
-                </button>
-              </>
-            )}
+                  {attested
+                    ? "Session Confirmed"
+                    : "Pending"}
+                </span>
 
-            {validationReady && !reviewApproved && (
-              <>
-                <strong>Human review</strong>
-                <p>
-                  Review the assembled case and approve it.
-                </p>
-              </>
-            )}
-
-            {reviewApproved && !attested && (
-              <>
-                <strong>Attestation</strong>
-                <p>
-                  Authorize the case for reporting.
-                </p>
-              </>
-            )}
-
-            {attested && !notificationComplete && (
-              <>
-                <strong>Immediate notification</strong>
-                <p>
-                  Record the Texas measles notification.
-                </p>
-              </>
-            )}
-
-            {notificationComplete && (
-              <>
-                <strong>Reporting form</strong>
-                <p>
-                  Continue to the Texas measles reporting form.
-                </p>
-
-                <button onClick={goToReportingForm}>
-                  Continue →
-                </button>
-              </>
-            )}
-          </div>
-        </aside>
-      </main>
-
-      {missingOpen && (
-        <div
-          className="drawer-overlay"
-          onClick={() => setMissingOpen(false)}
-        >
-          <aside
-            className="missing-drawer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="drawer-header">
-              <div>
-                <span>MISSING INFORMATION</span>
-                <h2>Complete Required Fields</h2>
               </div>
 
-              <button
-                onClick={() => setMissingOpen(false)}
-              >
-                ×
-              </button>
-            </div>
 
-            {missingFields.length === 0 ? (
-              <div className="drawer-empty">
-                No missing reporting fields were returned by the
-                backend.
-              </div>
-            ) : (
-              <div className="missing-list">
-                {groupedMissingFields.map((group) => (
-                  <section className="missing-field-group" key={group.key}>
-                    <h3>{group.label}</h3>
-                    {group.fields.map((field) => (
-                      <label className="missing-field" key={field}>
-                        <span>{missingFieldLabel(field)} <b aria-hidden="true">*</b></span>
-                        {missingFieldControl(field, getMissingFieldValue(field), (value) => setMissingFieldValue(field, value))}
-                        <small>Required for reporting</small>
-                      </label>
-                    ))}
-                  </section>
-                ))}
-              </div>
-            )}
+              {attested ? (
+                <div className="review-validation-approved">
 
-            {error && <div className="missing-drawer-error" role="alert">{error}</div>}
+                  <div className="review-validation-approved-icon">
+                    ✓
+                  </div>
 
-            <div className="drawer-footer">
-              <button
-                className="outline-button"
-                disabled={working}
-                onClick={() => setMissingOpen(false)}
-              >
-                Close
-              </button>
+                  <div>
+                    <strong>
+                      Attestation confirmed for this browser session
+                    </strong>
 
-              <button
-                className="primary-action"
-                disabled={working}
-                onClick={async () => {
-                  const saved = await saveCase();
-                  if (saved) setMissingOpen(false);
-                }}
-              >
-                {working ? "Saving..." : "Save Information"}
-              </button>
-            </div>
-          </aside>
+                    <span>
+                      {attestation?.payload?.reviewer_id ||
+                        attestation?.actor_id ||
+                        "Reporting Staff"}
+                    </span>
+
+                    <span>
+                      {attestation?.created_at
+                        ? formatDate(
+                            attestation.created_at
+                          )
+                        : "Session timestamp not available"}
+                    </span>
+                  </div>
+
+                </div>
+              ) : (
+                <>
+                  {!reviewApproved && (
+                    <p className="review-validation-attestation-prerequisite">
+                      Approve Human Review to enable attestation.
+                    </p>
+                  )}
+                  <label className="review-validation-comment-field">
+
+                    <span>
+                      Attestation Comments
+                    </span>
+
+                    <textarea
+                      value={
+                        attestationComments
+                      }
+                      onChange={(event) =>
+                        (() => {
+                          setAttestationComments(event.target.value);
+                          saveSessionWorkflow({ attestationComments: event.target.value });
+                        })()
+                      }
+                      disabled={!reviewApproved}
+                      placeholder="Optional attestation comments..."
+                      maxLength={2000}
+                    />
+
+                  </label>
+
+                  <div className="review-validation-review-footer">
+
+                    <span>
+                      Reviewer:{" "}
+                      {currentReviewer().name}
+                    </span>
+
+                    <button
+                      type="button"
+                      className="review-validation-secondary-button"
+                      disabled={
+                        busy !== "" || !reviewApproved
+                      }
+                      onClick={
+                        saveAttestation
+                      }
+                    >
+                      {busy === "attest"
+                        ? "Confirming..."
+                        : "Confirm for This Session"}
+                    </button>
+
+                  </div>
+                </>
+              )}
+
+          </section>
+
         </div>
-      )}
 
-      {notificationOpen && (
-        <div
-          className="drawer-overlay"
-          onClick={() => setNotificationOpen(false)}
-        >
-          <aside
-            className="notification-drawer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="drawer-header">
+
+        {/* =================================================
+            RIGHT
+            ================================================= */}
+
+        <div className="review-validation-right">
+
+          {/* VALIDATION SUMMARY */}
+
+          <section className="review-validation-card review-validation-summary">
+
+            <div className="review-validation-card-header">
+
               <div>
-                <span>IMMEDIATE NOTIFICATION</span>
-                <h2>Record Texas Measles Notification</h2>
+                <h2>
+                  Validation Summary
+                </h2>
+
+                <p>
+                  Current reporting package status
+                </p>
               </div>
 
-              <button
-                onClick={() => setNotificationOpen(false)}
+              <span
+                className={`review-validation-badge ${
+                  validationStatus === "VALID"
+                    ? "success"
+                    : "warning"
+                }`}
               >
-                ×
-              </button>
+                {validationStatus === "VALID"
+                  ? "Evidence Updated"
+                  : "Needs Attention"}
+              </span>
+
             </div>
 
-            <div className="notification-warning">
-              <strong>Immediate reporting required</strong>
-              <p>
-                Record the phone notification to the appropriate
-                public-health authority before proceeding with the
-                reporting package.
-              </p>
+
+            <div className="review-validation-metrics">
+
+              <Metric
+                value={
+                  validationCounts.valid
+                }
+                label="Valid"
+                variant="valid"
+              />
+
+              <Metric
+                value={
+                  validationCounts.attention
+                }
+                label="Need Attention"
+                variant="attention"
+              />
+
+              <Metric
+                value={
+                  validationCounts.blocking
+                }
+                label="Blocking"
+                variant="blocking"
+              />
+
             </div>
 
-            <div className="notification-detail">
-              <label>
-                Reporting Method
-                <input value="PHONE" readOnly />
-              </label>
 
-              <label>
-                Reporting User
-                <input
-                  value="SIGNAL Reporting User"
-                  readOnly
-                />
-              </label>
+            <div className="review-validation-evidence-notice">
 
-              <label>
-                Case
-                <input value={caseId} readOnly />
-              </label>
+              <span className="review-validation-evidence-icon">
+                ✓
+              </span>
+
+              <div>
+
+                <strong>
+                  {validationStatus ===
+                  "VALID"
+                    ? "All required reporting fields have supporting evidence"
+                    : "Reporting package requires attention"}
+                </strong>
+
+                <span>
+                  SIGNAL uses the persisted validation
+                  response to determine readiness.
+                </span>
+
+              </div>
+
             </div>
 
-            <div className="drawer-footer">
+
+            <div className="review-validation-checklist">
+
+              {VALIDATION_GROUPS.map(
+                (group) => {
+                  const status =
+                    validationGroupStatus(
+                      validation,
+                      group.key
+                    );
+
+                  return (
+                    <div
+                      className="review-validation-check"
+                      key={group.key}
+                    >
+
+                      <span
+                        className={`review-validation-check-icon ${
+                          status === "COMPLETE"
+                            ? "complete"
+                            : status === "ATTENTION"
+                              ? "attention"
+                              : "pending"
+                        }`}
+                      >
+                        {status ===
+                        "COMPLETE"
+                          ? "✓"
+                          : status ===
+                            "ATTENTION"
+                            ? "!"
+                            : "○"}
+                      </span>
+
+                      <span className="review-validation-check-label">
+                        {group.label}
+                      </span>
+
+                      <span className="review-validation-check-status">
+                        {status ===
+                        "COMPLETE"
+                          ? "Complete"
+                          : status ===
+                            "ATTENTION"
+                            ? "Needs attention"
+                            : "Not checked"}
+                      </span>
+
+                    </div>
+                  );
+                }
+              )}
+
+            </div>
+
+
+            <div className="review-validation-validation-action">
+
               <button
-                className="outline-button"
-                onClick={() =>
-                  setNotificationOpen(false)
+                type="button"
+                className="review-validation-secondary-button"
+                disabled={
+                  busy !== ""
+                }
+                onClick={
+                  runValidation
                 }
               >
-                Cancel
+                {busy === "validate"
+                  ? "Validating..."
+                  : "Refresh Validation"}
               </button>
 
-              <button
-                className="primary-action"
-                disabled={working}
-                onClick={handlePrepareNotification}
-              >
-                {working
-                  ? "Recording..."
-                  : "Record Notification"}
-              </button>
             </div>
-          </aside>
+
+          </section>
+
+
+          {/* CASE SUMMARY */}
+
+          <section className="review-validation-card review-validation-case-summary-card">
+
+            <div className="review-validation-card-header">
+
+              <div>
+                <h2>
+                  Case Summary
+                </h2>
+
+                <p>
+                  Reporting case context
+                </p>
+              </div>
+
+              <span className="review-validation-badge neutral">
+                {data.status ||
+                  "Case"}
+              </span>
+
+            </div>
+
+
+            <div className="review-validation-case-summary">
+
+              <SummaryItem
+                label="Patient"
+                value={patientName(patient)}
+              />
+
+              <SummaryItem
+                label="DOB"
+                value={
+                  patient?.date_of_birth ||
+                  "Not available"
+                }
+              />
+
+              <SummaryItem
+                label="Condition"
+                value={condition}
+              />
+
+              <SummaryItem
+                label="Jurisdiction"
+                value={
+                  jurisdiction === "TX"
+                    ? "Texas"
+                    : jurisdiction
+                }
+              />
+
+              <SummaryItem
+                label="Case Status"
+                value={
+                  data.status ||
+                  "Not available"
+                }
+              />
+
+            </div>
+
+          </section>
+
+
+          {/* WHAT HAPPENS NEXT */}
+
+          <section className="review-validation-card review-validation-queue-readiness-card">
+
+            <div className="review-validation-card-header">
+
+              <div>
+                <h2>
+                  Queue Readiness
+                </h2>
+
+                <p>
+                  Final workflow state
+                </p>
+              </div>
+
+              <span
+                className={`review-validation-badge ${
+                  canSubmitToQueue
+                    ? "success"
+                    : "warning"
+                }`}
+              >
+                {canSubmitToQueue
+                  ? "Ready"
+                  : "Pending"}
+              </span>
+
+            </div>
+
+
+            <div className="review-validation-readiness">
+
+              <ReadinessRow
+                label="Validation"
+                complete={
+                  validationStatus ===
+                  "VALID"
+                }
+              />
+
+              <ReadinessRow
+                label="Human Review"
+                complete={
+                  reviewApproved
+                }
+              />
+
+              <ReadinessRow
+                label="Attestation"
+                complete={
+                  attested
+                }
+              />
+
+              <ReadinessRow
+                label="Queue Handoff"
+                complete={false}
+                current={
+                  canSubmitToQueue
+                }
+              />
+
+            </div>
+
+          </section>
+
+
+          {/* REPORTING DATA DETAILS */}
+
+          <section className="review-validation-card review-validation-reporting-decision-card">
+
+            <div className="review-validation-card-header">
+
+              <div>
+                <h2>
+                  Reporting Decision
+                </h2>
+
+                <p>
+                  Backend-derived reporting context
+                </p>
+              </div>
+
+            </div>
+
+
+            <div className="review-validation-decision-summary">
+
+              <SummaryItem
+                label="Reportability"
+                value={reportability}
+              />
+
+              <SummaryItem
+                label="Reporting Rule"
+                value={reportingRule}
+              />
+
+              <SummaryItem
+                label="Deadline"
+                value={formatDate(deadline)}
+              />
+
+              <SummaryItem
+                label="Reporting Facility"
+                value={facility}
+              />
+
+              <SummaryItem
+                label="Reporting Provider"
+                value={provider}
+              />
+
+            </div>
+
+          </section>
+
         </div>
-      )}
+
+      </div>
+
+
+      {/* =================================================
+          BOTTOM ACTION
+          ================================================= */}
+
+      <footer className="review-validation-action-bar">
+
+        <div className="review-validation-action-copy">
+
+          <strong>
+            Ready to continue?
+          </strong>
+
+          <span>
+            Confirm your reviewer decision and
+            attestation before submitting the package
+            to the authorized reporting queue.
+          </span>
+
+        </div>
+
+
+        <button
+          type="button"
+          className="review-validation-submit"
+          disabled={
+            busy !== "" ||
+            !canSubmitToQueue
+          }
+          onClick={
+            submitToQueue
+          }
+        >
+          Submit to Queue →
+        </button>
+
+      </footer>
+
+    </section>
+  );
+}
+
+
+/* =========================================================
+   SMALL COMPONENTS
+   ========================================================= */
+
+function Metric({
+  value,
+  label,
+  variant,
+}) {
+  return (
+    <div className="review-validation-metric">
+
+      <div
+        className={`review-validation-metric-value ${variant}`}
+      >
+        {value}
+      </div>
+
+      <div className="review-validation-metric-label">
+        {label}
+      </div>
+
+    </div>
+  );
+}
+
+
+function SummaryItem({
+  label,
+  value,
+}) {
+  return (
+    <div className="review-validation-summary-item">
+
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {readable(value)}
+      </strong>
+
+    </div>
+  );
+}
+
+
+function ReadinessRow({
+  label,
+  complete,
+  current,
+}) {
+  return (
+    <div className="review-validation-readiness-row">
+
+      <span
+        className={`review-validation-readiness-icon ${
+          complete
+            ? "complete"
+            : current
+              ? "current"
+              : "pending"
+        }`}
+      >
+        {complete
+          ? "✓"
+          : current
+            ? "●"
+            : "○"}
+      </span>
+
+      <span>
+        {label}
+      </span>
+
+      <small>
+        {complete
+          ? "Complete"
+          : current
+            ? "Ready"
+            : "Pending"}
+      </small>
+
+    </div>
+  );
+}
+
+
+function EvidenceRow({
+  date,
+  type,
+  title,
+  subtitle,
+  available,
+}) {
+  return (
+    <div className="review-validation-evidence-row">
+
+      <div className="review-validation-evidence-date">
+
+        {date
+          ? formatDate(date)
+          : "Available"}
+
+        <span>
+          {type}
+        </span>
+
+      </div>
+
+
+      <div
+        className={`review-validation-evidence-check ${
+          available
+            ? "available"
+            : "unavailable"
+        }`}
+      >
+        {available ? "✓" : "–"}
+      </div>
+
+
+      <div className="review-validation-evidence-content">
+
+        <div className="review-validation-evidence-title">
+          {title}
+        </div>
+
+        <div className="review-validation-evidence-subtitle">
+          {available
+            ? subtitle
+            : "No source evidence returned"}
+        </div>
+
+      </div>
+
+
+      <button
+        type="button"
+        className="review-validation-evidence-link"
+        disabled={!available}
+      >
+        {available
+          ? "View Source"
+          : "Unavailable"}
+      </button>
+
     </div>
   );
 }

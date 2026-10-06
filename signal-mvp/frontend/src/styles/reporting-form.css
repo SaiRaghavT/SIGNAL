@@ -1,17 +1,637 @@
-.reporting-form-page{width:min(1440px,100%);margin:0 auto;padding:24px 28px 36px;color:#34453d}
-.reporting-form-header{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:18px;padding-bottom:17px;border-bottom:1px solid #e4e9e5}
-.reporting-form-header>div:first-child{min-width:0}.reporting-form-back{display:block;margin:0 0 15px;padding:0;border:0;background:none;color:#64786b;font-size:12px;font-weight:650;cursor:pointer}
-.reporting-form-eyebrow,.reporting-form-card-header>div>span,.reporting-form-next-step span{display:block;color:#82947f;font-size:10px;font-weight:750;letter-spacing:.1em}
-.reporting-form-header h1{margin:6px 0;color:#304239;font-size:25px;letter-spacing:-.025em}.reporting-form-header p{margin:0;color:#77847d;font-size:13px;line-height:1.5}
-.reporting-form-context-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}.reporting-form-context-badges span{padding:6px 9px;border:1px solid #e1e7e2;border-radius:999px;background:#fff;color:#596b60;font-size:11px;white-space:nowrap}
-.reporting-form-message,.reporting-form-error{margin:0 0 14px;padding:12px 14px;border:1px solid #dce6dc;border-radius:8px;background:#f6faf5;color:#4e6955;font-size:13px;line-height:1.5;overflow-wrap:anywhere}.reporting-form-message.is-error,.reporting-form-error{border-color:#ead8cd;background:#fff9f5;color:#765d4d}.reporting-form-error h2{margin:0 0 7px;font-size:17px}.reporting-form-error p{margin:0 0 12px}
-.reporting-form-metadata{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.reporting-form-metadata>div{display:grid;align-content:start;gap:6px;min-width:0;padding:12px 14px;border:1px solid #e2e8e3;border-radius:8px;background:#fff}.reporting-form-metadata span{color:#849189;font-size:9px;font-weight:750;letter-spacing:.08em}.reporting-form-metadata strong{color:#43564a;font-size:12px;line-height:1.4;overflow-wrap:anywhere}.reporting-form-metadata strong.is-generated{color:#557c60}.reporting-form-metadata strong.is-pending{color:#829087}
-.reporting-form-notices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.reporting-form-notices>div{min-width:0;padding:12px 14px;border:1px solid #eadfcd;border-radius:8px;background:#fffaf3;color:#725e46;font-size:12px}.reporting-form-notices strong{display:block;margin-bottom:5px}.reporting-form-notices ul{margin:0;padding-left:18px;line-height:1.55;overflow-wrap:anywhere}
-.reporting-form-demo{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 13px;border:1px solid #ead8cd;border-radius:8px;background:#fff8f3;color:#745941;font-size:12px}.reporting-form-demo strong{font-size:10px;letter-spacing:.08em}
-.reporting-form-pdf-card{min-width:0;margin-bottom:14px;padding:16px;border:1px solid #e0e6e2;border-radius:10px;background:#fff;box-shadow:0 3px 10px rgb(35 52 43 / 4%)}.reporting-form-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}.reporting-form-card-header h2{margin:4px 0;color:#35483c;font-size:16px}.reporting-form-card-header p{margin:4px 0 0;color:#849088;font-size:11px;overflow-wrap:anywhere}.reporting-form-rendered-badge{flex:none;padding:5px 9px;border:1px solid #d7e5d8;border-radius:99px;background:#f4f9f3;color:#55795d;font-size:10px;font-weight:700}
-.reporting-form-pdf-frame{width:100%;height:min(78vh,1000px);min-height:580px;overflow:hidden;border:1px solid #dce3de;border-radius:7px;background:#f3f5f3}.reporting-form-pdf-viewer{display:block;width:100%;height:100%;border:0;background:#f3f5f3}.reporting-form-pdf-empty{display:grid;place-content:center;justify-items:center;gap:7px;min-height:220px;padding:24px;border:1px dashed #d7e0d9;border-radius:7px;background:#fafbfa;text-align:center}.reporting-form-pdf-empty strong{color:#52665a;font-size:13px}.reporting-form-pdf-empty span{color:#849088;font-size:12px;line-height:1.5}
-.reporting-form-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.reporting-form-actions .button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;text-decoration:none}.reporting-form-actions .button:disabled{opacity:.55;cursor:not-allowed}
-.reporting-form-technical{margin-bottom:14px;padding:11px 14px;border:1px solid #e2e8e3;border-radius:8px;background:#fff}.reporting-form-technical summary{color:#5e7265;font-size:11px;font-weight:650;cursor:pointer}.reporting-form-technical pre{max-height:320px;margin:12px 0 0;overflow:auto;color:#637169;font-size:10px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
-.reporting-form-next-step{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 18px;border:1px solid #dce5dd;border-left:4px solid #9caf88;border-radius:9px;background:#fff}.reporting-form-next-step>div{display:grid;gap:5px}.reporting-form-next-step strong{color:#3c5143;font-size:13px}.reporting-form-next-step p{max-width:720px;margin:0;color:#78857d;font-size:11px;line-height:1.5}.reporting-form-next-step button{flex:none;min-height:40px}
-@media(max-width:900px){.reporting-form-page{padding:20px}.reporting-form-header{align-items:flex-start;flex-direction:column}.reporting-form-context-badges{justify-content:flex-start}.reporting-form-metadata{grid-template-columns:repeat(2,minmax(0,1fr))}.reporting-form-pdf-frame{height:72vh;min-height:500px}}
-@media(max-width:600px){.reporting-form-page{padding:16px 12px 26px}.reporting-form-header h1{font-size:21px}.reporting-form-metadata,.reporting-form-notices{grid-template-columns:1fr}.reporting-form-pdf-card{padding:12px}.reporting-form-card-header{flex-direction:column}.reporting-form-pdf-frame{height:68vh;min-height:440px}.reporting-form-actions{display:grid;grid-template-columns:1fr}.reporting-form-actions .button{width:100%}.reporting-form-next-step{align-items:stretch;flex-direction:column}.reporting-form-next-step button{width:100%}}
+/* =========================================================
+   SIGNAL — Patient Reporting Form
+   ========================================================= */
+
+.reporting-form-page {
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0 4px 32px;
+  color: #193832;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.reporting-form-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #dce5e0;
+}
+
+.reporting-form-header > div {
+  min-width: 0;
+}
+
+.reporting-form-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #66756f;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.reporting-form-back:hover {
+  color: #193832;
+}
+
+.reporting-form-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: #8a9ea7;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.reporting-form-header h1 {
+  margin: 0;
+  color: #193832;
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.reporting-form-header p {
+  margin: 7px 0 0;
+  color: #66756f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   GLOBAL STATES / MESSAGES
+   ========================================================= */
+
+.reporting-form-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #dce5e0;
+  border-radius: 8px;
+  background: #f7f9f7;
+  color: #526762;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.reporting-form-message strong {
+  color: #193832;
+  font-weight: 700;
+}
+
+.reporting-form-message span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.reporting-form-message.is-error {
+  border-color: #e7d6c9;
+  background: #fffaf6;
+  color: #765d4d;
+}
+
+.reporting-form-message.is-error strong {
+  color: #6f5849;
+}
+
+.reporting-form-message.is-success {
+  border-color: #cce0d1;
+  background: #f3f8f4;
+  color: #527e62;
+}
+
+.reporting-form-message .button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   MAIN TWO-COLUMN LAYOUT
+   ========================================================= */
+
+.reporting-form-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.9fr);
+  align-items: start;
+  gap: 20px;
+}
+
+/* =========================================================
+   COMMON CARDS
+   ========================================================= */
+
+.reporting-form-pdf-card,
+.reporting-form-missing-card {
+  min-width: 0;
+  border: 1px solid #dce5e0;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgb(25 56 50 / 5%);
+}
+
+/* =========================================================
+   CARD HEADER
+   ========================================================= */
+
+.reporting-form-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 76px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e7ece9;
+  background: #fbfcfb;
+  border-radius: 10px 10px 0 0;
+}
+
+.reporting-form-card-header > div {
+  min-width: 0;
+}
+
+.reporting-form-card-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: #8a9ea7;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.reporting-form-card-header h2 {
+  margin: 0;
+  color: #193832;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.reporting-form-card-header p {
+  margin: 5px 0 0;
+  color: #81908c;
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.reporting-form-rendered-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 26px;
+  padding: 5px 9px;
+  border: 1px solid #cce0d1;
+  border-radius: 999px;
+  background: #f3f8f4;
+  color: #527e62;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* =========================================================
+   PDF AREA
+   ========================================================= */
+
+.reporting-form-pdf-frame {
+  width: 100%;
+  padding: 14px;
+  background: #f4f7f5;
+}
+
+.reporting-form-pdf-viewer {
+  display: block;
+  width: 100%;
+  height: min(78vh, 1050px);
+  min-height: 700px;
+  border: 1px solid #dce5e0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.reporting-form-pdf-empty {
+  display: grid;
+  place-items: center;
+  min-height: 500px;
+  margin: 14px;
+  padding: 30px;
+  border: 1px dashed #cfdad5;
+  border-radius: 8px;
+  background: #f7f9f7;
+  text-align: center;
+}
+
+.reporting-form-pdf-empty strong {
+  display: block;
+  color: #304945;
+  font-size: 14px;
+}
+
+.reporting-form-pdf-empty span {
+  display: block;
+  margin-top: 6px;
+  color: #81908c;
+  font-size: 12px;
+}
+
+/* =========================================================
+   PDF ACTIONS
+   ========================================================= */
+
+.reporting-form-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid #e7ece9;
+}
+
+.reporting-form-actions .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================
+   MISSING INFORMATION CARD
+   ========================================================= */
+
+.reporting-form-missing-card {
+  position: sticky;
+  top: 16px;
+  overflow: hidden;
+}
+
+.reporting-form-missing-card > header {
+  padding: 17px 18px 14px;
+  border-bottom: 1px solid #e7ece9;
+  background: #fbfcfb;
+}
+
+.reporting-form-missing-card > header > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #c48b71;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.reporting-form-missing-card > header h2 {
+  margin: 0;
+  color: #193832;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.reporting-form-missing-card > header p {
+  margin: 6px 0 0;
+  color: #66756f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   MISSING COUNT
+   ========================================================= */
+
+.reporting-form-missing-count {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 14px 18px;
+  padding: 11px 12px;
+  border: 1px solid #e4ebe7;
+  border-radius: 7px;
+  background: #f6f9f7;
+}
+
+.reporting-form-missing-count strong {
+  color: #193832;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.reporting-form-missing-count span {
+  color: #66756f;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* =========================================================
+   MISSING FIELDS
+   ========================================================= */
+
+.reporting-form-missing-fields {
+  display: grid;
+  gap: 13px;
+  padding: 0 18px;
+}
+
+.reporting-form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.reporting-form-field > span {
+  color: #526762;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.reporting-form-field > span b {
+  color: #c48b71;
+  font-weight: 750;
+}
+
+.reporting-form-field input,
+.reporting-form-field select,
+.reporting-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cfdad5;
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: #ffffff;
+  color: #304945;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.reporting-form-field textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.reporting-form-field input:hover,
+.reporting-form-field select:hover,
+.reporting-form-field textarea:hover {
+  border-color: #aebfb8;
+}
+
+.reporting-form-field input:focus,
+.reporting-form-field select:focus,
+.reporting-form-field textarea:focus {
+  border-color: #8a9ea7;
+  box-shadow: 0 0 0 3px rgb(138 158 167 / 12%);
+}
+
+/* =========================================================
+   PAGER
+   ========================================================= */
+
+.reporting-form-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid #edf0ee;
+}
+
+.reporting-form-pager span {
+  color: #81908c;
+  font-size: 10px;
+}
+
+.reporting-form-pager .button {
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   SAVE
+   ========================================================= */
+
+.reporting-form-save {
+  width: 100%;
+  margin-top: 2px;
+}
+
+/* =========================================================
+   NO MISSING INFORMATION
+   ========================================================= */
+
+.reporting-form-no-missing {
+  margin: 0 18px;
+  padding: 16px 14px;
+  border: 1px solid #cce0d1;
+  border-radius: 7px;
+  background: #f3f8f4;
+  color: #527e62;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* =========================================================
+   OTHER REQUIREMENTS
+   ========================================================= */
+
+.reporting-form-requirements {
+  margin: 14px 18px 0;
+  padding: 12px 13px;
+  border: 1px solid #e7d6c9;
+  border-radius: 7px;
+  background: #fffaf6;
+  color: #765d4d;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.reporting-form-requirements strong {
+  color: #6f5849;
+  font-size: 11px;
+}
+
+.reporting-form-requirements ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+}
+
+.reporting-form-requirements li + li {
+  margin-top: 4px;
+}
+
+/* =========================================================
+   CONTINUE TO REVIEW & VALIDATION
+   ========================================================= */
+
+.reporting-form-continue-review {
+  width: calc(100% - 36px);
+  margin: 18px;
+}
+
+.reporting-form-continue-review:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* =========================================================
+   ERROR STATE
+   ========================================================= */
+
+.reporting-form-error {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 24px;
+  border: 1px solid #e7d6c9;
+  border-radius: 9px;
+  background: #fffaf6;
+}
+
+.reporting-form-error h2 {
+  margin: 0;
+  color: #304945;
+  font-size: 17px;
+}
+
+.reporting-form-error p {
+  margin: 0;
+  color: #765d4d;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  .reporting-form-columns {
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
+    gap: 16px;
+  }
+
+  .reporting-form-pdf-viewer {
+    min-height: 620px;
+  }
+}
+
+@media (max-width: 900px) {
+  .reporting-form-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reporting-form-missing-card {
+    position: static;
+  }
+
+  .reporting-form-pdf-viewer {
+    height: 75vh;
+    min-height: 600px;
+  }
+}
+
+@media (max-width: 600px) {
+  .reporting-form-page {
+    padding: 0 0 24px;
+  }
+
+  .reporting-form-header {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+  }
+
+  .reporting-form-header h1 {
+    font-size: 22px;
+  }
+
+  .reporting-form-header p {
+    font-size: 12px;
+  }
+
+  .reporting-form-columns {
+    gap: 12px;
+  }
+
+  .reporting-form-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .reporting-form-pdf-frame {
+    padding: 8px;
+  }
+
+  .reporting-form-pdf-viewer {
+    height: 68vh;
+    min-height: 480px;
+  }
+
+  .reporting-form-actions {
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .reporting-form-actions .button {
+    width: 100%;
+  }
+
+  .reporting-form-missing-card > header {
+    padding: 14px;
+  }
+
+  .reporting-form-missing-count {
+    margin: 12px 14px;
+  }
+
+  .reporting-form-missing-fields {
+    padding: 0 14px;
+  }
+
+  .reporting-form-pager {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .reporting-form-pager .button {
+    width: 100%;
+  }
+
+  .reporting-form-continue-review {
+    width: calc(100% - 28px);
+    margin: 16px 14px;
+  }
+
+  .reporting-form-message {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .reporting-form-message .button {
+    width: 100%;
+    margin-left: 0;
+  }
+}

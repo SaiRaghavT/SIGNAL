@@ -8,6 +8,7 @@ from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.ecr.builder import build_ecr
 from backend.app.models.case import Case
+from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.schemas.validation import validate_ecr
 from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
 
@@ -50,6 +51,19 @@ def update_case_report(
     if request.facility is not None:
         case.facility = {**(case.facility or {}), **request.facility}
         changed_fields.extend(f"facility.{key}" for key in request.facility)
+
+    if changed_fields:
+        current_records = db.query(CaseWorkflowRecord).filter(
+            CaseWorkflowRecord.case_id == str(case.case_id),
+            CaseWorkflowRecord.record_type.in_(("VALIDATION", "REVIEW", "ATTESTATION")),
+            CaseWorkflowRecord.status.notin_(("SUPERSEDED",)),
+        ).all()
+        for record in current_records:
+            record.status = "SUPERSEDED"
+        for report in db.query(Report).filter(
+            Report.case_id == str(case.case_id), Report.status == "GENERATED"
+        ).all():
+            report.status = "SUPERSEDED"
 
     missing, required_missing = missing_report_fields(case.report_fields)
     if case.final_decision != "HOLD":

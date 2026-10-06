@@ -68,6 +68,41 @@ def _case_patient_id(case: Case) -> UUID | None:
         return None
 
 
+def _is_texas_jurisdiction(value: str | None) -> bool:
+    return str(value or "").strip().casefold() in {"tx", "texas"}
+
+
+def _patient_jurisdiction(
+    patient: Patient,
+    candidate: Candidate | None = None,
+    case: Case | None = None,
+) -> str | None:
+    """Resolve the cohort jurisdiction from workflow jurisdiction or canonical location.
+
+    A resolved case jurisdiction takes precedence, followed by a candidate's
+    explicit jurisdiction. If neither exists, the existing jurisdiction resolver
+    uses the canonical Patient state. Encounter.facility_id has no state data,
+    so it is not treated as evidence of Texas.
+    """
+    if case and case.jurisdiction_status == "RESOLVED" and case.jurisdiction:
+        jurisdiction = case.jurisdiction.strip().upper()
+        return "TX" if jurisdiction == "TEXAS" else jurisdiction
+    if candidate and candidate.jurisdiction:
+        jurisdiction = candidate.jurisdiction.strip().upper()
+        return "TX" if jurisdiction == "TEXAS" else jurisdiction
+    result = resolve_jurisdiction(
+        JurisdictionInput(
+            candidate_id=str(patient.patient_id),
+            patient_state=patient.state,
+            patient_county=patient.county,
+            facility_state=None,
+            facility_county=None,
+            disease="measles",
+        )
+    )
+    return result.jurisdiction if result.status == "RESOLVED" else None
+
+
 def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
     """Collect distinct patients with existing canonical/workflow Measles evidence."""
     patient_ids = {
@@ -153,7 +188,49 @@ def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
             if is_positive_measles:
                 patient_ids.add(lab_result.patient_id)
 
-    return patient_ids
+    if not patient_ids:
+        return set()
+
+    # Texas is determined only from explicit resolved workflow jurisdiction or
+    # canonical patient state via the existing resolver; no patient is assumed
+    # to be in Texas just because it has Measles evidence.
+    patients_by_id = {
+        patient.patient_id: patient
+        for patient in db.query(Patient).filter(Patient.patient_id.in_(patient_ids)).all()
+    }
+    candidates_by_patient: dict[UUID, Candidate] = {}
+    candidate_jurisdiction_query = db.query(Candidate).filter(
+        Candidate.patient_id.in_([str(patient_id) for patient_id in patient_ids]),
+        or_(
+            func.lower(Candidate.disease_id) == "measles",
+            Candidate.candidate_id.in_(case_candidate_ids) if case_candidate_ids else False,
+        ),
+    )
+    for candidate in (
+        candidate_jurisdiction_query
+        .order_by(Candidate.updated_at.desc())
+        .all()
+    ):
+        try:
+            candidates_by_patient.setdefault(UUID(candidate.patient_id), candidate)
+        except (TypeError, ValueError):
+            continue
+    cases_by_patient: dict[UUID, Case] = {}
+    for case in measles_cases:
+        case_patient_id = _case_patient_id(case)
+        if case_patient_id is not None:
+            cases_by_patient.setdefault(case_patient_id, case)
+
+    texas_patient_ids = set()
+    for patient_id, patient in patients_by_id.items():
+        jurisdiction = _patient_jurisdiction(
+            patient,
+            candidates_by_patient.get(patient_id),
+            cases_by_patient.get(patient_id),
+        )
+        if _is_texas_jurisdiction(jurisdiction):
+            texas_patient_ids.add(patient_id)
+    return texas_patient_ids
 
 
 def _condition_disease(condition: Condition) -> str | None:
@@ -519,15 +596,19 @@ def list_patients(
                 cases_by_patient.setdefault(case_patient_id, case)
 
     deadlines_by_patient: dict[UUID, tuple[dict[str, Any] | None, str | None]] = {}
+    jurisdiction_by_patient: dict[UUID, str | None] = {}
     for patient in patients:
         candidate = candidates_by_patient.get(str(patient.patient_id))
+        case = (
+            cases_by_candidate.get(candidate.candidate_id) if candidate else None
+        ) or cases_by_patient.get(patient.patient_id)
+        jurisdiction_by_patient[patient.patient_id] = _patient_jurisdiction(patient, candidate, case)
         deadlines_by_patient[patient.patient_id] = _patient_deadline(
             patient=patient,
             conditions=condition_rows_by_patient.get(patient.patient_id, []),
             lab_results=lab_rows_by_patient.get(patient.patient_id, []),
             candidate=candidate,
-            case=(cases_by_candidate.get(candidate.candidate_id) if candidate else None)
-            or cases_by_patient.get(patient.patient_id),
+            case=case,
             disease_filter="measles" if condition_text.casefold() == "measles" else None,
             last_encounter=last_encounter_by_patient.get(patient.patient_id),
         )
@@ -546,6 +627,7 @@ def list_patients(
                 ),
                 "condition": condition_label_by_patient.get(patient.patient_id),
                 "last_encounter": last_encounter_by_patient.get(patient.patient_id),
+                "jurisdiction": jurisdiction_by_patient[patient.patient_id],
                 "deadline": deadlines_by_patient[patient.patient_id][0],
                 "deadline_reason": deadlines_by_patient[patient.patient_id][1],
                 "facility": facility_by_patient.get(patient.patient_id),

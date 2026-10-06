@@ -14,6 +14,7 @@ import ReportingFormPage from "./pages/ReportingFormPage.jsx";
 import SubmissionWorkspace from "./pages/SubmissionWorkspace.jsx";
 import FollowUpWorkspace from "./pages/FollowUpWorkspace.jsx";
 import CaseCompletion from "./pages/CaseCompletion.jsx";
+import QueueAcknowledgementPage from "./pages/QueueAcknowledgementPage.jsx";
 
 export default function App() {
   return (
@@ -24,15 +25,17 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/patients" element={<Patients />} />
         <Route path="/patients/:patientId" element={<PatientWorkspace />} />
-      <Route path="/patients/:patientId/case/:caseId" element={<CaseWorkspacePage />} />
-      <Route path="/patients/:patientId/case/:caseId/reporting-form" element={<ReportingFormPage />} />
-      <Route path="/patients/:patientId/case/:caseId/submission" element={<SubmissionWorkspace />} />
-      <Route path="/patients/:patientId/case/:caseId/follow-up" element={<FollowUpWorkspace />} />
-      <Route path="/patients/:patientId/case/:caseId/completion" element={<CaseCompletion />} />
+        <Route path="/patients/:patientId/case/:caseId" element={<CaseWorkspacePage />} />
+        <Route path="/patients/:patientId/case/:caseId/reporting-form" element={<ReportingFormPage />} />
+        <Route path="/patients/:patientId/case/:caseId/submission" element={<SubmissionWorkspace />} />
+        <Route path="/patients/:patientId/case/:caseId/follow-up" element={<FollowUpWorkspace />} />
+        <Route path="/patients/:patientId/case/:caseId/completion" element={<CaseCompletion />} />
+        <Route path="/patients/:patientId/case/:caseId/queue" element={<QueueAcknowledgementPage />} />
         <Route path="/cases" element={<CasesPage />} />
         <Route path="/cases/:caseId" element={<CaseWorkspacePage />} />
         <Route path="/cases/:caseId/reporting-form" element={<ReportingFormPage />} />
         <Route path="/cases/:caseId/completion" element={<CaseCompletion />} />
+        <Route path="/cases/:caseId/queue" element={<QueueAcknowledgementPage />} />
         <Route path="/submissions" element={<SubmissionsPage />} />
         <Route path="/submissions/case/:caseId" element={<SubmissionWorkspace />} />
         <Route path="/follow-ups/case/:caseId" element={<FollowUpWorkspace />} />

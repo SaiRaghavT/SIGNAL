@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     groq_model: str = "openai/gpt-oss-20b"
     tesseract_cmd: str | None = None
+    # Destructive demo workflow reset is disabled unless explicitly opted in.
+    demo_mode: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

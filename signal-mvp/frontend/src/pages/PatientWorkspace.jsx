@@ -2,18 +2,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 
 
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 
 
 import { getCanonicalPatient } from "../api/canonical.js";
+import { getCase } from "../api/cases.js";
 
 
 
 
 
 
-import { detectPatientCandidates as detectCandidates } from "../api/detection.js";
+import { detectPatientCandidates as detectCandidates, getCandidate, persistDetectedCandidate, processCandidate } from "../api/detection.js";
 
 
 
@@ -4734,6 +4735,7 @@ export default function PatientWorkspace() {
 
 
   const { patientId } = useParams();
+  const navigate = useNavigate();
 
 
 
@@ -4994,7 +4996,10 @@ export default function PatientWorkspace() {
 
 
 
-      setAuditEvents(events || []);
+      const patientEvents = events || [];
+      setAuditEvents(patientEvents);
+      setDetectionResult(null);
+      setDetectionState("idle");
 
 
 
@@ -5188,7 +5193,7 @@ useEffect(() => {
 
 
 
-     * Detection result is transient.
+     * New evidence means the previous detection result is no longer current.
 
 
 
@@ -5229,160 +5234,72 @@ useEffect(() => {
 
 
   async function handleReviewCandidate(candidate) {
-
-
-
-    /*
-
-
-
-     * Keep this as the transition into the Review stage.
-
-
-
-     * Do not automatically create a case.
-
-
-
-     *
-
-
-
-     * If your existing application already has a review
-
-
-
-     * route/action, connect it here.
-
-
-
-     */
-
-
-
     try {
-
-
-
-      await auditEvent({
-
-
-
-        entity_type: "PATIENT",
-
-
-
-        event_type: "CANDIDATE_REVIEW_STARTED",
-
-
-
-        status: "STARTED",
-
-
-
-        new_value: {
-
-
-
-          disease:
-
-
-
-            candidate?.disease ||
-
-
-
-            candidate?.condition ||
-
-
-
-            candidate?.condition_name ||
-
-
-
-            "unknown",
-
-
-
-        },
-
-
-
-        metadata: {
-
-
-
-          patient_id: patientId,
-
-
-
-        },
-
-
-
-      });
-
-
-
-
-
-      const events =
-
-
-
-        await listAuditEvents(
-
-
-
-          "PATIENT",
-
-
-
-          patientId
-
-
-
-        );
-
-
-
-
-
-      setAuditEvents(events || []);
-
-
-
+      setDetectionError("");
+
+      let candidateId = candidate?.candidate_id || candidate?.id;
+      let caseId = candidate?.case_id || candidate?.case?.case_id || candidate?.case?.id;
+
+      if (!candidateId && candidate?.disease_id) {
+        const persisted = await persistDetectedCandidate(patientId, candidate);
+        caseId = persisted?.case_id || caseId;
+        candidateId = persisted?.candidate_id;
+      }
+
+      if (!caseId && candidateId) {
+        const response = await getCandidate(candidateId);
+        const candidateRecord = response?.data || response;
+        if (String(candidateRecord?.patient_id) !== String(patientId)) {
+          throw new Error("The candidate does not belong to the current patient.");
+        }
+        caseId = candidateRecord?.case_id;
+      }
+
+      if (!caseId && candidateId) {
+        const response = await processCandidate(candidateId);
+        const processed = response?.data || response;
+        caseId = processed?.case?.case_id || processed?.case?.id;
+      }
+
+      if (!caseId) {
+        throw new Error("The backend did not return a case for this candidate.");
+      }
+
+      const response = await getCase(caseId);
+      const existingCase = response?.data || response;
+      const existingPatientId = existingCase?.patient?.patient_id || existingCase?.patient_id;
+      if (String(existingPatientId) !== String(patientId)) {
+        throw new Error("The case does not belong to the current patient.");
+      }
+
+      try {
+        await auditEvent({
+          entity_type: "PATIENT",
+          entity_id: patientId,
+          event_type: "CANDIDATE_REVIEW_STARTED",
+          actor_type: "USER",
+          actor_id: "reporting_user",
+          source_agent: "patient_workspace",
+          status: "STARTED",
+          new_value: {
+            disease: candidate?.disease || candidate?.condition || candidate?.condition_name || "unknown",
+          },
+          metadata: { patient_id: patientId, case_id: caseId },
+        });
+        const events = await listAuditEvents("PATIENT", patientId);
+        setAuditEvents(events || []);
+      } catch (auditError) {
+        console.warn("Unable to refresh the patient audit trail", auditError);
+      }
+
+      navigate(`/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}/reporting-form`);
     } catch (err) {
-
-
-
-      console.error(
-
-
-
-        "Unable to record review event",
-
-
-
-        err
-
-
-
-      );
-
-
-
+      setDetectionError(err?.response?.data?.detail || err?.message || "Unable to open the case workspace.");
     }
-
-
-
   }
 
 
-
-
-
-  if (loading) {
+    if (loading) {
 
 
 
@@ -5812,7 +5729,7 @@ useEffect(() => {
 
 
 
-          {detectionState === "error" && (
+          {(detectionState === "error" || detectionError) && (
 
 
 
@@ -5824,7 +5741,7 @@ useEffect(() => {
 
 
 
-                DETECTION ERROR
+                {detectionState === "error" ? "DETECTION ERROR" : "REPORTING ERROR"}
 
 
 
@@ -5838,7 +5755,7 @@ useEffect(() => {
 
 
 
-                Detection could not be completed
+                {detectionState === "error" ? "Detection could not be completed" : "Unable to continue reporting"}
 
 
 
@@ -5870,7 +5787,7 @@ useEffect(() => {
 
 
 
-                onClick={handleDetection}
+                onClick={detectionState === "error" ? handleDetection : () => setDetectionError("")}
 
 
 
@@ -5878,7 +5795,7 @@ useEffect(() => {
 
 
 
-                Run Detection Again
+                {detectionState === "error" ? "Run Detection Again" : "Dismiss"}
 
 
 
@@ -5935,13 +5852,7 @@ useEffect(() => {
 
 
                       <strong>
-
-
-
-                        Detection completed
-
-
-
+                        {detectionResult?.demo_mode ? "Detection preview ready" : "Detection completed"}
                       </strong>
 
 
@@ -5949,13 +5860,9 @@ useEffect(() => {
 
 
                       <span>
-
-
-
-                        Detection results are ready for review.
-
-
-
+                        {detectionResult?.demo_mode
+                          ? "Available for this session only. The demo detection result was not saved."
+                          : "Detection results are ready for review."}
                       </span>
 
 
