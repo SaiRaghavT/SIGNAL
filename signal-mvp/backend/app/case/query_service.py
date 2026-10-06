@@ -184,12 +184,12 @@ def list_cases(
     )
     at_risk_ids.intersection_update(str(case.case_id) for case in all_cases)
     case_by_id = {str(case.case_id): case for case in all_cases}
-    readiness_rows = db.query(CaseWorkflowRecord.case_id, CaseWorkflowRecord.status).filter(
+    readiness_rows = db.query(CaseWorkflowRecord).filter(
         CaseWorkflowRecord.record_type == "SUBMISSION_READINESS"
     ).order_by(CaseWorkflowRecord.created_at.desc()).all()
     latest_readiness: dict[str, str] = {}
-    for case_id, status_value in readiness_rows:
-        latest_readiness.setdefault(str(case_id), str(status_value or "").upper())
+    for row in readiness_rows:
+        latest_readiness.setdefault(str(row.case_id), str(row.status or "").upper())
     ready_case_ids = {
         case_id
         for case_id, readiness_status in latest_readiness.items()
