@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.config.demo import is_demo_case
@@ -6,6 +7,29 @@ from backend.app.models.case import Case
 from backend.app.demo.reset_service import store_demo_baseline
 
 from .models import CaseAssemblyInput, SignalCase
+
+
+def _to_signal_case(case: Case) -> SignalCase:
+    return SignalCase(
+        case_id=str(case.case_id),
+        candidate_id=case.candidate_id,
+        patient=case.patient,
+        facility=case.facility,
+        provider=case.provider,
+        disease=case.disease,
+        clinical_evidence=case.clinical_evidence,
+        laboratory_evidence=case.laboratory_evidence,
+        ai_evidence=case.ai_evidence,
+        jurisdiction=case.jurisdiction,
+        jurisdiction_status=case.jurisdiction_status,
+        reportability_decision=case.reportability_decision,
+        reportability_evidence_status=case.reportability_evidence_status,
+        status=case.status,
+        warnings=case.warnings,
+        final_decision=case.final_decision,
+        rule_id=case.rule_id,
+        report_fields=case.report_fields or {},
+    )
 
 
 def assemble_case(
@@ -72,9 +96,19 @@ def assemble_case(
         for key, value in values.items():
             setattr(case, key, value)
     else:
+        case = db.query(Case).filter(Case.candidate_id == data.candidate_id).first()
+        if case is not None:
+            return _to_signal_case(case)
         case = Case(**values)
         db.add(case)
-        db.flush()
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            case = db.query(Case).filter(Case.candidate_id == data.candidate_id).first()
+            if case is None:
+                raise
+            return _to_signal_case(case)
 
     candidate = db.query(Candidate).filter(Candidate.candidate_id == data.candidate_id).first()
     if is_demo_case(case):
@@ -82,23 +116,4 @@ def assemble_case(
     db.commit()
     db.refresh(case)
 
-    return SignalCase(
-        case_id=str(case.case_id),
-        candidate_id=case.candidate_id,
-        patient=case.patient,
-        facility=case.facility,
-        provider=case.provider,
-        disease=case.disease,
-        clinical_evidence=case.clinical_evidence,
-        laboratory_evidence=case.laboratory_evidence,
-        ai_evidence=case.ai_evidence,
-        jurisdiction=case.jurisdiction,
-        jurisdiction_status=case.jurisdiction_status,
-        reportability_decision=case.reportability_decision,
-        reportability_evidence_status=case.reportability_evidence_status,
-        status=case.status,
-        warnings=case.warnings,
-        final_decision=case.final_decision,
-        rule_id=case.rule_id,
-        report_fields=case.report_fields or {},
-    )
+    return _to_signal_case(case)
