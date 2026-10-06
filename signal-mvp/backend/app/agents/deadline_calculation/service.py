@@ -150,15 +150,11 @@ class DeadlineCalculationService:
         minutes_remaining = int(
             (deadline - datetime.now(timezone.utc)).total_seconds() / 60
         )
-        rule_window_minutes = int(
-            (deadline - request.event_time).total_seconds() / 60
-        )
-        warning_window_minutes = int(rule.get("severity_warning_minutes", 60))
-        if minutes_remaining < 0:
+        if minutes_remaining <= 4 * 60:
             urgency = "CRITICAL"
-        elif minutes_remaining <= warning_window_minutes:
+        elif minutes_remaining <= 24 * 60:
             urgency = "HIGH"
-        elif minutes_remaining <= rule_window_minutes:
+        elif minutes_remaining <= 72 * 60:
             urgency = "MEDIUM"
         else:
             urgency = "LOW"
