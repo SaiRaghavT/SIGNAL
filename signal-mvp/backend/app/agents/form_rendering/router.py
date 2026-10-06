@@ -16,6 +16,7 @@ from backend.app.models.case import Case
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
+from backend.app.ingestion.api.fhir import get_seed_candidate_summary
 
 
 router = APIRouter(
@@ -25,6 +26,32 @@ router = APIRouter(
 public_router = APIRouter(tags=["Reporting"])
 
 service = FormRenderingService()
+
+
+@public_router.post(
+    "/api/forms/seed-patients/{patient_id}/render",
+    response_model=FormRenderingResponse,
+)
+def render_seed_patient_form(
+    patient_id: UUID,
+    request: FormRenderingRequest,
+) -> FormRenderingResponse:
+    if get_seed_candidate_summary(str(patient_id)) is None:
+        raise HTTPException(status_code=404, detail="FHIR seed patient not found.")
+    if request.case_id != str(patient_id):
+        raise HTTPException(status_code=422, detail="The path and body patient IDs must match.")
+    if request.form_id != TEXAS_MEASLES_FORM["form_id"]:
+        raise HTTPException(status_code=422, detail=f"Unsupported form: {request.form_id}")
+
+    try:
+        result = service.render_form(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not result.render_id:
+        raise HTTPException(status_code=500, detail="Form rendering did not return a render identifier.")
+    result.retrieval_url = f"{router.prefix}/{result.render_id}"
+    result.rendered_document = result.retrieval_url
+    return result
 
 
 @router.get("/forms/{form_id}", response_model=FormDefinitionResponse)

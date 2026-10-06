@@ -35,6 +35,10 @@ const renderForm = (caseId, body) => request("/api/agents/form-rendering/render"
   method: "POST",
   body: JSON.stringify({ case_id: caseId, ...body }),
 });
+const renderSeedPatientForm = (patientId, body) => request(`/api/forms/seed-patients/${encodeURIComponent(patientId)}/render`, {
+  method: "POST",
+  body: JSON.stringify({ case_id: patientId, ...body }),
+});
 const renderUrl = (renderId) => `${apiBaseUrl}/api/agents/form-rendering/${encodeURIComponent(renderId)}`;
 const downloadRenderUrl = (renderId) => `${apiBaseUrl}/api/forms/${encodeURIComponent(renderId)}/download`;
 const processFollowup = (caseId, action, notes = "", submissionId) => followUp({
@@ -59,6 +63,7 @@ export {
   manualReporting,
   processAcknowledgement,
   renderForm,
+  renderSeedPatientForm,
   renderUrl,
   downloadRenderUrl,
   recordImmediateNotification,

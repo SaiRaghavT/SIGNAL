@@ -3,6 +3,7 @@ import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate, use
 import { Activity, AlertTriangle, Bell, Check, ChevronRight, ClipboardList, FileCheck2, LayoutDashboard, Search, Settings, ShieldCheck, Users, BriefcaseBusiness, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Menu, RefreshCw } from 'lucide-react'
 import './App.css'
 import { GovernanceOverview, MonitoringPage, EvaluationPage, ExplainabilityPage, AgentGovernancePage, OutcomeLearningPage, LearningSignalDetail, AgentDetailPage } from './pages/AiGovernance.jsx'
+import SeedReportingFormPage from './pages/SeedReportingFormPage.jsx'
 import { reportingWorkflowService } from './services/reportingWorkflowService.js'
 import { listCandidates, getCandidate, detectPatientCandidates } from './api/candidates.js'
 import { getCanonicalPatient, listCanonicalPatients } from './api/canonical.js'
@@ -16,10 +17,14 @@ import { CasesPage } from './pages/CasesPage.jsx'
 import clinicalAnatomyReference from './assets/clinical-anatomy-reference.png'
 
 const CandidateContext = createContext(null)
+const getSavedRole = () => {
+  const savedRole = localStorage.getItem('signalRole')
+  return savedRole === 'admin' || savedRole === 'reporting_admin' ? 'admin' : 'clinical'
+}
 
 function App() {
   const [queue, setQueue] = useState([])
-  const [role,setRole] = useState(()=>localStorage.getItem('signalRole')||'clinical')
+  const [role,setRole] = useState(getSavedRole)
   const [caseStates,setCaseStates] = useState(()=>reportingWorkflowService.getCaseStates())
   useEffect(()=>{
     let active=true
@@ -97,6 +102,7 @@ function App() {
       <Route path="/" element={<RoleGate role={role} required="clinical"><Dashboard caseStates={caseStates}/></RoleGate>} /><Route path="/dashboard" element={<RoleGate role={role} required="clinical"><Dashboard caseStates={caseStates}/></RoleGate>} />
       <Route path="/admin/dashboard" element={<RoleGate role={role} required="admin"><AdminDashboard/></RoleGate>}/>
       <Route path="/candidates" element={<RoleGate role={role} required="clinical"><Candidates caseStates={caseStates}/></RoleGate>} /><Route path="/candidates/:id" element={<RoleGate role={role} required="clinical"><CandidateRoute><CandidateDetails caseStates={caseStates}/></CandidateRoute></RoleGate>} />
+      <Route path="/candidates/:id/reporting-form" element={<RoleGate role={role} required="clinical"><SeedReportingFormPage/></RoleGate>} />
       <Route path="/candidates/:id/extraction" element={<RoleGate role={role} required="clinical"><CandidateRoute><Extraction /></CandidateRoute></RoleGate>} /><Route path="/candidates/:id/reporting-data" element={<RoleGate role={role} required="clinical"><CandidateRoute><ReportingData /></CandidateRoute></RoleGate>} />
       <Route path="/candidates/:id/review" element={<RoleGate role={role} required="clinical"><CandidateRoute><ClinicalReviewPage addToQueue={addToQueue} caseStates={caseStates}/></CandidateRoute></RoleGate>} />
       <Route path="/queue-confirmation/:id" element={<RoleGate role={role} required="clinical"><CandidateRoute><QueueConfirmation caseStates={caseStates}/></CandidateRoute></RoleGate>}/>
@@ -119,7 +125,10 @@ function App() {
   </Routes></BrowserRouter>
 }
 
-function RoleGate({role,required,children}) { return role===required?children:<Navigate to={role==='admin'?'/admin/reporting-queue':'/dashboard'} replace/> }
+function RoleGate({role,required,children}) {
+  if (role === required) return children
+  return <Navigate to={role==='admin'?'/admin/dashboard':'/dashboard'} replace/>
+}
 
 function Shell({ children, queue, role }) {
   const [open, setOpen] = useState(false)
