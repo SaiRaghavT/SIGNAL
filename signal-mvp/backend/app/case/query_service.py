@@ -172,7 +172,7 @@ def list_cases(
     at_risk_ids = {
         str(case.case_id)
         for case in all_cases
-        if case.deadline is not None
+        if getattr(case, "deadline", None) is not None
         and str(case.severity or "").upper() in {"HIGH", "CRITICAL"}
     }
     at_risk_ids.update(
@@ -206,7 +206,7 @@ def list_cases(
                 case.status,
                 case.final_decision,
                 case.reportability_decision,
-                case.jurisdiction_status,
+                getattr(case, "jurisdiction_status", None),
             )
         )
     }
