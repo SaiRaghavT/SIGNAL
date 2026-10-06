@@ -53,73 +53,6 @@ function patientName(patient = {}) {
   return EMPTY_VALUE;
 }
 
-function firstText(record, keys) {
-  for (const key of keys) {
-    const value = text(record?.[key]);
-    if (value) return value;
-  }
-  return "";
-}
-
-function caseEvidence(detail) {
-  const labs = Array.isArray(detail?.laboratory_evidence) ? detail.laboratory_evidence : [];
-  const lab = labs.find((entry) => entry && typeof entry === "object");
-  if (lab) {
-    const nestedEvidence = lab.evidence && typeof lab.evidence === "object" ? lab.evidence : {};
-    const name = firstText(lab, ["test_name", "test", "display", "analyte", "component", "name"])
-      || firstText(nestedEvidence, ["test_name", "test", "display", "analyte", "name"]);
-    const result = firstText(lab, ["result", "result_value", "interpretation", "value", "report_status"])
-      || firstText(nestedEvidence, ["result", "result_value", "interpretation", "value"]);
-    const title = [name, result].filter(Boolean).join(" · ") || firstText(lab, ["code", "lab_result_id"]);
-    const source = firstText(lab, ["source_system", "source", "laboratory_name", "performing_lab"])
-      || firstText(nestedEvidence, ["source_system", "source", "laboratory_name"]);
-    const date = firstText(lab, ["result_date", "collected_at", "observation_date", "date", "effective_at"])
-      || firstText(nestedEvidence, ["result_date", "collected_at", "date"]);
-    const secondary = [source, date ? formatDate(date) : ""].filter(Boolean).join(" · ");
-    return { title: title || "Laboratory evidence", secondary };
-  }
-
-  const clinical = detail?.clinical_evidence;
-  if (clinical && typeof clinical === "object") {
-    const ignored = ["encounter_id", "patient_id", "source_id", "source_system"];
-    const meaningful = Object.entries(clinical).find(([key, value]) => !ignored.includes(key) && text(value));
-    if (meaningful) {
-      return {
-        title: `${meaningful[0].replaceAll("_", " ")}: ${text(meaningful[1])}`,
-        secondary: firstText(clinical, ["source_system", "source"]),
-      };
-    }
-  }
-
-  const ai = detail?.ai_evidence;
-  const aiTrigger = firstText(ai, ["trigger_reason", "reason", "evidence_summary", "summary"]);
-  return {
-    title: aiTrigger || "No trigger evidence recorded",
-    secondary: "",
-  };
-}
-
-function missingCategories(detail) {
-  const missing = Array.isArray(detail?.required_missing_fields) ? detail.required_missing_fields : [];
-  if (!missing.length) return "None";
-  const categories = {
-    patient: "Patient information",
-    clinical: "Clinical information",
-    rash_fever: "Clinical information",
-    laboratory: "Laboratory evidence",
-    reporting: "Reporting information",
-    provider: "Provider information",
-    facility: "Facility information",
-  };
-  const labels = missing.reduce((result, field) => {
-    const prefix = String(field).split(".")[0];
-    const label = categories[prefix] || String(field).replaceAll("_", " ");
-    if (!result.includes(label)) result.push(label);
-    return result;
-  }, []);
-  return labels.join(", ");
-}
-
 function statusTone(value) {
   const normalized = String(value || "").toUpperCase();
   if (/SUBMITTED|ACKNOWLEDGED|COMPLETE|APPROV|READY|REPORT$/.test(normalized)) return "success";
@@ -289,34 +222,26 @@ export function CasesPage() {
                   <thead>
                     <tr>
                       <th scope="col">PATIENT / CONDITION</th>
-                      <th scope="col">TRIGGER / EVIDENCE</th>
                       <th scope="col">JURISDICTION / RULE</th>
                       <th scope="col">DEADLINE</th>
                       <th scope="col">DISPOSITION</th>
                       <th scope="col">PRIORITY</th>
-                      <th scope="col">MISSING INFO</th>
                       <th scope="col">ACTION</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleCases.map((item) => {
                       const detail = item.detail || {};
-                      const evidence = caseEvidence(detail);
                       const disposition = item.status || item.final_decision || item.reportability_decision;
                       const priority = text(item.severity) || EMPTY_VALUE;
                       const priorityTone = ["HIGH", "CRITICAL"].includes(priority.toUpperCase())
                         ? "danger"
                         : priority.toUpperCase() === "MEDIUM" ? "warning" : "";
-                      const missing = missingCategories(detail);
                       return (
                         <tr key={item.case_id}>
                           <td>
                             <span className="cases-cell-primary">{patientName(detail.patient)}</span>
                             <span className="cases-cell-secondary">{text(item.disease) || EMPTY_VALUE}</span>
-                          </td>
-                          <td>
-                            <span className="cases-cell-primary">{evidence.title}</span>
-                            {evidence.secondary && <span className="cases-cell-secondary">{evidence.secondary}</span>}
                           </td>
                           <td>
                             <span className="cases-cell-primary">{text(item.jurisdiction) || EMPTY_VALUE}</span>
@@ -325,7 +250,6 @@ export function CasesPage() {
                           <td>{formatDate(item.deadline)}</td>
                           <td><span className={`cases-pill ${statusTone(disposition)}`}>{titleCase(disposition)}</span></td>
                           <td><span className={`cases-pill ${priorityTone}`}>{titleCase(priority)}</span></td>
-                          <td><span className={`cases-pill ${missing === "None" ? "success" : "warning"}`}>{missing}</span></td>
                           <td><Link className="cases-action" to={`/cases/${encodeURIComponent(item.case_id)}`}>Open case</Link></td>
                         </tr>
                       );
