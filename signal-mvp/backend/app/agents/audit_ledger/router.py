@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
@@ -91,6 +91,30 @@ def list_audit_events(
         )
         for event in events
     ]
+
+
+@api_router.get("/api/audit/events/summary")
+def get_audit_event_summary(db: Session = Depends(get_db)) -> dict:
+    grouped = db.query(
+        AuditEvent.source_agent,
+        AuditEvent.status,
+        func.count(AuditEvent.audit_id),
+    ).group_by(AuditEvent.source_agent, AuditEvent.status).all()
+    components: dict[str, dict[str, int]] = {}
+    total = success = failure = 0
+    for source_agent, status, count in grouped:
+        component = source_agent or "unknown"
+        status_key = str(status or "UNKNOWN").upper()
+        counts = components.setdefault(component, {"total": 0, "success": 0, "failure": 0})
+        counts["total"] += count
+        total += count
+        if status_key == "SUCCESS":
+            counts["success"] += count
+            success += count
+        elif status_key == "FAILURE":
+            counts["failure"] += count
+            failure += count
+    return {"total": total, "success": success, "failure": failure, "by_component": components}
 
 
 @api_router.get("/api/audit/events/{event_id}", response_model=AuditEventResponse)
