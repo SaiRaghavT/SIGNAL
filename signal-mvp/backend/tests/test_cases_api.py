@@ -172,7 +172,18 @@ def test_empty_results_return_successful_empty_page():
         app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 200
-    assert response.json() == {"items": [], "total": 0, "page": 1, "page_size": 20}
+    assert response.json() == {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "page_size": 20,
+        "metrics": {
+            "candidate_cases": 0,
+            "at_risk_deadlines": 0,
+            "needs_review": 0,
+            "report_ready": 0,
+        },
+    }
 
 
 def test_invalid_pagination_is_rejected():
