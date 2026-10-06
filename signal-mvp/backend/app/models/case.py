@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, String, Text, func, text
+from sqlalchemy import DateTime, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -10,6 +10,9 @@ from backend.app.models.base import Base
 
 class Case(Base):
     __tablename__ = "cases"
+    __table_args__ = (
+        UniqueConstraint("candidate_id", name="uq_cases_candidate_id"),
+    )
 
     case_id: Mapped[UUID] = mapped_column(
         primary_key=True,
