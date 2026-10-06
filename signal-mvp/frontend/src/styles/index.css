@@ -16,3 +16,14 @@
 @media(max-width:650px){.main>section{padding:18px 14px 26px}.page-header{align-items:flex-start;gap:12px;flex-direction:column}.page-header h2{font-size:23px}}
 .sidebar-foot{display:flex;flex-direction:column;align-items:stretch;gap:12px}.sidebar-foot>span:last-child{display:flex;align-items:center;gap:7px}.sidebar-signout{width:100%;border:1px solid rgba(220,231,225,.15);background:transparent;color:#d0dad5;text-align:left}.sidebar-signout:hover{background:#334743;color:#fff}
 @media(max-width:1000px){.sidebar-foot{display:flex}.sidebar-signout{height:38px;padding:0;font-size:0;text-align:center}.sidebar-signout::before{content:"↪";font-size:16px}.sidebar-foot>span:last-child{display:none}}
+
+/* Shared sidebar palette from the Patients reference image. */
+.sidebar{background:#123250;color:#edf3f8}
+.brand-mark{background:#ff7043;color:#fff}
+.brand small{color:#aebfd0}
+.nav-item{color:#d6e0e9}
+.nav-item:hover{background:#1d4262;color:#fff}
+.nav-item.active{background:#ff7043;color:#fff;box-shadow:none}
+.sidebar-foot{color:#aebfd0}
+.sidebar-signout{border-color:rgb(237 243 248 / 18%);color:#d6e0e9}
+.sidebar-signout:hover{background:#1d4262;color:#fff}
