@@ -105,6 +105,15 @@ def test_get_cases_returns_persisted_case_summaries_without_sensitive_json():
     assert body["total"] == 1
     assert body["items"][0]["case_id"] == str(case.case_id)
     assert body["items"][0]["disease"] == "measles"
+    assert body["metrics"] == {
+        "candidate_cases": 1,
+        "at_risk_deadlines": 0,
+        "needs_review": 0,
+        "report_ready": 0,
+    }
+    assert body["items"][0]["needs_review"] is False
+    assert body["items"][0]["deadline_risk"] is False
+    assert body["items"][0]["report_ready"] is False
     for forbidden in ("patient", "provider", "facility", "clinical_evidence", "laboratory_evidence", "ai_evidence"):
         assert forbidden not in body["items"][0]
 
