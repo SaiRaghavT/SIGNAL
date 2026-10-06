@@ -13,14 +13,10 @@ import {
 
 import {
   ArrowLeft,
-  Building2,
   Check,
-  Circle,
-  ClipboardCheck,
   Clock3,
-  FileCheck2,
-  Send,
   ShieldCheck,
+  Send,
   UserRoundCheck,
 } from "lucide-react";
 
@@ -39,6 +35,10 @@ import {
 import "../styles/queue-acknowledgement.css";
 
 
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
 const asList = (value) =>
   Array.isArray(value) ? value : [];
 
@@ -50,17 +50,22 @@ const responseData = (response) =>
 const prettify = (value) =>
   String(value || "")
     .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
+    );
 
 
 function errorMessage(error) {
-  const detail = error?.response?.data?.detail;
+  const detail =
+    error?.response?.data?.detail;
 
   if (typeof detail === "string") {
     return detail;
   }
 
-  if (typeof detail?.message === "string") {
+  if (
+    typeof detail?.message === "string"
+  ) {
     return detail.message;
   }
 
@@ -137,25 +142,20 @@ function stage(journey, name) {
 }
 
 
-function SummaryCard({
-  icon: Icon,
+/* =========================================================
+   SMALL UI COMPONENTS
+   ========================================================= */
+
+function StatusCard({
   label,
   value,
   subtitle,
-  accent,
+  accent = "sage",
 }) {
   return (
     <article
-      className={`queue-summary-card ${
-        accent || ""
-      }`}
+      className={`queue-status-card accent-${accent}`}
     >
-      <Icon
-        className="queue-summary-icon"
-        size={16}
-        aria-hidden="true"
-      />
-
       <span className="queue-eyebrow">
         {label}
       </span>
@@ -168,79 +168,44 @@ function SummaryCard({
 }
 
 
-function QueueDetail({ label, value }) {
-  return (
-    <div className="queue-detail">
-      <dt>{label}</dt>
-      <dd>{value || "Not available"}</dd>
-    </div>
-  );
-}
-
-
-function SectionStatus({ label, state }) {
-  const complete =
-    state.validated === state.total &&
-    state.total > 0;
-
-  const partial =
-    state.validated > 0 && !complete;
-
-  return (
-    <li
-      className={`queue-check-row ${
-        complete
-          ? "is-complete"
-          : partial
-          ? "is-partial"
-          : "is-pending"
-      }`}
-    >
-      <span
-        className="queue-check-icon"
-        aria-hidden="true"
-      >
-        {complete ? (
-          <Check size={14} />
-        ) : (
-          <Circle size={11} />
-        )}
-      </span>
-
-      <span>{label}</span>
-
-      <small>
-        {state.validated}/{state.total} fields
-      </small>
-    </li>
-  );
-}
-
-
 function LifecycleStep({
   label,
   state,
   note,
 }) {
-  const Icon =
-    state === "complete"
-      ? Check
-      : state === "current"
-      ? Clock3
-      : Circle;
+  const isComplete = state === "complete";
+  const isCurrent = state === "current";
 
   return (
     <li
-      className={`queue-lifecycle-step is-${state}`}
+      className={`queue-lifecycle-step ${
+        isComplete
+          ? "is-complete"
+          : isCurrent
+          ? "is-current"
+          : "is-pending"
+      }`}
     >
       <span className="queue-lifecycle-marker">
-        <Icon
-          size={14}
-          aria-hidden="true"
-        />
+        {isComplete ? (
+          <Check
+            size={14}
+            aria-hidden="true"
+          />
+        ) : isCurrent ? (
+          <Clock3
+            size={14}
+            aria-hidden="true"
+          />
+        ) : (
+          <span
+            className="queue-lifecycle-dot"
+            aria-hidden="true"
+          />
+        )}
       </span>
 
-      <div>
+      <div className="queue-lifecycle-content">
         <strong>{label}</strong>
         <small>{note}</small>
       </div>
@@ -249,37 +214,9 @@ function LifecycleStep({
 }
 
 
-function NextStep({
-  number,
-  title,
-  description,
-  state,
-}) {
-  return (
-    <li
-      className={`queue-next-step is-${state}`}
-    >
-      <span className="queue-next-number">
-        {number}
-      </span>
-
-      <div>
-        <strong>{title}</strong>
-
-        <p>{description}</p>
-      </div>
-
-      <span className="queue-next-badge">
-        {state === "current"
-          ? "Current"
-          : state === "complete"
-          ? "Complete"
-          : "Pending"}
-      </span>
-    </li>
-  );
-}
-
+/* =========================================================
+   PAGE
+   ========================================================= */
 
 export default function QueueAcknowledgementPage() {
   const {
@@ -309,6 +246,10 @@ export default function QueueAcknowledgementPage() {
   const [error, setError] =
     useState("");
 
+
+  /* =======================================================
+     LOAD BACKEND STATE
+     ======================================================= */
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -357,6 +298,10 @@ export default function QueueAcknowledgementPage() {
   }, [load]);
 
 
+  /* =======================================================
+     CASE DATA
+     ======================================================= */
+
   const patient =
     caseData?.patient || {};
 
@@ -387,6 +332,16 @@ export default function QueueAcknowledgementPage() {
     prettify(caseData?.disease) ||
     "Not returned";
 
+  const deadline =
+    deadlineLabel(
+      caseData?.deadline
+    );
+
+
+  /* =======================================================
+     QUEUE STATE
+     ======================================================= */
+
   const queueRecord =
     readiness?.record || null;
 
@@ -398,14 +353,24 @@ export default function QueueAcknowledgementPage() {
     queueRecord?.record_id ||
     "Pending queue reference";
 
-  const reportingFields =
-    readiness?.reporting_fields || {};
 
-  const sectionCounts =
-    reportingFields.sections || {};
+  /* =======================================================
+     VALIDATION STATE
+     ======================================================= */
 
   const validationStage =
     stage(journey, "VALIDATION");
+
+  const validated =
+    validation?.valid === true ||
+    validationStage?.data?.valid === true ||
+    validationStage?.status ===
+      "COMPLETED";
+
+
+  /* =======================================================
+     SUBMISSION STATE
+     ======================================================= */
 
   const submissions = asList(
     stage(journey, "SUBMISSION")
@@ -440,17 +405,10 @@ export default function QueueAcknowledgementPage() {
     submissionStatus === "ACKNOWLEDGED" &&
     !simulatedDestination;
 
-  const superAdminComplete =
-    dispatchRecorded;
 
-  const validated =
-    validation?.valid === true ||
-    validationStage?.data?.valid === true ||
-    validationStage?.status ===
-      "COMPLETED";
-
-  const deadline =
-    deadlineLabel(caseData?.deadline);
+  /* =======================================================
+     DISPLAY STATES
+     ======================================================= */
 
   const workflowStates = useMemo(
     () => ({
@@ -462,11 +420,12 @@ export default function QueueAcknowledgementPage() {
         ? "complete"
         : "pending",
 
-      admin: superAdminComplete
-        ? "complete"
-        : queueConfirmed
-        ? "current"
-        : "pending",
+      admin:
+        dispatchRecorded
+          ? "complete"
+          : queueConfirmed
+          ? "current"
+          : "pending",
 
       dispatch: dispatchRecorded
         ? "complete"
@@ -480,16 +439,54 @@ export default function QueueAcknowledgementPage() {
     [
       validated,
       queueConfirmed,
-      superAdminComplete,
       dispatchRecorded,
       phrAcknowledged,
     ]
   );
 
 
-  const backToReview = () =>
-    navigate(casePath);
+  const queueStatus = queueConfirmed
+    ? "READY"
+    : "PENDING";
 
+  const queueStatusSubtitle =
+    queueConfirmed
+      ? "Ready for authorized reporting"
+      : "Queue handoff not confirmed";
+
+
+  const adminStatus =
+    dispatchRecorded
+      ? "Complete"
+      : queueConfirmed
+      ? "Current"
+      : "Pending";
+
+
+  const dispatchStatus =
+    dispatchRecorded
+      ? prettify(submissionStatus)
+      : "Pending";
+
+
+  const phrStatus =
+    phrAcknowledged
+      ? "Acknowledged"
+      : "Pending";
+
+
+  /* =======================================================
+     NAVIGATION
+     ======================================================= */
+
+  const backToReview = () => {
+    navigate(casePath);
+  };
+
+
+  /* =======================================================
+     LOADING
+     ======================================================= */
 
   if (loading) {
     return (
@@ -503,9 +500,14 @@ export default function QueueAcknowledgementPage() {
   }
 
 
+  /* =======================================================
+     ERROR
+     ======================================================= */
+
   if (!caseData) {
     return (
       <section className="queue-ack-page">
+
         <div
           className="queue-page-error"
           role="alert"
@@ -524,58 +526,22 @@ export default function QueueAcknowledgementPage() {
             Retry
           </button>
         </div>
+
       </section>
     );
   }
 
 
-  const queueStatus = queueConfirmed
-    ? dispatchRecorded
-      ? "Dispatched by authorized reporting"
-      : "Ready for authorized reporting queue"
-    : "Queue handoff not confirmed";
-
-  const queueBadge = queueConfirmed
-    ? "Ready for Queue"
-    : "Pending";
-
-  const phrStatus =
-    phrAcknowledged
-      ? "Acknowledgement recorded"
-      : "Pending";
-
-  const superAdminBadge =
-    "Pending";
-
-  const evidenceStatus =
-    prettify(
-      caseData?.reportability_evidence_status
-    );
-
-  const nextReviewState =
-    superAdminComplete
-      ? "complete"
-      : queueConfirmed
-      ? "current"
-      : "pending";
-
-  const nextDispatchState =
-    dispatchRecorded
-      ? "complete"
-      : "pending";
-
-  const nextAcknowledgementState =
-    phrAcknowledged
-      ? "complete"
-      : "pending";
-
+  /* =======================================================
+     MAIN UI
+     ======================================================= */
 
   return (
     <section className="queue-ack-page">
 
-      {/* -------------------------------------------------
-          PAGE HEADER
-      -------------------------------------------------- */}
+      {/* =================================================
+          HEADER
+          ================================================= */}
 
       <header className="queue-page-header">
 
@@ -623,13 +589,13 @@ export default function QueueAcknowledgementPage() {
           </div>
 
           <p>
-            Track queue receipt, Super Admin
-            handoff, and Texas PHR
-            acknowledgement for the reporting
-            package.
+            Track the reporting package from
+            authorized queue handoff through
+            public-health acknowledgement.
           </p>
 
         </div>
+
 
         <button
           type="button"
@@ -643,9 +609,9 @@ export default function QueueAcknowledgementPage() {
       </header>
 
 
-      {/* -------------------------------------------------
+      {/* =================================================
           ERROR
-      -------------------------------------------------- */}
+          ================================================= */}
 
       {error && (
         <div
@@ -664,78 +630,59 @@ export default function QueueAcknowledgementPage() {
       )}
 
 
-      {/* -------------------------------------------------
-          KPI CARDS
-      -------------------------------------------------- */}
+      {/* =================================================
+          STATUS CARDS
+          ================================================= */}
 
       <div className="queue-summary-grid">
 
-        <SummaryCard
-          icon={Building2}
-          label="Reporting Jurisdiction"
-          value={reportingJurisdiction}
-          subtitle="State health authority"
-          accent="accent-sage"
+        <StatusCard
+          label="Queue Status"
+          value={queueStatus}
+          subtitle={queueStatusSubtitle}
+          accent="sage"
         />
 
-        <SummaryCard
-          icon={ShieldCheck}
+        <StatusCard
           label="Reporting Condition"
           value={condition}
-          subtitle={
-            evidenceStatus
-              ? `Evidence: ${evidenceStatus}`
-              : "Case condition"
-          }
-          accent="accent-terra"
+          subtitle={reportingJurisdiction}
+          accent="terra"
         />
 
-        <SummaryCard
-          icon={Clock3}
+        <StatusCard
           label="Reporting Deadline"
           value={deadline}
           subtitle="Configured reporting deadline"
-          accent="accent-blue"
-        />
-
-        <SummaryCard
-          icon={FileCheck2}
-          label="Reporting Fields"
-          value={`${reportingFields.validated ?? 0} / ${
-            reportingFields.total ?? 0
-          }`}
-          subtitle="Validated before queue submission"
-          accent="accent-mauve"
+          accent="blue"
         />
 
       </div>
 
 
-      {/* -------------------------------------------------
+      {/* =================================================
           MAIN CONTENT
-      -------------------------------------------------- */}
+          ================================================= */}
 
       <main className="queue-main-grid">
 
         {/* =================================================
-            PRIMARY COLUMN
-        ================================================== */}
+            LEFT — QUEUE STATUS
+            ================================================= */}
 
         <div className="queue-primary-column">
 
-          {/* Queue Handoff */}
-
-          <article className="queue-card queue-confirmation-card">
+          <article className="queue-card queue-status-card-main">
 
             <header className="queue-card-heading">
 
               <div>
                 <span className="queue-eyebrow">
-                  QUEUE HANDOFF
+                  QUEUE STATUS
                 </span>
 
                 <h3>
-                  Queue &amp; Acknowledgement
+                  Authorized Reporting Queue
                 </h3>
               </div>
 
@@ -746,206 +693,99 @@ export default function QueueAcknowledgementPage() {
                     : "is-pending"
                 }`}
               >
-                {queueBadge}
+                {queueConfirmed
+                  ? "READY"
+                  : "PENDING"}
               </span>
 
             </header>
 
 
             <div
-              className={`queue-confirmation-banner ${
+              className={`queue-status-banner ${
                 queueConfirmed
-                  ? "is-confirmed"
-                  : "is-unconfirmed"
+                  ? "is-ready"
+                  : "is-pending"
               }`}
             >
 
-              <div className="queue-banner-icon">
+              <div className="queue-status-banner-icon">
+
                 {queueConfirmed ? (
-                  <Check size={18} />
+                  <Check
+                    size={19}
+                    aria-hidden="true"
+                  />
                 ) : (
-                  <Clock3 size={18} />
+                  <Clock3
+                    size={19}
+                    aria-hidden="true"
+                  />
                 )}
+
               </div>
+
 
               <div>
 
                 <strong>
                   {queueConfirmed
-                    ? "SIGNAL marked this reporting package ready for the authorized reporting queue."
-                    : "Queue readiness has not been confirmed by SIGNAL."}
+                    ? "Reporting package is ready for authorized reporting staff."
+                    : "Reporting package is not yet confirmed in the authorized queue."}
                 </strong>
 
                 <p>
                   {queueConfirmed
-                    ? "The package is awaiting queue receipt and Super Admin review before any dispatch to Texas DSHS."
-                    : "Return to Review & Validation and complete the backend queue handoff before continuing."}
+                    ? "Super Admin review is the next step before any dispatch to Texas DSHS."
+                    : "Return to Review & Validation and complete the required queue handoff."}
                 </p>
-
-                <small>
-                  This readiness record is not
-                  a Texas DSHS submission or a
-                  separate queue receipt.
-                </small>
 
               </div>
 
             </div>
 
 
-            <dl className="queue-detail-grid">
+            <div className="queue-reference-block">
 
-              <QueueDetail
-                label="Queue"
-                value="Super Admin Reporting Queue"
-              />
+              <span className="queue-eyebrow">
+                QUEUE REFERENCE
+              </span>
 
-              <QueueDetail
-                label="Queue Status"
-                value={queueStatus}
-              />
+              <strong>
+                {queueReference}
+              </strong>
 
-              <QueueDetail
-                label="Backend Readiness Reference"
-                value={queueReference}
-              />
-
-              <QueueDetail
-                label="Next Step"
-                value={
-                  queueConfirmed
-                    ? "Super Admin Review & Dispatch"
-                    : "Confirm queue handoff"
-                }
-              />
-
-            </dl>
-
-          </article>
+            </div>
 
 
-          {/* Reporting Package */}
-
-          <article className="queue-card queue-package-card">
-
-            <header className="queue-card-heading">
+            <div className="queue-next-action">
 
               <div>
                 <span className="queue-eyebrow">
-                  REPORTING PACKAGE
+                  NEXT ACTION
                 </span>
 
-                <h3>
-                  Reporting Package
-                </h3>
+                <strong>
+                  {queueConfirmed
+                    ? "Super Admin Review & Dispatch"
+                    : "Confirm Queue Handoff"}
+                </strong>
+
+                <p>
+                  {queueConfirmed
+                    ? "An authorized reporting user reviews the package and dispatches it through the approved reporting channel."
+                    : "The case must be confirmed as queue-ready before authorized reporting staff can continue."}
+                </p>
               </div>
-
-              <span className="queue-card-note">
-                {queueConfirmed
-                  ? "Queued case"
-                  : "Queue not confirmed"}
-              </span>
-
-            </header>
-
-
-            <dl className="queue-package-details">
-
-              <QueueDetail
-                label="Patient"
-                value={patientName}
-              />
-
-              <QueueDetail
-                label="Condition"
-                value={condition}
-              />
-
-              <QueueDetail
-                label="Jurisdiction"
-                value={reportingJurisdiction}
-              />
-
-              <QueueDetail
-                label="Case ID"
-                value={caseIdValue}
-              />
-
-            </dl>
-
-
-            <div className="queue-contents">
-
-              <div className="queue-subheading">
-
-                <span className="queue-eyebrow">
-                  SUBMISSION CONTENTS
-                </span>
-
-                <small>
-                  {reportingFields.validated ?? 0}{" "}
-                  of{" "}
-                  {reportingFields.total ?? 0}{" "}
-                  configured fields populated
-                </small>
-
-              </div>
-
-
-              <ul>
-
-                <SectionStatus
-                  label="Patient identification"
-                  state={
-                    sectionCounts.patient_identification ||
-                    {
-                      validated: 0,
-                      total: 0,
-                    }
-                  }
-                />
-
-                <SectionStatus
-                  label="Clinical information"
-                  state={
-                    sectionCounts.clinical_information ||
-                    {
-                      validated: 0,
-                      total: 0,
-                    }
-                  }
-                />
-
-                <SectionStatus
-                  label="Laboratory evidence"
-                  state={
-                    sectionCounts.laboratory_evidence ||
-                    {
-                      validated: 0,
-                      total: 0,
-                    }
-                  }
-                />
-
-                <SectionStatus
-                  label="Reporting information"
-                  state={
-                    sectionCounts.reporting_information ||
-                    {
-                      validated: 0,
-                      total: 0,
-                    }
-                  }
-                />
-
-              </ul>
 
             </div>
 
           </article>
 
 
-          {/* Submission Lifecycle */}
+          {/* =================================================
+              LIFECYCLE
+              ================================================= */}
 
           <article className="queue-card queue-lifecycle-card">
 
@@ -953,17 +793,18 @@ export default function QueueAcknowledgementPage() {
 
               <div>
                 <span className="queue-eyebrow">
-                  WORKFLOW STATUS
+                  SUBMISSION STATUS
                 </span>
 
                 <h3>
-                  Submission Lifecycle
+                  Reporting Lifecycle
                 </h3>
               </div>
 
-              <span className="queue-card-note">
-                Post-validation status
-              </span>
+              <ShieldCheck
+                size={17}
+                aria-hidden="true"
+              />
 
             </header>
 
@@ -972,71 +813,59 @@ export default function QueueAcknowledgementPage() {
 
               <LifecycleStep
                 label="Validated"
-                state={workflowStates.validated}
+                state={
+                  workflowStates.validated
+                }
                 note={
                   validated
-                    ? "Backend validation complete"
-                    : "Backend validation pending"
+                    ? "Complete"
+                    : "Pending validation"
                 }
               />
 
               <LifecycleStep
                 label="Added to Queue"
-                state={workflowStates.queued}
+                state={
+                  workflowStates.queued
+                }
                 note={
                   queueConfirmed
-                    ? "Queue receipt confirmed"
-                    : "Awaiting queue confirmation"
-                }
-              />
-
-              <LifecycleStep
-                label="Super Admin Review"
-                state={workflowStates.admin}
-                note={
-                  superAdminComplete
-                    ? "Dispatch record exists"
-                    : queueConfirmed
-                    ? "Current step"
+                    ? "Queue ready"
                     : "Pending queue handoff"
                 }
               />
 
               <LifecycleStep
-                label="Dispatched to Texas DSHS"
-                state={workflowStates.dispatch}
+                label="Super Admin Review"
+                state={
+                  workflowStates.admin
+                }
                 note={
-                  dispatchRecorded
-                    ? `Backend status: ${prettify(
-                        submissionStatus
-                      )}`
-                    : "Pending authorized dispatch"
+                  adminStatus
                 }
               />
 
               <LifecycleStep
-                label="Texas PHR Acknowledgement"
+                label="Dispatch to Texas DSHS"
+                state={
+                  workflowStates.dispatch
+                }
+                note={
+                  dispatchStatus
+                }
+              />
+
+              <LifecycleStep
+                label="PHR Acknowledgement"
                 state={
                   workflowStates.acknowledgement
                 }
                 note={
-                  phrAcknowledged
-                    ? "Acknowledgement recorded by backend"
-                    : "Pending after dispatch"
+                  phrStatus
                 }
               />
 
             </ol>
-
-
-            {simulatedDestination && (
-              <p className="queue-simulation-note">
-                A backend submission is recorded
-                for a simulated destination. It does
-                not confirm Texas DSHS dispatch or a
-                Texas PHR acknowledgement.
-              </p>
-            )}
 
           </article>
 
@@ -1044,203 +873,152 @@ export default function QueueAcknowledgementPage() {
 
 
         {/* =================================================
-            SIDE COLUMN
-        ================================================== */}
+            RIGHT — CURRENT RECEIPT
+            ================================================= */}
 
         <aside className="queue-side-column">
 
-          {/* Super Admin */}
-
-          <article className="queue-card queue-ack-card">
+          <article className="queue-card queue-receipt-card">
 
             <header className="queue-card-heading">
 
               <div>
                 <span className="queue-eyebrow">
-                  QUEUE RECEIPT
+                  CURRENT STATUS
                 </span>
 
                 <h3>
-                  Super Admin Acknowledgement
-                </h3>
-              </div>
-
-              <span className="queue-status-badge is-pending">
-                {superAdminBadge}
-              </span>
-
-            </header>
-
-
-            <p className="queue-card-description">
-              {queueConfirmed
-                ? "SIGNAL recorded queue readiness. A separate receipt from the Super Admin Reporting Queue has not been recorded."
-                : "This card will show receipt only after SIGNAL records a queue acknowledgement."}
-            </p>
-
-
-            <dl className="queue-detail-list">
-
-              <QueueDetail
-                label="Acknowledgement"
-                value="Pending queue receipt"
-              />
-
-              <QueueDetail
-                label="Queue"
-                value="Super Admin Reporting Queue"
-              />
-
-              <QueueDetail
-                label="Backend Readiness Reference"
-                value={queueReference}
-              />
-
-              <QueueDetail
-                label="Status"
-                value={queueStatus}
-              />
-
-            </dl>
-
-          </article>
-
-
-          {/* Texas PHR */}
-
-          <article className="queue-card queue-phr-card">
-
-            <header className="queue-card-heading">
-
-              <div>
-                <span className="queue-eyebrow">
-                  PUBLIC HEALTH RECEIPT
-                </span>
-
-                <h3>
-                  Texas PHR Acknowledgement
+                  Reporting Handoff
                 </h3>
               </div>
 
               <span
                 className={`queue-status-badge ${
-                  phrAcknowledged
+                  queueConfirmed
                     ? "is-received"
                     : "is-pending"
                 }`}
               >
-                {phrAcknowledged
-                  ? "Received"
+                {queueConfirmed
+                  ? "Ready"
                   : "Pending"}
               </span>
 
             </header>
 
 
-            <p className="queue-card-description">
-              Texas DSHS is not contacted at the
-              queue stage. The report is sent only
-              after the Super Admin reviews and
-              dispatches it through the authorized
-              reporting channel.
-            </p>
+            <div className="queue-receipt-row">
+
+              <span>
+                Queue
+              </span>
+
+              <strong>
+                Super Admin Reporting Queue
+              </strong>
+
+            </div>
 
 
-            <dl className="queue-detail-list">
+            <div className="queue-receipt-row">
 
-              <QueueDetail
-                label="Destination"
-                value={reportingJurisdiction}
-              />
+              <span>
+                Queue Reference
+              </span>
 
-              <QueueDetail
-                label="Submission Status"
-                value={
-                  dispatchRecorded
-                    ? prettify(submissionStatus)
-                    : "Pending dispatch"
-                }
-              />
+              <strong>
+                {queueReference}
+              </strong>
 
-              <QueueDetail
-                label="PHR Acknowledgement"
-                value={phrStatus}
-              />
-
-              <QueueDetail
-                label="Submission Reference"
-                value={
-                  submission?.submission_id ||
-                  "Pending dispatch"
-                }
-              />
-
-            </dl>
+            </div>
 
 
-            {simulatedDestination && (
-              <p className="queue-simulation-note">
-                The recorded destination is simulated
-                and does not represent Texas DSHS.
-              </p>
-            )}
+            <div className="queue-receipt-row">
+
+              <span>
+                Next Action
+              </span>
+
+              <strong>
+                {queueConfirmed
+                  ? "Super Admin Review"
+                  : "Complete Queue Handoff"}
+              </strong>
+
+            </div>
+
+
+            <div className="queue-receipt-row">
+
+              <span>
+                Texas DSHS
+              </span>
+
+              <strong>
+                {dispatchRecorded
+                  ? "Dispatched"
+                  : "Not dispatched"}
+              </strong>
+
+            </div>
+
+
+            <div className="queue-receipt-row">
+
+              <span>
+                PHR Acknowledgement
+              </span>
+
+              <strong>
+                {phrAcknowledged
+                  ? "Received"
+                  : "Pending"}
+              </strong>
+
+            </div>
 
           </article>
 
 
-          {/* Next Steps */}
+          {/* =================================================
+              IMPORTANT STATUS
+              ================================================= */}
 
-          <article className="queue-card queue-next-card">
+          <article className="queue-card queue-important-card">
 
-            <header className="queue-card-heading">
-
-              <div>
-                <span className="queue-eyebrow">
-                  NEXT STEPS
-                </span>
-
-                <h3>
-                  What Happens Next
-                </h3>
-              </div>
-
-              <ClipboardCheck
-                size={17}
+            <div className="queue-important-icon">
+              <UserRoundCheck
+                size={18}
                 aria-hidden="true"
               />
+            </div>
 
-            </header>
+            <div>
 
+              <span className="queue-eyebrow">
+                AUTHORIZED REPORTING
+              </span>
 
-            <ol className="queue-next-list">
+              <h3>
+                No PHA submission from this page
+              </h3>
 
-              <NextStep
-                number="1"
-                title="Super Admin Review"
-                description="Package is reviewed before dispatch."
-                state={nextReviewState}
-              />
+              <p>
+                This page tracks queue readiness
+                and downstream acknowledgement.
+                Texas DSHS dispatch occurs only
+                after authorized reporting staff
+                review and send the package.
+              </p>
 
-              <NextStep
-                number="2"
-                title="Dispatch to Texas DSHS"
-                description="Authorized reporting staff transmit the package through the approved reporting channel."
-                state={nextDispatchState}
-              />
-
-              <NextStep
-                number="3"
-                title="Texas PHR Acknowledgement"
-                description="Receipt is recorded after public-health submission."
-                state={nextAcknowledgementState}
-              />
-
-            </ol>
+            </div>
 
           </article>
 
 
-          {/* Back */}
+          {/* =================================================
+              BACK
+              ================================================= */}
 
           <button
             type="button"
@@ -1256,7 +1034,9 @@ export default function QueueAcknowledgementPage() {
       </main>
 
 
-      {/* Footer */}
+      {/* =================================================
+          FOOTER
+          ================================================= */}
 
       <div className="queue-reference-note">
 
@@ -1266,9 +1046,9 @@ export default function QueueAcknowledgementPage() {
         />
 
         <span>
-          SIGNAL returns the readiness reference
-          and workflow status. No Texas DSHS
-          submission is created on this page.
+          SIGNAL tracks queue readiness,
+          authorized dispatch, and public-health
+          acknowledgement separately.
         </span>
 
         {location.state?.queueResult?.ready && (
