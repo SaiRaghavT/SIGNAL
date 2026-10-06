@@ -4,6 +4,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.app.detection.disease_concepts import canonical_disease_id
+
 
 # Document signals are intentionally conservative: an explicit diagnosis
 # can create a candidate signal; symptom-only evidence cannot confirm one.
@@ -51,7 +53,7 @@ def _matches_document_trigger(
 
     assertion = str(evidence.get("assertion", "uncertain")).casefold()
     temporality = str(evidence.get("temporality", "unknown")).casefold()
-    if assertion == "absent" or temporality == "historical":
+    if assertion != "present" or temporality == "historical":
         return False
 
     concept = str(evidence.get("concept") or "")
@@ -77,7 +79,9 @@ def _matches_document_trigger(
             )
         )
 
-    return True
+    # A differential or suspected diagnosis is useful chart context, but it
+    # should not create its own candidate when no diagnosis is asserted.
+    return assertion == "present"
 
 
 def detect_document_triggers(
@@ -108,7 +112,8 @@ def detect_document_triggers(
                     "encounter_id": item.get("encounter_id"),
                     "trigger_id": trigger["trigger_id"],
                     "trigger_type": trigger["trigger_type"],
-                    "disease_id": trigger["disease_id"],
+                    "disease_id": canonical_disease_id(trigger["disease_id"]),
+                    "trigger_concept_key": canonical_disease_id(trigger["disease_id"]),
                     "evidence": {
                         "source_type": "ClinicalDocument",
                         "source_id": item.get("document_id"),

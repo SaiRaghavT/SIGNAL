@@ -17,6 +17,7 @@ from backend.app.ingestion.documents.service import ingest_document
 from backend.app.ingestion.documents.validator import (
     DocumentValidationError,
 )
+from backend.app.models.clinical_document import ClinicalDocument
 
 
 router = APIRouter(
@@ -199,3 +200,31 @@ async def ingest_document_api(
     finally:
         if destination.exists():
             destination.unlink()
+
+
+@router.delete("/documents/{document_id}")
+def delete_uploaded_document_api(
+    document_id: UUID,
+    patient_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Remove a document uploaded through SIGNAL for this patient."""
+
+    document = (
+        db.query(ClinicalDocument)
+        .filter(
+            ClinicalDocument.document_id == document_id,
+            ClinicalDocument.patient_id == patient_id,
+            ClinicalDocument.source == "document_upload",
+        )
+        .first()
+    )
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Uploaded document not found for this patient.",
+        )
+
+    db.delete(document)
+    db.commit()
+    return {"status": "deleted", "document_id": str(document_id)}

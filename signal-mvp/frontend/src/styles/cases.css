@@ -1,0 +1,32 @@
+.cases-page { color: #19322f; }
+.cases-page .page-header { align-items: center; }
+.cases-refresh, .cases-pagination button, .cases-error button {
+  border: 1px solid #dfe4e1; border-radius: 7px; background: #fff; color: #304945;
+  cursor: pointer; font-size: 12px; padding: 9px 13px;
+}
+.cases-refresh:disabled, .cases-pagination button:disabled { cursor: not-allowed; opacity: .55; }
+.cases-card { overflow: hidden; border: 1px solid #dfe4e1; border-radius: 10px; background: #fff; }
+.cases-toolbar { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid #edf0ee; }
+.cases-search { flex: 1; min-width: 0; }
+.cases-search input, .cases-status select {
+  width: 100%; height: 40px; padding: 0 12px; border: 1px solid #dfe4e1;
+  border-radius: 7px; background: #fff; color: #19322f; font: inherit; font-size: 12px;
+}
+.cases-status { width: min(210px, 35%); }
+.cases-search input:focus, .cases-status select:focus { outline: 2px solid #f8e8df; border-color: #e99a73; }
+.cases-table { min-width: 780px; }
+.cases-table th { height: 43px; padding: 0 16px; background: #f8f9f7; }
+.cases-table td { padding: 13px 16px; vertical-align: middle; }
+.cases-table tbody tr:last-child td { border-bottom: 0; }
+.cases-link { color: #102d4d; font-weight: 600; text-decoration: none; }
+.cases-link:hover { color: #b96543; text-decoration: underline; }
+.cases-patient { display: block; margin-top: 4px; color: #81908c; font-family: ui-monospace, monospace; font-size: 10px; }
+.cases-empty, .cases-error { display: flex; min-height: 160px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px; color: #81908c; font-size: 12px; text-align: center; }
+.cases-empty strong, .cases-error strong { color: #19322f; font-size: 14px; }
+.cases-error { min-height: 180px; color: #805342; }
+.cases-error button { margin-top: 4px; }
+.cases-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-top: 1px solid #edf0ee; color: #81908c; font-size: 11px; }
+.cases-pagination > div { display: flex; align-items: center; gap: 10px; }
+.cases-pagination button { padding: 7px 11px; }
+@media (max-width: 720px) { .cases-toolbar { align-items: stretch; flex-direction: column; } .cases-status { width: 100%; } }
+@media (max-width: 520px) { .cases-page .page-header { align-items: flex-start; gap: 12px; } .cases-pagination { align-items: flex-start; flex-direction: column; } }

@@ -52,4 +52,23 @@ const uploadPatientDocument = async ({
   return data;
 };
 
-export { uploadPatientDocument };
+const deletePatientDocument = async ({ patientId, documentId }) => {
+  const baseUrl =
+    import.meta.env.VITE_API_URL ||
+    "http://127.0.0.1:8000";
+  const response = await fetch(
+    `${baseUrl}/api/ingestion/documents/${encodeURIComponent(documentId)}?patient_id=${encodeURIComponent(patientId)}`,
+    { method: "DELETE" }
+  );
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await response.json()
+    : {};
+
+  if (!response.ok) {
+    throw new Error(data?.detail || "Document removal failed.");
+  }
+  return data;
+};
+
+export { deletePatientDocument, uploadPatientDocument };
