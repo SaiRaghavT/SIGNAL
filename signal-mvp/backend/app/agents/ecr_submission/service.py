@@ -35,6 +35,7 @@ class ECRSubmissionService:
             .filter(
                 Case.case_id == request.case_id
             )
+            .with_for_update()
             .first()
         )
 
@@ -42,6 +43,15 @@ class ECRSubmissionService:
             raise ValueError(
                 f"Case not found: {request.case_id}"
             )
+
+        existing = (
+            db.query(Submission)
+            .filter(Submission.case_id == str(case.case_id))
+            .order_by(Submission.created_at.desc())
+            .first()
+        )
+        if existing and (existing.status or "").upper() in {"SUBMITTED", "ACKNOWLEDGED", "ACCEPTED"}:
+            raise ValueError(f"Case already has a successful submission ({existing.submission_id}).")
 
         # ---------------------------------------------------------
         # 2. Build ECR from the persisted case
@@ -111,11 +121,11 @@ class ECRSubmissionService:
                 entity_type="CASE",
                 entity_id=str(case.case_id),
                 event_type="SUBMITTED",
-                actor_type="SYSTEM",
-                actor_id="SIGNAL",
+                actor_type="USER",
+                actor_id=request.submitted_by,
                 source_agent="ecr_submission",
                 status=submission.status,
-                new_value={"submission_id": submission.submission_id, "destination": submission.destination},
+                new_value={"submission_id": submission.submission_id, "destination": submission.destination, "batch_id": request.batch_id},
                 workflow_stage="SUBMISSION",
             ),
             db,

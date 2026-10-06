@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 class ECRSubmissionRequest(BaseModel):
     case_id: str
+    submitted_by: str = "reporting-admin"
+    batch_id: Optional[str] = None
 
 
 class ECRSubmissionResponse(BaseModel):

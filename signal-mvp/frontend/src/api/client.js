@@ -7,10 +7,13 @@ async function request(path, options = {}) {
   const data = contentType.includes("application/json") ? await response.json() : await response.text();
   if (!response.ok) {
     const detail = typeof data === "object" ? data?.detail : null;
+    const caseReasons = Array.isArray(detail?.cases)
+      ? detail.cases.filter((item) => !item.eligible).map((item) => `${item.patient?.name || item.patient?.patient_id || item.case_id}: ${(item.blockers || []).join(", ")}`).join("; ")
+      : "";
     const message = typeof detail === "string"
       ? detail
       : typeof detail?.message === "string"
-        ? detail.message
+        ? [detail.message, caseReasons].filter(Boolean).join(" ")
         : Array.isArray(detail)
           ? detail.map((item) => item?.msg).filter(Boolean).join("; ") || `Request failed (${response.status})`
           : `Request failed (${response.status})`;

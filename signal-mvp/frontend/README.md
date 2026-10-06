@@ -1,31 +1,16 @@
-# SIGNAL Frontend
+# React + Vite
 
-React + TypeScript + Vite frontend built against the uploaded SIGNAL backend.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## Run
+Currently, two official plugins are available:
 
-1. Start the SIGNAL backend on `http://localhost:8000`.
-2. Install dependencies:
-   `npm install`
-3. Start:
-   `npm run dev`
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-Vite proxies `/api/*` and `/health` to `http://localhost:8000`, so local development does not require CORS middleware.
+## React Compiler
 
-## Important backend truth
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-This UI intentionally does not invent list endpoints for patients, candidates, submissions, or follow-ups because the current backend exposes actions/lookups for those areas rather than durable list APIs.
+## Expanding the ESLint configuration
 
-Implemented read/list paths represented here:
-- `GET /health`
-- `GET /api/dashboard/summary`
-- `GET /api/cases`
-- `GET /api/cases/{case_id}`
-- `GET /api/workflow/cases/{case_id}/journey`
-- `GET /api/canonical/patients/{patient_id}`
-
-Implemented actions represented here include FHIR/HL7/document ingestion, candidate detection, reportability processing, report-field updates, manual reporting, form rendering, attestation, eCR submission, tracking, acknowledgement, retry, follow-up, and audit events.
-
-## Validation
-
-The source was generated successfully, but dependency installation in this execution environment timed out, so a complete `npm run build` could not be completed here.
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

@@ -8,17 +8,28 @@ from backend.app.database import get_db
 from backend.app.models.case import Case
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import Acknowledgement, SubmissionAttempt
+from backend.app.models.audit_event import AuditEvent
 
 router = APIRouter(tags=["Submissions"])
 
 
 def _submission_payload(db: Session, submission: Submission) -> dict:
     case = db.query(Case).filter(Case.case_id == submission.case_id).first()
+    submitted_events = db.query(AuditEvent).filter(
+        AuditEvent.entity_type == "CASE",
+        AuditEvent.entity_id == submission.case_id,
+        AuditEvent.event_type == "SUBMITTED",
+    ).order_by(AuditEvent.event_timestamp.desc()).all()
+    submitted_event = next((event for event in submitted_events if (event.new_value or {}).get("submission_id") == submission.submission_id), None)
     return {
         "submission_id": submission.submission_id,
         "case_id": submission.case_id,
         "patient": case.patient if case else {},
         "disease": case.disease if case else None,
+        "jurisdiction": case.jurisdiction if case else None,
+        "submitted_by": submitted_event.actor_id if submitted_event else None,
+        "batch_id": (submitted_event.new_value or {}).get("batch_id") if submitted_event else None,
+        "pha_case_id": submission.pha_case_id,
         "destination": submission.destination,
         "channel": submission.channel,
         "status": submission.status,
