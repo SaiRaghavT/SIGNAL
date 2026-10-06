@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getCase, listCases } from "../api/cases.js";
-import { getDashboardSummary } from "../api/dashboard.js";
-import { getSubmissionReadiness } from "../api/workflow.js";
 import { PageHeader } from "../components/ui/PageHeader.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import "../styles/cases.css";
@@ -10,7 +8,6 @@ import "../styles/cases.css";
 const API_PAGE_SIZE = 100;
 const ROWS_PER_PAGE = 10;
 const EMPTY_VALUE = "—";
-const DEADLINE_RISK_LEVELS = new Set(["HIGH", "CRITICAL"]);
 
 const FILTERS = [
   { id: "all", label: "All Cases" },
@@ -35,6 +32,8 @@ function formatDate(value) {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -82,8 +81,8 @@ function caseEvidence(detail) {
 
   const clinical = detail?.clinical_evidence;
   if (clinical && typeof clinical === "object") {
-    const ignored = new Set(["encounter_id", "patient_id", "source_id", "source_system"]);
-    const meaningful = Object.entries(clinical).find(([key, value]) => !ignored.has(key) && text(value));
+    const ignored = ["encounter_id", "patient_id", "source_id", "source_system"];
+    const meaningful = Object.entries(clinical).find(([key, value]) => !ignored.includes(key) && text(value));
     if (meaningful) {
       return {
         title: `${meaningful[0].replaceAll("_", " ")}: ${text(meaningful[1])}`,
@@ -103,19 +102,21 @@ function caseEvidence(detail) {
 function missingCategories(detail) {
   const missing = Array.isArray(detail?.required_missing_fields) ? detail.required_missing_fields : [];
   if (!missing.length) return "None";
-  const categories = new Map([
-    ["patient", "Patient information"],
-    ["clinical", "Clinical information"],
-    ["rash_fever", "Clinical information"],
-    ["laboratory", "Laboratory evidence"],
-    ["reporting", "Reporting information"],
-    ["provider", "Provider information"],
-    ["facility", "Facility information"],
-  ]);
-  const labels = [...new Set(missing.map((field) => {
+  const categories = {
+    patient: "Patient information",
+    clinical: "Clinical information",
+    rash_fever: "Clinical information",
+    laboratory: "Laboratory evidence",
+    reporting: "Reporting information",
+    provider: "Provider information",
+    facility: "Facility information",
+  };
+  const labels = missing.reduce((result, field) => {
     const prefix = String(field).split(".")[0];
-    return categories.get(prefix) || String(field).replaceAll("_", " ");
-  }))];
+    const label = categories[prefix] || String(field).replaceAll("_", " ");
+    if (!result.includes(label)) result.push(label);
+    return result;
+  }, []);
   return labels.join(", ");
 }
 
@@ -135,16 +136,6 @@ function titleCase(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function needsReview(item) {
-  const detail = item.detail || {};
-  return [item.status, item.final_decision, item.reportability_decision, detail.jurisdiction_status]
-    .some((value) => String(value || "").trim().toUpperCase() === "NEEDS_REVIEW");
-}
-
-function deadlineRisk(item) {
-  return DEADLINE_RISK_LEVELS.has(String(item.severity || "").trim().toUpperCase());
-}
-
 async function getAllCases() {
   const firstPage = await listCases({ page: 1, page_size: API_PAGE_SIZE });
   const items = [...(firstPage.items || [])];
@@ -153,7 +144,7 @@ async function getAllCases() {
     const result = await listCases({ page, page_size: API_PAGE_SIZE });
     items.push(...(result.items || []));
   }
-  return { items, total: firstPage.total || 0 };
+  return { items, total: firstPage.total || 0, metrics: firstPage.metrics || {} };
 }
 
 async function withConcurrency(items, limit, mapper) {
@@ -172,7 +163,7 @@ async function withConcurrency(items, limit, mapper) {
 
 export function CasesPage() {
   const [cases, setCases] = useState([]);
-  const [dashboard, setDashboard] = useState(null);
+  const [metrics, setMetrics] = useState({});
   const [activeFilter, setActiveFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -184,20 +175,14 @@ export function CasesPage() {
       setLoading(true);
       setError("");
       try {
-        const [caseResult, dashboardResult] = await Promise.all([
-          getAllCases(),
-          getDashboardSummary(),
-        ]);
+        const caseResult = await getAllCases();
         const enriched = await withConcurrency(caseResult.items, 8, async (item) => {
-          const [detail, readiness] = await Promise.all([
-            getCase(item.case_id),
-            getSubmissionReadiness(item.case_id),
-          ]);
-          return { ...item, detail, readiness };
+          const detail = await getCase(item.case_id);
+          return { ...item, detail };
         });
         if (active) {
           setCases(enriched);
-          setDashboard({ ...dashboardResult, caseCount: caseResult.total });
+          setMetrics({ ...caseResult.metrics, candidate_cases: caseResult.total });
           setPage(1);
         }
       } catch (loadError) {
@@ -211,16 +196,16 @@ export function CasesPage() {
   }, []);
 
   const counts = useMemo(() => ({
-    all: dashboard?.caseCount ?? 0,
-    review: dashboard?.needs_review ?? cases.filter(needsReview).length,
-    deadline: cases.filter(deadlineRisk).length,
-    ready: cases.filter((item) => item.readiness?.ready === true).length,
-  }), [cases, dashboard]);
+    all: metrics.candidate_cases ?? 0,
+    review: metrics.needs_review ?? 0,
+    deadline: metrics.at_risk_deadlines ?? 0,
+    ready: metrics.report_ready ?? 0,
+  }), [metrics]);
 
   const filteredCases = useMemo(() => {
-    if (activeFilter === "review") return cases.filter(needsReview);
-    if (activeFilter === "deadline") return cases.filter(deadlineRisk);
-    if (activeFilter === "ready") return cases.filter((item) => item.readiness?.ready === true);
+    if (activeFilter === "review") return cases.filter((item) => item.needs_review);
+    if (activeFilter === "deadline") return cases.filter((item) => item.deadline_risk);
+    if (activeFilter === "ready") return cases.filter((item) => item.report_ready);
     return cases;
   }, [activeFilter, cases]);
 
@@ -242,7 +227,7 @@ export function CasesPage() {
       />
 
       {loading ? (
-        <SignalLoading title="Loading Cases" message="Retrieving persisted case records and workflow readiness." />
+        <SignalLoading title="Loading Cases" message="Retrieving persisted case records and backend workflow states." />
       ) : error ? (
         <div className="cases-management"><div className="cases-error" role="alert">Unable to load cases. {error}</div></div>
       ) : (
@@ -274,7 +259,7 @@ export function CasesPage() {
             <header className="cases-management-header">
               <div>
                 <h3 id="cases-management-title">Case Management</h3>
-                <p>Longitudinal case record: detection trigger, evidence, jurisdiction decision, reporting rule, deadline, disposition, and ownership.</p>
+                <p>Longitudinal case record: detection trigger, evidence, jurisdiction decision, reporting rule, deadline, and disposition.</p>
               </div>
               <span className="cases-record-count">{counts.all} {counts.all === 1 ? "record" : "records"}</span>
             </header>
@@ -303,7 +288,6 @@ export function CasesPage() {
                 <table className="cases-table">
                   <thead>
                     <tr>
-                      <th scope="col">Case / Owner</th>
                       <th scope="col">Patient / Condition</th>
                       <th scope="col">Trigger / Evidence</th>
                       <th scope="col">Jurisdiction / Rule</th>
@@ -318,7 +302,6 @@ export function CasesPage() {
                     {visibleCases.map((item) => {
                       const detail = item.detail || {};
                       const evidence = caseEvidence(detail);
-                      const owner = text(detail.owner || detail.owner_name || detail.assigned_to) || "Unassigned";
                       const disposition = item.status || item.final_decision || item.reportability_decision;
                       const priority = text(item.severity) || EMPTY_VALUE;
                       const priorityTone = ["HIGH", "CRITICAL"].includes(priority.toUpperCase())
@@ -328,15 +311,8 @@ export function CasesPage() {
                       return (
                         <tr key={item.case_id}>
                           <td>
-                            <span className="cases-case-id" title={item.case_id}>{item.case_id}</span>
-                            <span className="cases-cell-secondary">Owner: {owner}</span>
-                          </td>
-                          <td>
                             <span className="cases-cell-primary">{patientName(detail.patient)}</span>
-                            <span className="cases-cell-secondary">
-                              {text(item.disease) || EMPTY_VALUE}
-                              {item.reportability_decision ? ` (${titleCase(item.reportability_decision)})` : ""}
-                            </span>
+                            <span className="cases-cell-secondary">{text(item.disease) || EMPTY_VALUE}</span>
                           </td>
                           <td>
                             <span className="cases-cell-primary">{evidence.title}</span>
@@ -344,11 +320,7 @@ export function CasesPage() {
                           </td>
                           <td>
                             <span className="cases-cell-primary">{text(item.jurisdiction) || EMPTY_VALUE}</span>
-                            <span className="cases-rule">
-                              {item.reportability_decision ? titleCase(item.reportability_decision) : ""}
-                              {item.rule_id ? `${item.reportability_decision ? " · " : ""}${item.rule_id}` : ""}
-                              {!item.reportability_decision && !item.rule_id ? EMPTY_VALUE : ""}
-                            </span>
+                            <span className="cases-rule">{text(item.rule_id) || EMPTY_VALUE}</span>
                           </td>
                           <td>{formatDate(item.deadline)}</td>
                           <td><span className={`cases-pill ${statusTone(disposition)}`}>{titleCase(disposition)}</span></td>
