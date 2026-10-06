@@ -1,89 +1,204 @@
-/**
- * Demo adapter for the SIGNAL governance API. Replace these collections with
- * API calls without changing the governance screens. Optional fields are
- * intentionally supported so newly registered agents can be rendered safely.
- * @typedef {{agent_id:string,name:string,purpose?:string,description?:string,version?:string,model?:string,status?:string,owner?:string,monitoring_status?:string,evaluation_status?:string,governance_status?:string,[key:string]:unknown}} Agent
- * @typedef {{execution_id:string,agent_id:string,agent_version?:string,candidate_id?:string,started_at:string,completed_at?:string,status:string,latency_ms?:number,model?:string,input_source?:string,output_type?:string,error?:string|null,[key:string]:unknown}} AgentExecution
- * @typedef {{evaluation_run_id:string,agent_id:string,model?:string,version?:string,dataset?:string,timestamp?:string,metrics?:Record<string,number>,synthetic?:boolean,[key:string]:unknown}} EvaluationRun
- */
-const agents = [
-  { agent_id:'document-intelligence', name:'Document Intelligence Agent', description:'Extracts structured information from clinical documents.', purpose:'Document extraction', version:'1.2', model:'SIGNAL Document Model', status:'ACTIVE', owner:'SIGNAL AI Team', monitoring_status:'HEALTHY', evaluation_status:'AVAILABLE', governance_status:'COMPLIANT' },
-  { agent_id:'nlp-evidence', name:'NLP Evidence Agent', description:'Identifies and structures clinical evidence from text.', purpose:'Clinical evidence extraction', version:'1.4', model:'SIGNAL Clinical NLP', status:'ACTIVE', owner:'SIGNAL AI Team', monitoring_status:'HEALTHY', evaluation_status:'AVAILABLE', governance_status:'COMPLIANT' },
-  { agent_id:'candidate-fusion', name:'Candidate Fusion Agent', description:'Combines signals from multiple sources into a reporting candidate.', purpose:'Candidate fusion', version:'1.1', model:'SIGNAL Fusion Model', status:'ACTIVE', owner:'Reporting Intelligence', monitoring_status:'DEGRADED', evaluation_status:'REVIEW_REQUIRED', governance_status:'REVIEW_REQUIRED' },
-  { agent_id:'cluster-signal', name:'Cluster Signal Agent', description:'Identifies potential related signals or clusters.', purpose:'Signal clustering', version:'0.9', model:'SIGNAL Cluster Model', status:'ACTIVE', owner:'Public Health Analytics', monitoring_status:'HEALTHY', evaluation_status:'NOT_AVAILABLE', governance_status:'IN_REVIEW' },
-  { agent_id:'reportability', name:'Reportability Agent', purpose:'Assists with jurisdiction-specific reportability assessment.', version:'1.0', model:'SIGNAL Rules + ML', status:'ACTIVE', owner:'SIGNAL AI Team', monitoring_status:'HEALTHY', evaluation_status:'NOT_AVAILABLE', governance_status:'IN_REVIEW' },
-  { agent_id:'smart-field-population', name:'Smart Field Population Agent', purpose:'Maps source-backed information to reporting fields.', version:'1.0', model:'SIGNAL Field Mapper', status:'ACTIVE', owner:'SIGNAL AI Team', monitoring_status:'HEALTHY', evaluation_status:'NOT_AVAILABLE', governance_status:'IN_REVIEW' },
-]
+import { request } from '../api/client.js'
+import { buildEvaluationReadiness, buildEvidencePatterns, findGovernanceIssues } from './governanceAnalysis.js'
 
-const executions = [
-  { execution_id:'EXE-10231',agent_id:'nlp-evidence',agent_version:'1.4',candidate_id:'CAND-001',started_at:'2026-09-29T09:31:00+05:30',completed_at:'2026-09-29T09:31:02+05:30',status:'SUCCESS',latency_ms:2100,model:'SIGNAL Clinical NLP 1.4',input_source:'clinical_note',output_type:'clinical_evidence',error:null },
-  { execution_id:'EXE-10232',agent_id:'candidate-fusion',agent_version:'1.1',candidate_id:'CAND-002',started_at:'2026-09-29T09:34:00+05:30',completed_at:'2026-09-29T09:34:02+05:30',status:'FAILURE',latency_ms:1800,model:'SIGNAL Fusion Model 1.1',input_source:'ehr_and_elr',output_type:'candidate_match',error:'Conflicting patient identifiers; review required.' },
-  { execution_id:'EXE-10233',agent_id:'document-intelligence',agent_version:'1.2',candidate_id:'CAND-003',started_at:'2026-09-29T09:38:00+05:30',completed_at:'2026-09-29T09:38:02+05:30',status:'SUCCESS',latency_ms:2400,model:'SIGNAL Document Model 1.2',input_source:'clinical_document',output_type:'structured_document_fields',error:null },
-  { execution_id:'EXE-10234',agent_id:'reportability',agent_version:'1.0',candidate_id:'CAND-001',started_at:'2026-09-29T09:40:00+05:30',completed_at:'2026-09-29T09:40:01+05:30',status:'SUCCESS',latency_ms:950,model:'SIGNAL Rules + ML 1.0',input_source:'candidate_record',output_type:'reportability_assessment',error:null },
-  { execution_id:'EXE-10235',agent_id:'smart-field-population',agent_version:'1.0',candidate_id:'CAND-004',started_at:'2026-09-29T09:42:00+05:30',completed_at:'2026-09-29T09:42:02+05:30',status:'SUCCESS',latency_ms:1600,model:'SIGNAL Field Mapper 1.0',input_source:'verified_evidence',output_type:'reporting_field_mapping',error:null },
-]
+const allPages = async (path, pageSize = 100) => {
+  const first = await request(`${path}?page=1&page_size=${pageSize}`)
+  const items = [...(first.items || [])]
+  const pages = first.pages || Math.ceil((first.total || 0) / pageSize)
+  for (let page = 2; page <= pages; page += 1) {
+    const next = await request(`${path}?page=${page}&page_size=${pageSize}`)
+    items.push(...(next.items || []))
+  }
+  return items
+}
 
-const evaluations = [
-  { evaluation_run_id:'EVAL-2026-0925-01',agent_id:'nlp-evidence',model:'SIGNAL Clinical NLP',version:'1.4',dataset:'Synthetic Public Health Evaluation Set',timestamp:'2026-09-25T14:00:00+05:30',metrics:{precision:0.94,recall:0.91,f1:0.92,accuracy:0.93},synthetic:true },
-  { evaluation_run_id:'EVAL-2026-0924-02',agent_id:'document-intelligence',model:'SIGNAL Document Model',version:'1.2',dataset:'Synthetic Document Extraction Set',timestamp:'2026-09-24T11:30:00+05:30',metrics:{precision:0.92,recall:0.9,f1:0.91},synthetic:true },
-]
+const getSourceData = async () => {
+  const [candidateRows, caseRows, submissions, audit, status] = await Promise.all([
+    allPages('/api/candidates'),
+    allPages('/api/cases'),
+    allPages('/api/submissions'),
+    request('/api/audit/events'),
+    request('/api/agents/status'),
+  ])
+  return { candidates: candidateRows, cases: caseRows, submissions, audit, agents: status.agents || [] }
+}
+const getAgentStatus = async () => (await request('/api/agents/status')).agents || []
+const getAuditLedger = async () => request('/api/audit/events')
 
-const evidenceTraces = [
-  { candidate_id:'CAND-001',execution_id:'EXE-10231',source:{name:'Clinical Note',type:'EHR',timestamp:'2026-09-16T10:12:00+05:30',reference:'DOC-CLN-001'},evidence:[{text:'Fever for 3 days',reference:'DOC-CLN-001#p1',timestamp:'2026-09-16T10:12:00+05:30'},{text:'Maculopapular rash',reference:'DOC-CLN-001#p2',timestamp:'2026-09-16T10:12:00+05:30'}],agent_id:'nlp-evidence',agent_version:'1.4',output:{type:'Potential reportable measles candidate',reference:'OUT-001'},human_decision:{status:'PENDING',reviewer:'',timestamp:''},outcome:{status:'PENDING',reference:''} },
-  { candidate_id:'CAND-003',execution_id:'EXE-10233',source:{name:'Uploaded Clinical Summary',type:'Document',timestamp:'2026-09-17T09:15:00+05:30',reference:'DOC-UP-003'},evidence:[{text:'Positive laboratory result documented',reference:'DOC-UP-003#p1',timestamp:'2026-09-17T09:15:00+05:30'}],agent_id:'document-intelligence',agent_version:'1.2',output:{type:'Structured evidence available',reference:'OUT-003'},human_decision:{status:'CONFIRMED',reviewer:'Sarah Mitchell',timestamp:'2026-09-17T10:02:00+05:30'},outcome:{status:'UNDER_REVIEW',reference:'PHA-CASE-003'} },
-]
+const label = value => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase())
+const findCandidate = (data, id) => data.candidates.find(item => item.candidate_id === id)
+const relevantDisease = value => String(value || '').toLowerCase().includes('measles')
+const isTexas = value => /texas|\btx\b/i.test(String(value || ''))
 
-const auditEvents = [
-  { timestamp:'2026-09-29T09:31:02+05:30',agent_id:'nlp-evidence',agent_version:'1.4',execution_id:'EXE-10231',candidate_id:'CAND-001',actor:'System',action:'Execution completed',detail:'Clinical evidence emitted from source DOC-CLN-001.' },
-  { timestamp:'2026-09-29T09:34:02+05:30',agent_id:'candidate-fusion',agent_version:'1.1',execution_id:'EXE-10232',candidate_id:'CAND-002',actor:'System',action:'Execution failed',detail:'Conflicting patient identifiers.' },
-  { timestamp:'2026-09-17T10:02:00+05:30',agent_id:'document-intelligence',agent_version:'1.2',execution_id:'EXE-10233',candidate_id:'CAND-003',actor:'Sarah Mitchell',action:'Evidence confirmed',detail:'Human verification recorded.' },
-]
+async function buildOutcomeData() {
+  const data = await getSourceData()
+  const cases = data.cases.filter(item => relevantDisease(item.disease) && isTexas(item.jurisdiction))
+  const submissionsByCase = new Map()
+  data.submissions.forEach(item => {
+    const previous = submissionsByCase.get(item.case_id)
+    if (!previous || Date.parse(item.created_at) > Date.parse(previous.created_at)) submissionsByCase.set(item.case_id, item)
+  })
+  const reviewResults = await Promise.all(cases.map(async item => {
+    try { return [item.case_id, await request(`/api/cases/${encodeURIComponent(item.case_id)}/review`)] }
+    catch { return [item.case_id, null] }
+  }))
+  const reviews = new Map(reviewResults)
+  const rows = cases.map(item => {
+    const review = reviews.get(item.case_id)
+    const candidate = findCandidate(data, item.candidate_id)
+    const submission = submissionsByCase.get(item.case_id)
+    const decision = review?.payload?.decision || review?.status || 'not_available'
+    return {
+      id: item.case_id,
+      candidate_id: item.candidate_id,
+      agent_id: candidate?.detection_source || 'candidate_fusion',
+      ai_output: candidate?.status || 'not_available',
+      clinical_staff_decision: review?.payload?.reviewer_role === 'Clinical Staff' ? decision : 'not_available',
+      reporting_admin_decision: review?.payload?.reviewer_role === 'Reporting Administrator' ? decision : 'not_available',
+      reviewer_decision: decision,
+      review_reason: review?.payload?.comments || 'not_available',
+      reportability_decision: item.final_decision || item.reportability_decision || 'not_available',
+      pha_outcome: submission?.status || 'not_available',
+      correction_reason: submission?.errors?.join('; ') || review?.payload?.comments || 'not_available',
+      disease: item.disease,
+      jurisdiction: item.jurisdiction,
+      evidence: candidate?.evidence || [],
+      status: review ? decision : submission?.status || item.status || 'not_available',
+      timestamp: review?.created_at || submission?.created_at || item.updated_at,
+      submission_simulated: submission?.destination === 'MOCK_PHA',
+    }
+  })
+  const reviewed = rows.filter(item => item.reviewer_decision !== 'not_available')
+  const insights = buildEvidencePatterns(reviewed)
+  return {
+    rows,
+    insights,
+    overview: {
+      analyzed: cases.length,
+      feedback: reviewed.length,
+      pha: rows.filter(item => item.pha_outcome === 'ACKNOWLEDGED').length,
+      analysis: insights.length,
+      status: reviewed.length ? 'observed_outcomes_available' : 'insufficient_data',
+    },
+  }
+}
 
-const outcomeSignals = [
-  { id:'LS-001',candidate_id:'CAND-001',agent_id:'nlp-evidence',ai_output:'Potentially reportable',clinical_staff_decision:'Pending',reporting_admin_decision:'Pending',pha_outcome:'Pending',correction_reason:'',signal:'Outcome not yet available',status:'Observed',timestamp:'2026-09-29T09:31:02+05:30' },
-  { id:'LS-002',candidate_id:'CAND-002',agent_id:'candidate-fusion',ai_output:'Candidate match',clinical_staff_decision:'Reviewed',reporting_admin_decision:'Returned for correction',pha_outcome:'Not submitted',correction_reason:'Conflicting identifiers require correction.',signal:'Potential identity-resolution issue',status:'Under Review',timestamp:'2026-09-28T16:20:00+05:30' },
-  { id:'LS-003',candidate_id:'CAND-003',agent_id:'document-intelligence',ai_output:'Evidence extracted',clinical_staff_decision:'Confirmed',reporting_admin_decision:'Verified',pha_outcome:'Acknowledged',correction_reason:'',signal:'Outcome validated against review',status:'Applied to Evaluation',timestamp:'2026-09-27T12:10:00+05:30' },
-]
-
-const copy = value => structuredClone(value)
-const agentById = id => agents.find(agent => agent.agent_id === id)
-const matches = (item, filters = {}) => Object.entries(filters).every(([key,value]) => {
-  if (!value) return true
-  if (key === 'started_after') return Date.parse(item.started_at) >= Date.parse(value)
-  if (key === 'started_before') return Date.parse(item.started_at) <= Date.parse(value)
-  return String(item[key] ?? '').toLowerCase().includes(String(value).toLowerCase())
-})
-
-export const governanceService = {
-  async getAgents(filters) { return copy(agents.filter(agent => matches(agent,filters))) },
-  async getAgent(agentId) { return copy(agentById(agentId) || null) },
-  async getExecutions(filters = {}) { return copy(executions.filter(item => matches(item,filters))) },
-  async getExecution(executionId) { return copy(executions.find(item => item.execution_id === executionId) || null) },
-  async getEvaluations(filters = {}) { return copy(evaluations.filter(item => matches(item,filters))) },
-  async getEvaluation(evaluationRunId) { return copy(evaluations.find(item => item.evaluation_run_id === evaluationRunId) || null) },
-  async getEvidenceTrace(candidateId, executionId) { return copy(evidenceTraces.find(item => (!candidateId || item.candidate_id === candidateId) && (!executionId || item.execution_id === executionId)) || null) },
-  async getEvidenceTraces() { return copy(evidenceTraces) },
-  async getOutcomeSignals(filters = {}) { return copy(outcomeSignals.filter(item => matches(item,filters))) },
-  async getOutcomeSignal(id) { return copy(outcomeSignals.find(item => item.id === id) || null) },
-  async getAuditEvents(filters = {}) { return copy(auditEvents.filter(item => matches(item,filters))) },
+const governanceService = {
+  async getAgents() {
+    const agents = await getAgentStatus()
+    return agents.map(agent => ({
+      agent_id: agent.agent_name,
+      name: label(agent.agent_name),
+      purpose: agent.description,
+      description: agent.description,
+      version: 'not_available',
+      model: 'not_available',
+      status: agent.available ? 'AVAILABLE' : 'UNAVAILABLE',
+      owner: 'not_available',
+      monitoring_status: agent.configured ? 'CONFIGURED' : 'NOT_CONFIGURED',
+      evaluation_status: 'NOT_EVALUATED',
+      governance_status: agent.simulated ? 'SIMULATED' : 'NOT_EVALUATED',
+      configured: agent.configured,
+      simulated: agent.simulated,
+      error: agent.error,
+      last_execution: agent.last_execution,
+    }))
+  },
+  async getAgent(agentId) { return (await this.getAgents()).find(item => item.agent_id === agentId) || null },
+  async getAuditEvents(filters = {}) {
+    const audit = await getAuditLedger()
+    return audit.filter(event => {
+      const agent = event.source_agent || ''
+      const candidateId = event.entity_type === 'CANDIDATE' ? event.entity_id : ''
+      return (!filters.agent_id || agent === filters.agent_id) &&
+        (!filters.candidate_id || candidateId.toLowerCase().includes(filters.candidate_id.toLowerCase())) &&
+        (!filters.status || event.status === filters.status) &&
+        (!filters.agent_version || false) &&
+        (!filters.started_after || Date.parse(event.event_timestamp) >= Date.parse(filters.started_after)) &&
+        (!filters.started_before || Date.parse(event.event_timestamp) <= Date.parse(filters.started_before))
+    }).map(event => ({
+      execution_id: event.audit_id,
+      audit_id: event.audit_id,
+      agent_id: event.source_agent,
+      candidate_id: event.entity_type === 'CANDIDATE' ? event.entity_id : null,
+      started_at: event.event_timestamp,
+      status: event.status,
+      latency_ms: null,
+      model: null,
+      agent_version: null,
+      input_source: event.metadata?.source_reference || null,
+      output_type: event.event_type,
+      error: event.status === 'FAILURE' ? event.description : null,
+      action: event.event_type,
+      actor: event.actor_id,
+      timestamp: event.event_timestamp,
+      detail: event.description || JSON.stringify(event.new_value || {}),
+    }))
+  },
+  async getExecutions(filters = {}) { return this.getAuditEvents(filters) },
+  async getExecution(id) { return (await this.getAuditEvents()).find(item => item.audit_id === id) || null },
+  async getEvaluations() { return [] },
+  async getEvaluation() { return null },
+  async getEvaluationReadiness() {
+    const [candidates, outcome] = await Promise.all([allPages('/api/candidates'), buildOutcomeData()])
+    return buildEvaluationReadiness(candidates.filter(item => relevantDisease(item.disease)), outcome.overview.feedback)
+  },
+  async getEvidenceTraces() {
+    const data = await getSourceData()
+    const audits = data.audit.filter(item => item.entity_type === 'CANDIDATE')
+    return data.candidates.filter(item => relevantDisease(item.disease)).map(candidate => {
+      const events = audits.filter(item => item.entity_id === candidate.candidate_id)
+      const sourceEvidence = candidate.evidence || []
+      return {
+        candidate_id: candidate.candidate_id,
+        execution_id: events[0]?.audit_id || null,
+        agent_id: events[0]?.source_agent || 'candidate_fusion',
+        agent_version: null,
+        source: {
+          name: sourceEvidence.map(item => item.display).filter(Boolean).join(', ') || 'FHIR source record',
+          type: [...new Set(sourceEvidence.map(item => item.source_type).filter(Boolean))].join(', ') || 'FHIR',
+          timestamp: candidate.created_at,
+          reference: sourceEvidence.map(item => item.source_id).filter(Boolean).join(', ') || candidate.patient_id,
+        },
+        evidence: sourceEvidence.map(item => ({ text: item.display || item.code || item.source_type || 'Evidence', reference: item.source_id || null, timestamp: candidate.created_at })),
+        output: { type: candidate.status, reference: candidate.candidate_id },
+        human_decision: { status: 'not_available', reviewer: 'not_available', timestamp: null },
+        outcome: { status: candidate.case_id ? 'case_created' : 'not_available', reference: candidate.case_id || null },
+      }
+    })
+  },
+  async getGovernanceFindings() {
+    const candidates = await allPages('/api/candidates')
+    return findGovernanceIssues(candidates.filter(item => relevantDisease(item.disease)))
+  },
+  async getEvidenceTrace(candidateId) { return (await this.getEvidenceTraces()).find(item => item.candidate_id === candidateId) || null },
   async getGovernanceOverview() {
-    const successful = executions.filter(item => item.status === 'SUCCESS').length
-    const attentionAgents = agents.filter(agent => ['DEGRADED','REVIEW_REQUIRED','IN_REVIEW'].includes(agent.monitoring_status) || ['REVIEW_REQUIRED','IN_REVIEW'].includes(agent.governance_status)).length
-    return { registered_agents:agents.length,active_agents:agents.filter(agent => agent.status === 'ACTIVE').length,recent_executions:executions.length,execution_failures:executions.filter(item => item.status === 'FAILURE').length,successful_executions:successful,evaluation_runs:evaluations.length,agents_requiring_review:attentionAgents,explainability_coverage:evidenceTraces.length,outcome_learning_signals:outcomeSignals.length,data_label:'Demo / Synthetic Data' }
+    const data = await getSourceData()
+    const relevant = data.candidates.filter(item => relevantDisease(item.disease))
+    const audit = data.audit.filter(item => ['candidate_fusion', 'document_intelligence', 'nlp_evidence', 'reportability_workflow', 'candidate_disposition'].includes(item.source_agent))
+    const configured = data.agents.filter(item => item.configured).length
+    return {
+      registered_agents: data.agents.length,
+      active_agents: data.agents.filter(item => item.available).length,
+      recent_executions: audit.length,
+      execution_failures: audit.filter(item => item.status === 'FAILURE').length,
+      successful_executions: audit.filter(item => item.status === 'SUCCESS').length,
+      evaluation_runs: null,
+      agents_requiring_review: data.agents.filter(item => !item.configured || item.simulated).length,
+      explainability_coverage: relevant.filter(item => (item.evidence || []).length > 0).length,
+      outcome_learning_signals: data.cases.filter(item => relevantDisease(item.disease) && isTexas(item.jurisdiction)).length,
+      configured_agents: configured,
+      data_label: 'Live backend status, FHIR-derived candidate records, and persisted audit events',
+    }
   },
 }
 
-// Backwards-compatible named adapters used by the existing governance screens.
-export const aiGovernanceService = {
-  getOverview: () => governanceService.getGovernanceOverview(),
-  getAgents: () => governanceService.getAgents(),
-  getAgent: id => governanceService.getAgent(id),
-  getMonitoringData: () => governanceService.getAgents(),
-  getEvaluationData: () => governanceService.getAgents(),
-  getAuditHistory: async () => (await governanceService.getAuditEvents()).map(event => [new Date(event.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),agentById(event.agent_id)?.name || event.agent_id,event.action,event.agent_version,event.detail,event.actor]),
+const outcomeLearningService = {
+  async getOverview() { return (await buildOutcomeData()).overview },
+  async getLearningSignals() { return (await buildOutcomeData()).rows },
+  async getInsights() { return (await buildOutcomeData()).insights },
+  async getLearningSignal(id) { return (await buildOutcomeData()).rows.find(item => item.id === id) || null },
 }
-export const outcomeLearningService = {
-  getOverview: async () => { const rows=await governanceService.getOutcomeSignals();return { analyzed:String(rows.length),feedback:String(rows.filter(row=>row.clinical_staff_decision!=='Pending').length),pha:String(rows.filter(row=>row.pha_outcome==='Acknowledged').length),agreement:'Evaluation required',analysis:String(rows.filter(row=>['Observed','Under Review'].includes(row.status)).length) } },
-  getLearningSignals: () => governanceService.getOutcomeSignals(),
-  getLearningSignal: id => governanceService.getOutcomeSignal(id),
-}
+
+export { governanceService, outcomeLearningService }
+export const aiGovernanceService = governanceService
