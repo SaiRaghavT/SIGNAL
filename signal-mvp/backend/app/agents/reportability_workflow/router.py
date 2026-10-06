@@ -34,7 +34,8 @@ def process_candidate_endpoint(
         )
         if candidate is None:
             raise HTTPException(status_code=404, detail="Candidate not found.")
-        if candidate.status in {"PROCESSED", "CLOSED", "REJECTED"}:
+        already_processed = candidate.status == "PROCESSED"
+        if candidate.status in {"CLOSED", "REJECTED"} or (already_processed and not candidate.case_id):
             raise HTTPException(status_code=409, detail=f"Candidate is not processable from status {candidate.status}.")
         existing_case_id = None
         if candidate.case_id:
@@ -66,19 +67,20 @@ def process_candidate_endpoint(
         candidate.status = "PROCESSED"
         candidate.case_id = result["case"]["case_id"]
         candidate.jurisdiction = result["jurisdiction"].get("value")
-        AuditLedgerService().record_event(
-            AuditEventCreate(
-                entity_type="CANDIDATE",
-                entity_id=candidate.candidate_id,
-                event_type="CANDIDATE_PROCESSED",
-                actor_type="SYSTEM",
-                actor_id="SIGNAL",
-                source_agent="reportability_workflow",
-                status="SUCCESS",
-                new_value={"case_id": candidate.case_id, "workflow_status": result["workflow_status"]},
-            ),
-            db,
-        )
+        if not already_processed:
+            AuditLedgerService().record_event(
+                AuditEventCreate(
+                    entity_type="CANDIDATE",
+                    entity_id=candidate.candidate_id,
+                    event_type="CANDIDATE_PROCESSED",
+                    actor_type="SYSTEM",
+                    actor_id="SIGNAL",
+                    source_agent="reportability_workflow",
+                    status="SUCCESS",
+                    new_value={"case_id": candidate.case_id, "workflow_status": result["workflow_status"]},
+                ),
+                db,
+            )
         db.commit()
         return result
     except HTTPException:
