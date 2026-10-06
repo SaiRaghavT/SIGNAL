@@ -25,6 +25,7 @@ class CaseListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    metrics: dict[str, int] = Field(default_factory=dict)
 
 
 class CaseDetailResponse(BaseModel):
