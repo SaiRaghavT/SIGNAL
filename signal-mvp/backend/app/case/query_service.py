@@ -169,18 +169,6 @@ def list_cases(
     ]
 
     all_cases = db.query(Case).all()
-    needs_review_count = sum(
-        any(
-            str(value or "").strip().upper() == "NEEDS_REVIEW"
-            for value in (
-                case.status,
-                case.final_decision,
-                case.reportability_decision,
-                case.jurisdiction_status,
-            )
-        )
-        for case in all_cases
-    )
     at_risk_ids = {
         str(case.case_id)
         for case in all_cases
@@ -194,20 +182,38 @@ def list_cases(
         .distinct()
         .all()
     )
+    at_risk_ids.intersection_update(str(case.case_id) for case in all_cases)
+    case_by_id = {str(case.case_id): case for case in all_cases}
+    readiness_rows = db.query(CaseWorkflowRecord.case_id, CaseWorkflowRecord.status).filter(
+        CaseWorkflowRecord.record_type == "SUBMISSION_READINESS"
+    ).order_by(CaseWorkflowRecord.created_at.desc()).all()
+    latest_readiness: dict[str, str] = {}
+    for case_id, status_value in readiness_rows:
+        latest_readiness.setdefault(str(case_id), str(status_value or "").upper())
     ready_case_ids = {
-        str(case_id)
-        for (case_id,) in db.query(CaseWorkflowRecord.case_id)
-        .filter(
-            CaseWorkflowRecord.record_type == "SUBMISSION_READINESS",
-            CaseWorkflowRecord.status == "READY",
-        )
-        .distinct()
-        .all()
+        case_id
+        for case_id, readiness_status in latest_readiness.items()
+        if readiness_status == "READY"
+        and case_id in case_by_id
+        and _validation(case_by_id[case_id])["valid"]
     }
-    ready_count = sum(
-        str(case.case_id) in ready_case_ids and _validation(case)["valid"]
+    review_case_ids = {
+        str(case.case_id)
         for case in all_cases
-    )
+        if any(
+            str(value or "").strip().upper() == "NEEDS_REVIEW"
+            for value in (
+                case.status,
+                case.final_decision,
+                case.reportability_decision,
+                case.jurisdiction_status,
+            )
+        )
+    }
+    for item in items:
+        item.needs_review = item.case_id in review_case_ids
+        item.deadline_risk = item.case_id in at_risk_ids
+        item.report_ready = item.case_id in ready_case_ids
 
     return CaseListResponse(
         items=items,
@@ -217,7 +223,7 @@ def list_cases(
         metrics={
             "candidate_cases": len(all_cases),
             "at_risk_deadlines": len(at_risk_ids),
-            "needs_review": needs_review_count,
-            "report_ready": ready_count,
+            "needs_review": len(review_case_ids),
+            "report_ready": len(ready_case_ids),
         },
     )
