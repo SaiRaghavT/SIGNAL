@@ -302,3 +302,75 @@ def case_timeline(case_id: UUID, db: Session = Depends(get_db)) -> dict[str, Any
         "case_id": str(case_id),
         "events": events,
     }
+class ReportingQueueRequest(BaseModel):
+    actor_id: str = Field(min_length=1, max_length=255)
+    comments: str | None = None
+
+
+@router.post(
+    "/api/cases/{case_id}/reporting-queue",
+    response_model=WorkflowRecordResponse,
+    status_code=201,
+)
+def add_to_reporting_queue(
+    case_id: UUID,
+    request: ReportingQueueRequest,
+    db: Session = Depends(get_db),
+) -> CaseWorkflowRecord:
+    case = _case(db, case_id)
+
+    validation = _validation(case)
+
+    if not validation["valid"]:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    "A valid case is required before "
+                    "adding the case to the reporting queue."
+                ),
+                "validation": validation,
+            },
+        )
+
+    review = _latest(db, case_id, RECORD_TYPES["review"])
+
+    if review is None or review.status != "APPROVE":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "An approved review is required before "
+                "adding the case to the reporting queue."
+            ),
+        )
+
+    attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
+
+    if attestation is None or attestation.status != "ATTESTED":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "A completed attestation is required before "
+                "adding the case to the reporting queue."
+            ),
+        )
+
+    payload = {
+        "case_id": str(case_id),
+        "status": "QUEUED",
+        "comments": request.comments,
+        "review_record_id": review.record_id,
+        "attestation_record_id": attestation.record_id,
+        "validation_status": "VALID",
+        "disease": case.disease,
+        "jurisdiction": case.jurisdiction,
+    }
+
+    return _record(
+        db,
+        case_id,
+        "REPORTING_QUEUE",
+        "QUEUED",
+        payload,
+        request.actor_id,
+    )

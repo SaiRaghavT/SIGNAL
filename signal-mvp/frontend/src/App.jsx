@@ -179,29 +179,80 @@ function CandidateWorkflowAction() {
 function AnalyticsPage({caseStates}) {
   const conditions = seedCandidates.reduce((counts, candidate) => {
     for (const condition of candidate.conditions || [candidate.condition]) {
+      if (!condition) continue
       counts[condition] = (counts[condition] || 0) + 1
     }
     return counts
   }, {})
   const jurisdictions = seedCandidates.reduce((counts, candidate) => {
-    counts[candidate.jurisdiction] = (counts[candidate.jurisdiction] || 0) + 1
+    if (candidate.jurisdiction) counts[candidate.jurisdiction] = (counts[candidate.jurisdiction] || 0) + 1
     return counts
   }, {})
   const workflowStatuses = Object.values(caseStates).reduce((counts, state) => {
-    const status = state.status || 'In Progress'
+    const status = state.status || state.submissionStatus || state.adminVerificationStatus || 'Not started'
     counts[status] = (counts[status] || 0) + 1
     return counts
   }, {})
+  const resourceTotals = seedCandidates.reduce((totals, candidate) => {
+    Object.entries(candidate.fhir_resource_counts || {}).forEach(([resource, count]) => {
+      totals[resource] = (totals[resource] || 0) + Number(count || 0)
+    })
+    return totals
+  }, {})
+  const totalResources = Object.values(resourceTotals).reduce((sum, value) => sum + value, 0)
+  const rankedConditions = Object.entries(conditions).sort((a,b) => b[1] - a[1])
+  const topConditions = rankedConditions.slice(0, 5)
+  const otherConditionCount = rankedConditions.slice(5).reduce((sum, [,count]) => sum + count, 0)
+  const conditionSlices = otherConditionCount ? [...topConditions, ['Other', otherConditionCount]] : topConditions
+  const workflowEntries = Object.entries(workflowStatuses).sort((a,b) => b[1] - a[1])
+  const totalWorkflow = workflowEntries.reduce((sum, [,count]) => sum + count, 0)
+  const conditionTotal = Object.values(conditions).reduce((sum, value) => sum + value, 0)
+  const topResourceTypes = Object.entries(resourceTotals).sort((a,b) => b[1] - a[1]).slice(0, 6)
 
-  const conditionResourceCount = seedCandidates.reduce((total, candidate) => total + (candidate.fhir_resource_counts?.Condition || 0), 0)
-
-  return <Page title="Analytics" subtitle="FHIR seed data and local workflow summaries.">
-    <div className="metrics-grid"><Metric label="FHIR PATIENTS" value={seedCandidates.length} note="Patient bundles in the seed dataset"/><Metric label="CONDITION RESOURCES" value={conditionResourceCount} note="FHIR Condition resources" tone="orange"/><Metric label="LOCAL WORKFLOW RECORDS" value={Object.keys(caseStates).length} note="Saved in this browser" tone="green"/><Metric label="JURISDICTIONS" value={Object.keys(jurisdictions).length} note="Documented patient states" tone="blue"/></div>
-    <div className="two-column">
-      <section className="panel"><PanelTitle title="Patients by condition" sub="FHIR Condition resources"/>{Object.entries(conditions).map(([condition,count])=><div className="check-row" key={condition}><b>{condition}</b><span>{count} patients</span></div>)}</section>
-      <section className="panel"><PanelTitle title="Patients by jurisdiction" sub="FHIR Patient address state"/>{Object.entries(jurisdictions).map(([jurisdiction,count])=><div className="check-row" key={jurisdiction}><b>{jurisdiction}</b><span>{count} patients</span></div>)}</section>
-      <section className="panel"><PanelTitle title="Local workflow status" sub="Review and submission activity"/>{Object.keys(workflowStatuses).length?Object.entries(workflowStatuses).map(([status,count])=><div className="check-row" key={status}><Badge value={status}/><span>{count} records</span></div>):<div className="empty-state"><h3>No local workflow activity</h3><p>FHIR seed records have not been ingested into a reportability workflow.</p></div>}</section>
+  return <Page title="Analytics" subtitle="Operational intelligence across patients, conditions, FHIR resources, and reporting workflow.">
+    <div className="metrics-grid">
+      <Metric label="FHIR PATIENTS" value={seedCandidates.length} note="Patient bundles in the seed dataset"/>
+      <Metric label="FHIR RESOURCES" value={totalResources} note="Resources across all bundles" tone="orange"/>
+      <Metric label="CONDITIONS" value={Object.keys(conditions).length} note="Distinct documented conditions" tone="green"/>
+      <Metric label="WORKFLOW RECORDS" value={Object.keys(caseStates).length} note="Saved reporting workflow activity" tone="blue"/>
     </div>
+
+    <div className="two-column">
+      <section className="panel">
+        <PanelTitle title="Condition distribution" sub="Share of documented patient-condition records"/>
+        <div style={{display:'flex',gap:28,alignItems:'center',flexWrap:'wrap'}}>
+          <div style={{position:'relative',width:210,height:210,borderRadius:'50%',background:`conic-gradient(${conditionSlices.map(([,count], index) => { const start=conditionSlices.slice(0,index).reduce((sum, item)=>sum+item[1],0)/Math.max(conditionTotal,1)*360; const end=(start+count/Math.max(conditionTotal,1)*360); const shades=['#ff6b3d','#173b5e','#22a88a','#7c8da6','#f2b134','#6b5b95']; return `${shades[index % shades.length]} ${start}deg ${end}deg` }).join(', ')})`}}><div style={{position:'absolute',inset:45,background:'#fff',borderRadius:'50%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}><strong style={{fontSize:28,color:'#173b5e'}}>{seedCandidates.length}</strong><small style={{color:'#7c8da6'}}>patients</small></div></div>
+          <div style={{minWidth:260,flex:1}}>{conditionSlices.map(([condition,count], index)=>{const shades=['#ff6b3d','#173b5e','#22a88a','#7c8da6','#f2b134','#6b5b95']; return <div key={condition} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid #edf1f4'}}><span style={{width:10,height:10,borderRadius:'50%',background:shades[index % shades.length],display:'inline-block'}}/><b>{condition}</b><span>{count}</span></div>})}</div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <PanelTitle title="Condition volume" sub="Patients represented by each documented condition"/>
+        <div>{topConditions.map(([condition,count])=><div key={condition} style={{marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,marginBottom:5}}><b>{condition}</b><span>{count}</span></div><div style={{height:10,background:'#edf1f4',borderRadius:999,overflow:'hidden'}}><div style={{height:'100%',background:'#ff6b3d',borderRadius:999,width:`${Math.max(4,(count/Math.max(topConditions[0]?.[1]||1,1))*100)}%`}}/></div></div>)}</div>
+      </section>
+
+      <section className="panel">
+        <PanelTitle title="Workflow status" sub="Current reporting workflow distribution"/>
+        {workflowEntries.length ? <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12}}>{workflowEntries.map(([status,count], index)=><div key={status} style={{display:'flex',alignItems:'center',gap:12,padding:16,border:'1px solid #e4e9ee',borderRadius:12,background:'#fafcfd'}}><div style={{width:32,height:32,borderRadius:'50%',background:'#173b5e',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{index+1}</div><div style={{flex:1}}><b style={{display:'block'}}>{status}</b><small style={{display:'block',color:'#7c8da6',marginTop:3}}>{count} record{count===1?'':'s'}</small></div><strong>{Math.round((count/Math.max(totalWorkflow,1))*100)}%</strong></div>)}</div> : <div className="empty-state"><h3>No workflow activity</h3><p>Workflow analytics will appear as candidates move through review and reporting.</p></div>}
+      </section>
+
+      <section className="panel">
+        <PanelTitle title="FHIR resource mix" sub="Most common resource types across the seed dataset"/>
+        <div>{topResourceTypes.map(([resource,count])=><div key={resource} style={{marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,marginBottom:5}}><b>{resource}</b><span>{count.toLocaleString()}</span></div><div style={{height:10,background:'#edf1f4',borderRadius:999,overflow:'hidden'}}><div style={{height:'100%',background:'#173b5e',borderRadius:999,width:`${Math.max(4,(count/Math.max(topResourceTypes[0]?.[1]||1,1))*100)}%`}}/></div></div>)}</div>
+      </section>
+    </div>
+
+    <section className="panel">
+      <PanelTitle title="SIGNAL reporting flow" sub="Operational path from source data to public health reporting"/>
+      <div style={{display:'flex',alignItems:'stretch',gap:8,flexWrap:'wrap'}}>
+        {['FHIR / HL7 / Documents','Detection & AI','Candidate + Evidence','Clinical Review','Reportability + Validation','PHA Submission'].map((step,index)=><div key={step} style={{position:'relative',flex:'1 1 150px',minWidth:150,padding:16,border:'1px solid #e2e8ed',borderRadius:12,background:'#f9fbfc'}}><div style={{width:28,height:28,borderRadius:'50%',background:'#ff6b3d',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,marginBottom:9}}>{index+1}</div><b style={{fontSize:13,lineHeight:1.35}}>{step}</b>{index<5&&<ChevronRight style={{position:'absolute',right:-15,top:'50%',transform:'translateY(-50%)',background:'#fff',zIndex:2}} size={20}/>}</div>)}
+      </div>
+    </section>
+
+    <section className="panel">
+      <PanelTitle title="Jurisdiction overview" sub="Patient distribution by documented state"/>
+      <div className="info-grid">{Object.entries(jurisdictions).map(([jurisdiction,count])=><div key={jurisdiction}><span style={{display:'block',fontSize:12,color:'#7c8da6'}}>JURISDICTION</span><strong style={{display:'block',fontSize:24,color:'#173b5e',marginTop:5}}>{jurisdiction}</strong><small>{count} patients</small></div>)}</div>
+    </section>
   </Page>
 }
 
@@ -215,15 +266,167 @@ function SeedDataNotice() {
 function Dashboard({caseStates}) {
   const dataReady = seedCandidateLoad.status === 'ready'
   const patientRecords = seedCandidates
-  const conditionCount = seedCandidates.reduce((total, candidate) => total + (candidate.fhir_resource_counts?.Condition || 0), 0)
-  const resourceCount = seedCandidates.reduce((total, candidate) => total + Object.values(candidate.fhir_resource_counts || {}).reduce((sum, count) => sum + count, 0), 0)
-  const jurisdictionCount = new Set(seedCandidates.map(candidate => candidate.jurisdiction).filter(value => value && value !== 'Not recorded')).size
 
-  return <Page title="Dashboard" subtitle="Public health reporting operations at a glance">
-    <BackendConnectionStatus/>
-    <section className="metrics-grid"><Metric label="FHIR PATIENTS" value={dataReady ? seedCandidates.length : 'ΓÇö'} note="Patient bundles in the seed dataset"/><Metric label="CONDITION RESOURCES" value={dataReady ? conditionCount : 'ΓÇö'} note="FHIR Condition resources" tone="orange"/><Metric label="FHIR RESOURCES" value={dataReady ? resourceCount : 'ΓÇö'} note="Resources across all bundles" tone="green"/><Metric label="JURISDICTIONS" value={dataReady ? jurisdictionCount : 'ΓÇö'} note="Distinct documented states" tone="blue"/></section>
-    <section className="panel priority-panel"><div className="panel-header"><div><h3>FHIR Patient Records <span className="dark-pill">{dataReady ? patientRecords.length : 'ΓÇö'} seed records</span></h3><p>All patient bundles from data/seed/fhir; reportability has not been evaluated.</p></div><Link className="button secondary" to="/candidates">View All Patients</Link></div><CandidateTable rows={dataReady ? patientRecords : []} compact caseStates={caseStates}/></section>
-  </Page>
+  const conditionCount = seedCandidates.reduce(
+    (total, candidate) =>
+      total + (candidate.fhir_resource_counts?.Condition || 0),
+    0
+  )
+
+  const resourceCount = seedCandidates.reduce(
+    (total, candidate) =>
+      total +
+      Object.values(candidate.fhir_resource_counts || {}).reduce(
+        (sum, count) => sum + count,
+        0
+      ),
+    0
+  )
+
+  const jurisdictionCount = new Set(
+    seedCandidates
+      .map(candidate => candidate.jurisdiction)
+      .filter(value => value && value !== 'Not recorded')
+  ).size
+
+  // Pagination — display only 10 records per page
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(patientRecords.length / pageSize)
+  )
+
+  const startIndex = (currentPage - 1) * pageSize
+
+  const paginatedRecords = patientRecords.slice(
+    startIndex,
+    startIndex + pageSize
+  )
+
+  return (
+    <Page
+      title="Dashboard"
+      subtitle="Public health reporting operations at a glance"
+    >
+      <BackendConnectionStatus />
+
+      <section className="metrics-grid">
+        <Metric
+          label="FHIR PATIENTS"
+          value={dataReady ? seedCandidates.length : '—'}
+          note="Patient bundles in the seed dataset"
+        />
+
+        <Metric
+          label="CONDITION RESOURCES"
+          value={dataReady ? conditionCount : '—'}
+          note="FHIR Condition resources"
+          tone="orange"
+        />
+
+        <Metric
+          label="FHIR RESOURCES"
+          value={dataReady ? resourceCount : '—'}
+          note="Resources across all bundles"
+          tone="green"
+        />
+
+        <Metric
+          label="JURISDICTIONS"
+          value={dataReady ? jurisdictionCount : '—'}
+          note="Distinct documented states"
+          tone="blue"
+        />
+      </section>
+
+      <section className="panel priority-panel">
+        <div className="panel-header">
+          <div>
+            <h3>
+              FHIR Patient Records{' '}
+              <span className="dark-pill">
+                {dataReady ? patientRecords.length : '—'} seed records
+              </span>
+            </h3>
+
+            <p>
+              All patient bundles from data/seed/fhir; reportability has not
+              been evaluated.
+            </p>
+          </div>
+
+          <Link
+            className="button secondary"
+            to="/candidates"
+          >
+            View All Patients
+          </Link>
+        </div>
+
+        {/* Existing candidate table — only the displayed rows are paginated */}
+        <CandidateTable
+          rows={dataReady ? paginatedRecords : []}
+          compact
+          caseStates={caseStates}
+        />
+
+        {/* Pagination */}
+        {dataReady && patientRecords.length > pageSize && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '20px 0 8px',
+              flexWrap: 'wrap'
+            }}
+          >
+            <button
+              className="button secondary small"
+              disabled={currentPage === 1}
+              onClick={() =>
+                setCurrentPage(page => Math.max(1, page - 1))
+              }
+            >
+              Previous
+            </button>
+            <span className="muted" style={{fontSize:'13px',minWidth:'90px',textAlign:'center'}}>
+              Page {currentPage} of {totalPages}
+            </span>
+<button
+              className="button secondary small"
+              disabled={currentPage === totalPages}
+              onClick={() =>
+                setCurrentPage(page =>
+                  Math.min(totalPages, page + 1)
+                )
+              }
+            >
+              Next
+            </button>
+          </div>
+        )}
+
+        {dataReady && patientRecords.length > 0 && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '4px 0 16px',
+              fontSize: '13px',
+              color: '#718096'
+            }}
+          >
+            Showing {startIndex + 1}–
+            {Math.min(startIndex + pageSize, patientRecords.length)}
+            {' '}of {patientRecords.length} records
+          </div>
+        )}
+      </section>
+    </Page>
+  )
 }
 
 function CandidateTable({rows,compact=false,caseStates={}}) {
@@ -244,6 +447,8 @@ function Candidates({caseStates}) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('All statuses')
   const [priority, setPriority] = useState('All priorities')
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
   const rows = seedCandidates.map(candidate => ({
     ...candidate,
     status: caseStates[candidate.id]?.status || candidate.status,
@@ -255,6 +460,12 @@ function Candidates({caseStates}) {
       && (status === 'All statuses' || candidate.status === status)
       && (priority === 'All priorities' || candidate.priority === priority)
   })
+  const totalPages=Math.max(1,Math.ceil(list.length/pageSize))
+  const safePage=Math.min(currentPage,totalPages)
+  const startIndex=(safePage-1)*pageSize
+  const visibleRows=list.slice(startIndex,startIndex+pageSize)
+
+  useEffect(()=>{setCurrentPage(1)},[query,status,priority])
 
   return <Page title="Candidates" subtitle="Patients represented by the complete FHIR seed dataset.">
     <div className="toolbar">
@@ -263,27 +474,69 @@ function Candidates({caseStates}) {
       <select aria-label="Filter by priority assessment" value={priority} onChange={event => setPriority(event.target.value)}><option>All priorities</option>{priorities.map(value => <option key={value}>{value}</option>)}</select>
       <span className="result-count">{list.length} patients</span>
     </div>
-    <section className="panel"><CandidateTable rows={list} caseStates={caseStates}/></section>
+    <section className="panel">
+      <CandidateTable rows={visibleRows} caseStates={caseStates}/>
+      {list.length>pageSize&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'16px 0 4px',borderTop:'1px solid #e7ecef',marginTop:4}}>
+        <button type="button" className="button small secondary" disabled={safePage===1} onClick={()=>setCurrentPage(page=>Math.max(1,page-1))}>Previous</button>
+        <span className="muted" style={{fontSize:13,minWidth:78,textAlign:'center'}}>Page {safePage} of {totalPages}</span>
+        <button type="button" className="button small secondary" disabled={safePage===totalPages} onClick={()=>setCurrentPage(page=>Math.min(totalPages,page+1))}>Next</button>
+      </div>}
+      {list.length>0&&<div style={{textAlign:'center',padding:'4px 0 12px',fontSize:13,color:'#718096'}}>
+        Showing {startIndex+1}–{Math.min(startIndex+pageSize,list.length)} of {list.length} patients
+      </div>}
+    </section>
   </Page>
 }
 function Crumbs({active,id}) { const candidate=seedCandidates.find(item=>item.id===id)||seedCandidates[0]; const patientName=candidate?.patient||(seedCandidateLoad.status==='loading'?'Loading patient...':'Patient not found'); return <div className="crumbs"><Link to="/candidates">Candidates</Link><ChevronRight/><Link to={`/candidates/${id}`}>{patientName}</Link>{active!=='Candidate Details'&&<span><ChevronRight/>{active}</span>}</div> }
+function EvidencePager({page,setPage,total,pageSize=10}) {
+  const totalPages=Math.max(1,Math.ceil(total/pageSize))
+  const start=total===0?0:(page-1)*pageSize+1
+  const end=Math.min(page*pageSize,total)
+  const goTo=next=>setPage(Math.min(totalPages,Math.max(1,next)))
+  return <div className="evidence-pagination" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,padding:'14px 4px 2px',borderTop:'1px solid #e7ecef',marginTop:4}}>
+    <span className="muted" style={{fontSize:13}}>{total?`Showing ${start}–${end} of ${total} resources`:'No resources available'}</span>
+    <div style={{display:'flex',alignItems:'center',gap:6}}>
+      <button type="button" className="button small secondary" disabled={page===1} onClick={()=>goTo(page-1)}>Previous</button>
+       <span className="muted" style={{fontSize:13,minWidth:78,textAlign:'center'}}>Page {page} of {totalPages}</span>
+<button type="button" className="button small secondary" disabled={page===totalPages} onClick={()=>goTo(page+1)}>Next</button>
+    </div>
+  </div>
+}
 function CandidateDetails() {
   const candidate = useCandidate()
+  const [resourcePage,setResourcePage]=useState(1)
+  const [encounterPage,setEncounterPage]=useState(1)
+  const resourcePageSize=10
+  const encounterPageSize=10
   if (seedCandidateLoad.status !== 'ready') {
     return <Page title="Candidate Details" subtitle="Loading patient data from FHIR seed bundles."/>
   }
   const conditionSummary = candidate.conditions?.length ? candidate.conditions.join(' ┬╖ ') : candidate.condition
   const resourceSource = candidate.source_file || 'FHIR seed bundle'
+  const resources=candidate.evidence||[]
+  const encounters=candidate.encounters||[]
+  const resourceStart=(resourcePage-1)*resourcePageSize
+  const encounterStart=(encounterPage-1)*encounterPageSize
+  const visibleResources=resources.slice(resourceStart,resourceStart+resourcePageSize)
+  const visibleEncounters=encounters.slice(encounterStart,encounterStart+encounterPageSize)
 
-  return <Page title="Candidate Details" subtitle="FHIR patient demographics, conditions, encounters, and resources.">
+  return <Page title="Candidate Details" subtitle="FHIR patient demographics, conditions, encounters, and source evidence.">
     <Crumbs active="FHIR Patient" id={candidate.id}/>
     <div className="candidate-banner"><div className="case-info"><div className="large-avatar">{candidate.initials}</div><div><h2>{candidate.patient} <Badge value="FHIR Seed"/></h2><p>Patient ID: {candidate.id} ┬╖ MRN: {candidate.mrn} ┬╖ DOB: {candidate.dob} ┬╖ {candidate.sex} ┬╖ Age {candidate.age}</p></div></div><div className="case-id"><small>FHIR SOURCE</small><b>{resourceSource}</b></div></div>
     <div className="two-column">
       <section className="panel pad"><PanelTitle title="Patient Information" sub="Values mapped from the FHIR Patient resource"/><div className="info-grid">{[['FULL NAME',candidate.patient],['MEDICAL RECORD NUMBER',candidate.mrn],['DATE OF BIRTH',candidate.dob],['SEX',candidate.sex],['AGE',candidate.age],['LANGUAGE',candidate.language],['CITY',candidate.patient_context?.city||'Not recorded'],['COUNTY',candidate.patient_context?.county||'Not recorded'],['STATE',candidate.patient_context?.state||'Not recorded'],['FACILITY',candidate.facility]].map(([label,value])=><Info key={label} label={label} value={value}/>)}</div></section>
       <section className="panel pad"><PanelTitle title="FHIR Record Summary" sub="Source data; reportability has not been evaluated"/><div className="info-grid">{[['CONDITIONS',conditionSummary],['DOCUMENTED JURISDICTION',candidate.jurisdiction],['SOURCE FILE',resourceSource],['WORKFLOW STATUS',candidate.status],['REPORTING RULE',candidate.rule],['DEADLINE',candidate.deadline]].map(([label,value])=><Info key={label} label={label} value={value}/>)}</div>{candidate.conditions?.some(condition=>condition.toLowerCase().includes('measles'))&&<Link className="button primary full" to={`/candidates/${candidate.id}/reporting-form`}>Open Texas Measles Form <ArrowRight size={15}/></Link>}</section>
     </div>
-    <section className="panel"><PanelTitle title="FHIR Resource Evidence" sub="Resource summaries from this patient bundle" right={`${candidate.evidence.length} resources`}/><div className="table-wrapper"><table><thead><tr><th>Resource</th><th>Source</th></tr></thead><tbody>{candidate.evidence.map((item,index)=><tr key={`${candidate.id}-resource-${index}`}><td><b>{item}</b></td><td>{resourceSource}</td></tr>)}</tbody></table></div></section>
-    <section className="panel pad"><PanelTitle title="Encounters" sub="Encounter resources in this FHIR bundle" right={`${candidate.encounters?.length || 0} encounters`}/>{candidate.encounters?.length ? <div className="encounters">{candidate.encounters.map((encounter,index)=><div key={`${candidate.id}-encounter-${index}`}><b>{encounter.date} ┬╖ {encounter.type}</b><p>{encounter.reason}</p><small>{encounter.status} ┬╖ {encounter.facility}</small></div>)}</div> : <div className="empty-state"><p>No Encounter resources were included in this bundle.</p></div>}</section>
+    <section className="panel">
+      <PanelTitle title="FHIR Resource Evidence" sub="All FHIR resources for this patient are shown here only; paginated to keep the page compact." right={`${resources.length} resources`}/>
+      <div className="table-wrapper"><table><thead><tr><th>Resource</th><th>Source</th></tr></thead><tbody>{visibleResources.map((item,index)=><tr key={`${candidate.id}-resource-${resourceStart+index}`}><td><b>{item}</b></td><td>{resourceSource}</td></tr>)}</tbody></table></div>
+      <EvidencePager page={resourcePage} setPage={setResourcePage} total={resources.length} pageSize={resourcePageSize}/>
+    </section>
+    <section className="panel pad">
+      <PanelTitle title="Encounters" sub="Encounter resources in this FHIR bundle; paginated when there are many records." right={`${encounters.length} encounters`}/>
+      {visibleEncounters.length ? <div className="encounters">{visibleEncounters.map((encounter,index)=><div key={`${candidate.id}-encounter-${encounterStart+index}`}><b>{encounter.date} ┬╖ {encounter.type}</b><p>{encounter.reason}</p><small>{encounter.status} ┬╖ {encounter.facility}</small></div>)}</div> : <div className="empty-state"><p>No Encounter resources were included in this bundle.</p></div>}
+      {encounters.length>0&&<EvidencePager page={encounterPage} setPage={setEncounterPage} total={encounters.length} pageSize={encounterPageSize}/>} 
+    </section>
   </Page>
 }
 function PanelTitle({title,sub,right}) { return <div className="panel-header"><div><h3>{title}</h3>{sub&&<p>{sub}</p>}</div>{right&&<small className="muted">{right}</small>}</div> }
@@ -314,12 +567,44 @@ function useCandidate() {
   }
 }
 function StepPage({title,subtitle,children,id}) { return <Page title={title} subtitle={subtitle}><Crumbs active={title} id={id}/>{children}</Page> }
-function Extraction() { const c=useCandidate(),[done,setDone]=useState(false),nav=useNavigate(); return <StepPage title="Reporting Data Extraction" subtitle="Cross-encounter synthesis and source-backed extraction for the Texas Measles CRF." stage="Data Extraction" id={c.id}><div className="success-banner"><CheckCircle2/><div><b>{done?'Extraction complete':'Ready to extract reporting data'}</b><p>{done?'Reporting data received from EHR / ELR. Evidence has been mapped to reporting fields.':'SIGNAL will gather available synthetic patient information from connected clinical sources.'}</p></div></div><div className="extract-grid"><section className="panel navy-panel"><small>LONGITUDINAL CROSS-ENCOUNTER SYNTHESIS</small><h2>Clinical evidence is ready for reporting.</h2><p>SIGNAL analyzed 4 patient encounters and mapped available clinical evidence to the Texas Measles Case Report Form requirements.</p><div className="stat-row"><div><b>4</b><small>Encounters Analyzed</small></div><div><b>5</b><small>Evidence Items</small></div><div><b>6</b><small>CRF Sections</small></div></div></section><section className="panel pad"><PanelTitle title="Clinical Visualization" sub="Documented clinical context"/><figure className="clinical-visual"><img src={anatomyDashboard} alt="Synthetic anatomy reference showing front and back views with highlighted clinical findings"/><figcaption>Sample anatomy reference ┬╖ synthetic demonstration visual</figcaption></figure><small className="muted">Visualization provides contextual reference for documented information.</small></section><section className="panel"><PanelTitle title="Source-Backed Extraction" sub="Evidence identified across available records" right="Source-backed"/>{c.evidence.map((e,i)=><div className="evidence-row" key={e}><CheckCircle2/><div><b>{e}</b><small>Source: {sources[i]}</small></div><Badge value="Source-backed"/></div>)}</section><section className="panel pad"><PanelTitle title="Texas Measles CRF Coverage" sub="Reporting sections identified from available evidence"/>{['Patient Information','Demographics','Rash & Fever','Hospitalization','Laboratory Results','Exposure / Epidemiology'].map((e,i)=><div className="coverage-row" key={e}><span>{i===2||i===5?'!':'Γ£ô'}</span><b>{e}</b><Badge value={i===2||i===5?'Needs Verification':'Source-backed'}/></div>)}</section></div><div className="bottom-action"><span>Continue when extraction is complete.</span>{done?<button className="button primary" onClick={()=>nav(`/candidates/${c.id}/reporting-data`)}>Continue to Reporting Data <ArrowRight size={15}/></button>:<button className="button primary" onClick={()=>{setDone(true)}}>Run Extraction <ArrowRight size={15}/></button>}</div></StepPage> }
+function Extraction() { const c=useCandidate(),[done,setDone]=useState(false),nav=useNavigate(); return <StepPage title="Reporting Data Extraction" subtitle="Cross-encounter synthesis and source-backed extraction for the Texas Measles CRF." stage="Data Extraction" id={c.id}><div className="success-banner"><CheckCircle2/><div><b>{done?'Extraction complete':'Ready to extract reporting data'}</b><p>{done?'Reporting data received from EHR / ELR. Evidence has been mapped to reporting fields.':'SIGNAL will gather available synthetic patient information from connected clinical sources.'}</p></div></div><div className="extract-grid"><section className="panel navy-panel"><small>LONGITUDINAL CROSS-ENCOUNTER SYNTHESIS</small><h2>Clinical evidence is ready for reporting.</h2><p>SIGNAL analyzed 4 patient encounters and mapped available clinical evidence to the Texas Measles Case Report Form requirements.</p><div className="stat-row"><div><b>4</b><small>Encounters Analyzed</small></div><div><b>5</b><small>Evidence Items</small></div><div><b>6</b><small>CRF Sections</small></div></div></section><section className="panel pad"><PanelTitle title="Clinical Visualization" sub="Documented clinical context"/><figure className="clinical-visual"><img src={anatomyDashboard} alt="Synthetic anatomy reference showing front and back views with highlighted clinical findings"/><figcaption>Sample anatomy reference ┬╖ synthetic demonstration visual</figcaption></figure><small className="muted">Visualization provides contextual reference for documented information.</small></section><section className="panel"><PanelTitle title="Source-Backed Extraction" sub="Evidence identified across available records" right={`${c.evidence?.length||0} resources`}/><p className="muted" style={{margin:'0 0 14px'}}>The complete FHIR resource evidence is maintained in one place on Candidate Details and is paginated there to avoid repeating a long evidence list across workflow pages.</p><Link className="button secondary" to={`/candidates/${c.id}`}>View FHIR Resource Evidence <ArrowRight size={15}/></Link></section><section className="panel pad"><PanelTitle title="Texas Measles CRF Coverage" sub="Reporting sections identified from available evidence"/>{['Patient Information','Demographics','Rash & Fever','Hospitalization','Laboratory Results','Exposure / Epidemiology'].map((e,i)=><div className="coverage-row" key={e}><span>{i===2||i===5?'!':'Γ£ô'}</span><b>{e}</b><Badge value={i===2||i===5?'Needs Verification':'Source-backed'}/></div>)}</section></div><div className="bottom-action"><span>Continue when extraction is complete.</span>{done?<button className="button primary" onClick={()=>nav(`/candidates/${c.id}/reporting-data`)}>Continue to Reporting Data <ArrowRight size={15}/></button>:<button className="button primary" onClick={()=>{setDone(true)}}>Run Extraction <ArrowRight size={15}/></button>}</div></StepPage> }
 function ReportingData() { const c=useCandidate(),nav=useNavigate(); const fields=[['Patient & Administrative',`${c.patient} ┬╖ MRN ${c.mrn}`,'Clinical documentation'],['Clinical Presentation','Fever, rash, cough and coryza','Clinical documentation'],['Diagnostic Evidence','Measles IgM Positive','Laboratory result ┬╖ Sep 12, 2026'],['Reporting & Jurisdiction','Measles ┬╖ Texas DSHS','Reporting rule / jurisdiction configuration']]; return <StepPage title="Reporting Data" subtitle="Review mapped reporting values and source evidence." stage="Reporting Data" id={c.id}><div className="two-column"><section className="panel reporting-data-card"><PanelTitle title="Reporting Data" sub="Mapped values from available candidate records" right="28 Fields Validated"/>{fields.map(([a,b,s])=><div className="reporting-data-row" key={a}><div className="reporting-data-label"><span/><b>{a}</b></div><div className="reporting-data-value"><small>VALUE</small><p>{b}</p></div><div className="reporting-data-source"><small>SOURCE</small><p>{s}</p></div><div className="reporting-data-status"><Badge value="Source-backed"/></div></div>)}</section><section className="panel pad"><PanelTitle title="Extraction Summary" sub="Current reporting package status"/><div className="summary-stats"><div><b>28</b><small>Valid</small></div><div><b>0</b><small>Need Attention</small></div><div><b>0</b><small>Blocking</small></div></div><div className="success-banner compact"><CheckCircle2/><div><b>Evidence Updated</b><p>Available source evidence mapped to report fields.</p></div></div>{['Patient identifiers complete','Jurisdiction and condition mapped','Laboratory evidence linked','Source evidence available'].map(x=><div className="check-row" key={x}><Check size={15}/>{x}<span>Complete</span></div>)}</section><section className="panel"><PanelTitle title="Source Evidence" sub="Records used to populate reporting values" right="3 source records"/>{[['Sep 16, 2026','Clinical note and hospitalization evidence'],['Sep 12, 2026','Measles IgM Positive ┬╖ Specimen date available'],['Sep 10, 2026','Initial symptom and presentation documentation']].map(([a,b])=><div className="source-row" key={a}><b>{a}</b><span>{b}</span><a href="#evidence">View Source</a></div>)}</section><section className="panel pad"><PanelTitle title="Next Step" sub="Reviewer decision and validation"/><p>Confirm mapped values and supporting records in Review &amp; Validation.</p><button className="button primary full" onClick={()=>nav(`/candidates/${c.id}/review`)}>Proceed to Review &amp; Validation <ArrowRight size={15}/></button></section></div><div className="bottom-action"><Link className="button secondary" to={`/candidates/${c.id}/extraction`}><ArrowLeft size={15}/> Back</Link><button className="button primary" onClick={()=>nav(`/candidates/${c.id}/review`)}>Continue to Review <ArrowRight size={15}/></button></div></StepPage> }
 function Review({addToQueue}) { const c=useCandidate(),[checked,setChecked]=useState(false),[ready,setReady]=useState(false),nav=useNavigate(); const queued=JSON.parse(localStorage.getItem('signalQueue')||'[]').includes(c.id); return <StepPage title="Review & Validation" subtitle="Review mapped reporting values, validation checks, and source evidence before authorized submission." stage="Review & Validation" id={c.id}><div className="two-column"><section className="panel"><PanelTitle title="Reporting Data" sub="Mapped values from available candidate records" right="28 Fields Validated"/>{[['Patient & Administrative',`${c.patient} ┬╖ MRN ${c.mrn}`],['Clinical Presentation','Fever, rash, cough and coryza'],['Diagnostic Evidence','Measles IgM Positive'],['Reporting & Jurisdiction','Measles ┬╖ Texas DSHS']].map(([a,b])=><div className="review-row" key={a}><span className="green-dot"/><b>{a}</b><p>{b}</p><small>Source: {a.includes('Diagnostic')?'Laboratory result ┬╖ Sep 12, 2026':'Clinical documentation'}</small></div>)}</section><section className="panel pad"><PanelTitle title="Validation Summary" sub="Current reporting package status"/><div className="summary-stats"><div><b>28</b><small>Valid</small></div><div><b>0</b><small>Need Attention</small></div><div><b>0</b><small>Blocking</small></div></div><div className="warning-note">Γ£ô All reporting fields have supporting evidence.</div>{['Required patient identifiers complete','Jurisdiction and condition mapped','Laboratory evidence linked','All reporting fields have supporting evidence'].map(x=><div className="check-row" key={x}><Check size={15}/>{x}<span>Complete</span></div>)}</section><section className="panel"><PanelTitle title="Source Evidence" sub="Records used to populate reporting values" right="3 source records"/>{['Clinical note and hospitalization evidence','Measles IgM Positive ┬╖ Specimen date available','Initial symptom and presentation documentation'].map((s,i)=><div className="source-row" key={s}><b>Sep {16-i*2}, 2026</b><span>Γ£ô &nbsp;{s}</span><a href="#source">View Source</a></div>)}</section><section className="panel pad"><PanelTitle title="Reviewer Decision" sub="Choose how to proceed" right="Ready"/><label className="radio-card"><input type="radio" checked={ready} onChange={()=>setReady(true)}/><span><b>Ready to Add to Queue</b><small>All available reporting information has been reviewed.</small></span></label><label className="review-confirm"><input type="checkbox" checked={checked} onChange={e=>setChecked(e.target.checked)}/> I reviewed the reporting values and available source evidence.</label><div className="audit-note">Reviewer: Sarah Mitchell, RN ┬╖ Decision will be recorded in the audit trail.</div></section></div><div className="bottom-action"><span>{queued?'Candidate is in the Reporting Queue.':'Confirm your reviewer decision before adding the report to the queue.'}</span><button disabled={!checked||!ready||queued} className="button primary" onClick={()=>{addToQueue(c.id);nav('/reporting-queue')}}>{queued?'Added to Queue':'Add to Reporting Queue'} <ArrowRight size={15}/></button></div></StepPage> }
 function ReportingQueue({queue}) { const rows=seedCandidates.filter(c=>queue.includes(c.id)); return <Page title="Reporting Queue" subtitle="Reviewer-approved reporting packages ready for submission."><section className="panel"><PanelTitle title="Ready for Submission" sub="Candidates added to the reporting queue" right={`${rows.length} queued`}/>{rows.length?<CandidateTable rows={rows}/>:<div className="empty-state"><ClipboardList size={32}/><h3>No candidates in the queue yet</h3><p>Complete Review &amp; Validation and add an approved candidate to begin.</p><Link className="button primary" to="/candidates">Browse Candidates</Link></div>}</section></Page> }
 function Submissions({queue}) { return <Page title="Submissions" subtitle="Track reporting packages and acknowledgements from public health agencies."><section className="panel"><PanelTitle title="Submission Activity" sub="Synthetic demo data ┬╖ no real PHA connection" right="Demo Environment"/>{queue.length?seedCandidates.filter(c=>queue.includes(c.id)).map(c=><div className="source-row" key={c.id}><b>{c.id} ┬╖ {c.patient}</b><span>{c.condition} ┬╖ {c.jurisdiction}</span><Badge value="Ready to Submit"/></div>):<div className="empty-state"><FileCheck2 size={32}/><h3>No submissions yet</h3><p>Items added to the Reporting Queue will appear here when submission begins.</p><Link className="button secondary" to="/reporting-queue">Open Reporting Queue</Link></div>}</section></Page> }
-function Cases() { return <Module title="Cases" sub="Investigation cases associated with reporting candidates." icon={BriefcaseBusiness} items={['Measles investigation ┬╖ CAND-001','Rabies exposure follow-up ┬╖ CAND-003']}/> }
+function Cases() {
+  const [currentPage,setCurrentPage] = useState(1)
+  const pageSize = 10
+  const conditionCounts = useMemo(() => {
+    const counts = seedCandidates.reduce((result, candidate) => {
+      for (const condition of candidate.conditions || [candidate.condition]) {
+        if (!condition || condition.toLowerCase().includes('rabies')) continue
+        result[condition] = (result[condition] || 0) + 1
+      }
+      return result
+    }, {})
+    return Object.entries(counts).sort((a,b) => b[1] - a[1])
+  }, [seedCandidates.length])
+  const totalPages = Math.max(1, Math.ceil(conditionCounts.length / pageSize))
+  const safePage = Math.min(currentPage,totalPages)
+  const visible = conditionCounts.slice((safePage-1)*pageSize, safePage*pageSize)
+  useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages) }, [currentPage,totalPages])
+
+  return <Page title="Cases" subtitle="Patient cases grouped by condition for investigation and public health follow-up.">
+    <div className="metrics-grid">
+      <Metric label="PATIENT CASES" value={seedCandidates.length} note="Patients represented in the case registry"/>
+      <Metric label="CONDITIONS" value={conditionCounts.length} note="Conditions available for case review" tone="orange"/>
+      <Metric label="MEASLES CASES" value={seedCandidates.filter(candidate => candidate.condition?.toLowerCase().includes('measles')).length} note="Current Texas measles candidates" tone="green"/>
+    </div>
+    <section className="panel">
+      <PanelTitle title="Patients by condition" sub="Case-oriented view of the documented patient-condition distribution" right={`${conditionCounts.length} conditions`}/>
+      <div className="table-wrapper"><table><thead><tr><th>CONDITION</th><th>PATIENTS</th><th>CASE FOCUS</th></tr></thead><tbody>{visible.map(([condition,count])=><tr key={condition}><td><b>{condition}</b></td><td>{count}</td><td><Badge value={condition.toLowerCase().includes('measles')?'Priority reporting condition':'Case review'}/></td></tr>)}</tbody></table></div>
+      <div className="pagination-bar"><span>Showing {conditionCounts.length ? (safePage-1)*pageSize+1 : 0}–{Math.min(safePage*pageSize,conditionCounts.length)} of {conditionCounts.length} conditions</span><div className="pagination-controls"><button className="button small secondary" disabled={safePage===1} onClick={()=>setCurrentPage(page=>Math.max(1,page-1))}><ArrowLeft size={14}/> Previous</button><span>Page {safePage} of {totalPages}</span><button className="button small secondary" disabled={safePage===totalPages} onClick={()=>setCurrentPage(page=>Math.min(totalPages,page+1))}>Next <ArrowRight size={14}/></button></div></div>
+    </section>
+    <section className="panel"><PanelTitle title="Case investigation focus" sub="Active reporting scope"/><div className="info-grid"><div><span style={{display:'block',fontSize:12,color:'#7c8da6'}}>JURISDICTION</span><b>Texas</b><small>Documented jurisdiction</small></div><div><span style={{display:'block',fontSize:12,color:'#7c8da6'}}>PRIMARY CONDITION</span><b>Measles</b><small>Primary reporting condition in the seed dataset</small></div><div><span style={{display:'block',fontSize:12,color:'#7c8da6'}}>NEXT STEP</span><b>Candidate review</b><small>Use Candidates for patient-level evidence and reporting workflow</small></div></div></section>
+  </Page>
+}
+
 function Investigation() { return <Module title="Investigation" sub="Review longitudinal evidence and investigation activity." icon={Search} items={['Clinical evidence timeline','Exposure history documented','Laboratory result linked']}/> }
 function Governance() { return <GovernanceOverview/> }
 function Module({title,sub,icon:Icon,items}) { return <Page title={title} subtitle={sub}><section className="panel pad module-panel"><Icon size={25}/><h3>{title} overview</h3>{items.map(x=><div className="check-row" key={x}><CheckCircle2 size={16}/>{x}</div>)}</section></Page> }
@@ -331,7 +616,34 @@ function AdminSubmissions({queue,caseStates,batches,setCaseState}) { const rows=
 function AdminDashboard({queue,caseStates}) { const ready=queue.filter(id=>caseStates[id]?.adminVerificationStatus==='Verified').length,submitted=queue.filter(id=>['Submitted','Acknowledged'].includes(caseStates[id]?.submissionStatus)).length;return <Page title="Reporting Administration" subtitle="Verify completed clinical reports and manage public health submissions."><div className="metrics-grid"><Metric label="QUEUED CASES" value={queue.length} note="Awaiting or in admin review"/><Metric label="PENDING VERIFICATION" value={queue.filter(id=>(caseStates[id]?.adminVerificationStatus||'Pending Admin Verification')==='Pending Admin Verification').length} note="Requires individual review" tone="orange"/><Metric label="READY FOR SUBMISSION" value={ready} note="Individually verified" tone="green"/><Metric label="SUBMITTED" value={submitted} note="Awaiting PHA acknowledgement" tone="blue"/></div><section className="panel"><div className="panel-header"><div><h3>Admin Work Queue</h3><p>Open each case to verify the reporting package individually.</p></div><Link className="button primary" to="/admin/reporting-queue">Open Reporting Queue <ArrowRight size={15}/></Link></div></section><section className="panel"><PanelTitle title="Recent Batches" sub="Mock PHA submission activity"/><div className="panel-header"><Link className="text-link" to="/admin/submissions">View Submission Status <ArrowRight size={14}/></Link></div></section></Page> }
 function QueueConfirmation({caseStates}) { const c=useCandidate(),s=caseStates[c.id]||{};return <Page title="Case Added to Reporting Queue" subtitle="Clinical review and validation are complete."><section className="panel handoff-panel"><div className="handoff-check"><CheckCircle2 size={28}/></div><h2>{c.id} ΓÇö {c.patient}</h2><p>The case has been added to the Reporting Queue and is now awaiting Reporting Administrator verification.</p><StatusLine value={s.adminVerificationStatus||'Pending Admin Verification'}/><div className="handoff-note">Clinical Staff responsibilities for this case are complete.</div><Link className="button primary" to="/dashboard">Return to Clinical Staff Dashboard <ArrowRight size={15}/></Link></section></Page> }
 function StatusLine({value}) { return <div className="handoff-status"><small>ADMIN VERIFICATION</small><Badge value={value}/></div> }
-function ClinicalReviewPage({addToQueue,caseStates}) { const c=useCandidate(),nav=useNavigate(),s=caseStates[c.id]||{},[checked,setChecked]=useState(false);if(s.adminVerificationStatus==='Pending Admin Verification'||s.adminVerificationStatus==='Verified'||s.submissionStatus==='Submitted'||s.submissionStatus==='Acknowledged')return <Navigate to={`/queue-confirmation/${c.id}`} replace/>;return <StepPage title="Review & Validation" subtitle="Review mapped values and evidence before completing clinical verification." id={c.id}><div className="two-column"><section className="panel"><PanelTitle title="Reporting Data" sub="Mapped report information" right="28 Fields Validated"/>{[['Patient',`${c.patient} ┬╖ MRN ${c.mrn}`],['Condition',c.condition],['Clinical Presentation','Fever, cough, generalized rash'],['Jurisdiction / PHA',c.jurisdiction]].map(([a,b])=><div className="review-row" key={a}><span className="green-dot"/><b>{a}</b><p>{b}</p><small>Source-backed synthetic reporting data</small></div>)}</section><section className="panel"><PanelTitle title="Validation Results" sub="All required checks completed"/>{['Required identifiers complete','Jurisdiction and condition mapped','Source evidence linked','No blocking validation issues'].map(x=><div className="check-row" key={x}><Check size={15}/>{x}<span>Complete</span></div>)}</section><section className="panel"><PanelTitle title="Clinical Evidence" sub="Evidence linked to this candidate"/>{c.evidence.map((e,i)=><div className="source-row" key={e}><b>{i===3?'ELR':'EHR'}</b><span>{e} ┬╖ {sources[i%sources.length]}</span></div>)}</section><section className="panel pad"><PanelTitle title="Human Verification" sub="Clinical Staff attestation"/><label className="review-confirm"><input type="checkbox" checked={checked} onChange={e=>setChecked(e.target.checked)}/> I reviewed the reporting values and source evidence.</label><div className="audit-note">Clinical reviewer and completion time are recorded in the demo service layer.</div></section></div><div className="bottom-action"><span>Adding the case sends it for admin verification. It does not submit or approve the PHA report.</span><button disabled={!checked} className="button primary" onClick={()=>{addToQueue(c.id);nav('/dashboard')}}>Add to Reporting Queue <ArrowRight size={15}/></button></div></StepPage> }
+function ClinicalReviewPage({addToQueue,caseStates}) {
+  const c=useCandidate(),nav=useNavigate(),s=caseStates[c.id]||{},[checked,setChecked]=useState(false),[attestedAt,setAttestedAt]=useState('')
+  const reviewerName=getUserDisplayName(), reviewerRole='Clinical Staff'
+  const handleAttestation=e=>{
+    const value=e.target.checked
+    setChecked(value)
+    setAttestedAt(value?new Date().toLocaleString():'')
+  }
+  if(s.adminVerificationStatus==='Pending Admin Verification'||s.adminVerificationStatus==='Verified'||s.submissionStatus==='Submitted'||s.submissionStatus==='Acknowledged')return <Navigate to={`/queue-confirmation/${c.id}`} replace/>
+  return <StepPage title="Review & Validation" subtitle="Review mapped values and evidence before completing clinical verification." id={c.id}>
+    <div className="two-column">
+      <section className="panel"><PanelTitle title="Reporting Data" sub="Mapped report information" right="28 Fields Validated"/>{[['Patient',`${c.patient} ┬╖ MRN ${c.mrn}`],['Condition',c.condition],['Clinical Presentation','Fever, cough, generalized rash'],['Jurisdiction / PHA',c.jurisdiction]].map(([a,b])=><div className="review-row" key={a}><span className="green-dot"/><b>{a}</b><p>{b}</p><small>Source-backed synthetic reporting data</small></div>)}</section>
+      <section className="panel"><PanelTitle title="Validation Results" sub="All required checks completed"/>{['Required identifiers complete','Jurisdiction and condition mapped','Source evidence linked','No blocking validation issues'].map(x=><div className="check-row" key={x}><Check size={15}/>{x}<span>Complete</span></div>)}</section>
+      <section className="panel"><PanelTitle title="Evidence Available" sub="FHIR resource evidence is maintained in one location" right={`${c.evidence?.length||0} resources`}/><p className="muted" style={{margin:'0 0 14px'}}>To avoid duplicate long evidence lists, the complete FHIR Resource Evidence table is shown only on Candidate Details and is paginated there.</p><Link className="button secondary" to={`/candidates/${c.id}`}>View FHIR Resource Evidence <ArrowRight size={15}/></Link></section>
+      <section className="panel pad">
+        <PanelTitle title="Human Verification & Attestation" sub="Clinical Staff verification is required before queueing" right="Required"/>
+        <div className="reviewer-card" style={{marginBottom:14}}>
+          <div><small className="muted">CLINICAL REVIEWER</small><strong style={{display:'block',fontSize:16,marginTop:4}}>{reviewerName}</strong></div>
+          <div><small className="muted">ROLE</small><strong style={{display:'block',fontSize:14,marginTop:4}}>{reviewerRole}</strong></div>
+          <div><small className="muted">VERIFICATION STATUS</small><strong style={{display:'block',fontSize:14,marginTop:4}}>{checked?'Attested':'Pending Attestation'}</strong></div>
+        </div>
+        <label className="review-confirm"><input type="checkbox" checked={checked} onChange={handleAttestation}/> I reviewed the reporting values and source evidence and attest that the information is ready for reporting queue review.</label>
+        <div className="audit-note">Reviewer: <b>{reviewerName}</b> ┬╖ Clinical Staff{attestedAt&&<> ┬╖ Attested: {attestedAt}</>}</div>
+      </section>
+    </div>
+    <div className="bottom-action"><span>{checked?'Clinical Staff attestation complete. The case can now be added to the Reporting Queue for administrator verification.':'Complete the Clinical Staff attestation above to enable the Reporting Queue action.'}</span><button disabled={!checked} className="button primary" onClick={()=>{addToQueue(c.id);nav('/dashboard')}}>{checked?'Add to Reporting Queue':'Attestation Required'} <ArrowRight size={15}/></button></div>
+  </StepPage>
+}
 function FinalAdminQueue({queue,caseStates,submitBatch}) {
   const [tab,setTab]=useState('All Cases'),[search,setSearch]=useState(''),[filters,setFilters]=useState({condition:'',jurisdiction:'',priority:'',status:'',date:''}),[selected,setSelected]=useState([]),[batchResult,setBatchResult]=useState(null)
   const rows=useMemo(()=>queue.map(id=>seedCandidates.find(candidate=>candidate.id===id)).filter(Boolean).map(candidate=>({candidate,state:caseStates[candidate.id]||{}})),[queue,caseStates])
@@ -364,7 +676,7 @@ function FinalAdminQueue({queue,caseStates,submitBatch}) {
     {!readyRows.length&&batchResult&&<section className="panel queue-batch-result standalone"><CheckCircle2 size={16}/><div><b>{batchResult.id} submitted</b><span>{batchResult.ids.length} case(s) ┬╖ {batchResult.pha} ┬╖ {batchResult.submittedAt} ┬╖ {batchResult.acknowledgement}</span></div><Link to="/admin/submissions">View submission status</Link></section>}
   </Page>
 }
-function FinalAdminVerification({caseStates,setCaseState}) { const c=useCandidate(),s=caseStates[c.id]||{},nav=useNavigate(),adminStatus=s.adminVerificationStatus||'Pending Admin Verification';const update=status=>{const approved=status==='Verified';setCaseState(c.id,{adminVerificationStatus:status,submissionStatus:approved?'Ready for Submission':'Not Submitted',status:approved?'Ready for Submission':'Returned for Correction',adminReviewer:'Reporting Administrator',adminDecisionAt:new Date().toLocaleString()});nav('/admin/reporting-queue')};return <Page title="Individual Case Verification" subtitle="Review the complete reporting package before approval."><Crumbs active="Individual Case Verification" id={c.id}/><div className="candidate-banner"><div className="case-info"><div className="large-avatar">{c.initials}</div><div><h2>{c.patient}</h2><p>{c.id} ┬╖ MRN {c.mrn} ┬╖ {c.condition}</p></div></div><div className="case-id"><small>ADMIN VERIFICATION</small><Badge value={adminStatus}/></div></div><div className="two-column"><section className="panel pad"><PanelTitle title="Candidate Information" sub="Synthetic reporting candidate"/><div className="info-grid">{[['Candidate ID',c.id],['Patient',c.patient],['MRN',c.mrn],['DOB / Sex',`${c.dob} ┬╖ ${c.sex}`],['Facility',c.facility],['Condition',c.condition],['Jurisdiction / PHA',c.jurisdiction],['Reporting Rule',c.rule]].map(([a,b])=><Info key={a} label={a.toUpperCase()} value={b}/>)}</div></section><section className="panel"><PanelTitle title="Reporting Data" sub="Read-only values prepared by Clinical Staff"/>{[['Patient identifiers',`${c.patient} ┬╖ MRN ${c.mrn}`],['Clinical presentation','Fever, cough, generalized rash'],['Diagnostic evidence',c.evidence.find(e=>e.toLowerCase().includes('igm'))||c.evidence[0]],['Jurisdiction',c.jurisdiction]].map(([a,b])=><div className="report-field" key={a}><div className="field-title"><span/><b>{a}</b><Badge value="Source-backed"/></div><div className="field-columns"><p>{b}</p><small>Clinical reporting package</small></div></div>)}</section><section className="panel"><PanelTitle title="Clinical & Source Evidence" sub="Source records associated with this case"/>{c.evidence.map((e,i)=><div className="source-row" key={e}><b>{i===3?'ELR':'EHR'}</b><span>{e} ┬╖ {sources[i%sources.length]}</span><Badge value="Linked"/></div>)}</section><section className="panel"><PanelTitle title="Extraction & Validation" sub="Clinical review package"/>{[['Clinical review',s.clinicalReviewStatus||'Complete'],['Extracted at',s.clinicalCompletedAt||'Demo extraction complete'],['Validation','28 valid ┬╖ 0 blocking'],['PHA destination',c.jurisdiction]].map(([a,b])=><div className="check-row" key={a}>{a}<span>{b}</span></div>)}</section></div><section className="panel pad admin-decision"><PanelTitle title="Admin Verification Decision" sub="This decision applies to this case only"/><div className="audit-note">Clinical reviewer: {s.clinicalReviewer||'Clinical Staff'} ┬╖ Completed: {s.clinicalCompletedAt||'Demo record'}<br/>Admin reviewer: {s.adminReviewer||'Not yet reviewed'} ┬╖ Decision: {s.adminDecisionAt||'Pending'}</div><div className="admin-actions"><button className="button primary" disabled={adminStatus==='Verified'||s.submissionStatus==='Submitted'} onClick={()=>update('Verified')}>Approve for Submission</button><button className="button secondary" disabled={s.submissionStatus==='Submitted'} onClick={()=>update('Returned for Correction')}>Return for Correction</button><span>Approval sets Admin Verification to Verified and Submission to Ready for Submission.</span></div></section></Page> }
+function FinalAdminVerification({caseStates,setCaseState}) { const c=useCandidate(),s=caseStates[c.id]||{},nav=useNavigate(),adminStatus=s.adminVerificationStatus||'Pending Admin Verification';const update=status=>{const approved=status==='Verified';setCaseState(c.id,{adminVerificationStatus:status,submissionStatus:approved?'Ready for Submission':'Not Submitted',status:approved?'Ready for Submission':'Returned for Correction',adminReviewer:'Reporting Administrator',adminDecisionAt:new Date().toLocaleString()});nav('/admin/reporting-queue')};return <Page title="Individual Case Verification" subtitle="Review the complete reporting package before approval."><Crumbs active="Individual Case Verification" id={c.id}/><div className="candidate-banner"><div className="case-info"><div className="large-avatar">{c.initials}</div><div><h2>{c.patient}</h2><p>{c.id} ┬╖ MRN {c.mrn} ┬╖ {c.condition}</p></div></div><div className="case-id"><small>ADMIN VERIFICATION</small><Badge value={adminStatus}/></div></div><div className="two-column"><section className="panel pad"><PanelTitle title="Candidate Information" sub="Synthetic reporting candidate"/><div className="info-grid">{[['Candidate ID',c.id],['Patient',c.patient],['MRN',c.mrn],['DOB / Sex',`${c.dob} ┬╖ ${c.sex}`],['Facility',c.facility],['Condition',c.condition],['Jurisdiction / PHA',c.jurisdiction],['Reporting Rule',c.rule]].map(([a,b])=><Info key={a} label={a.toUpperCase()} value={b}/>)}</div></section><section className="panel"><PanelTitle title="Reporting Data" sub="Read-only values prepared by Clinical Staff"/>{[['Patient identifiers',`${c.patient} ┬╖ MRN ${c.mrn}`],['Clinical presentation','Fever, cough, generalized rash'],['Diagnostic evidence',c.evidence.find(e=>e.toLowerCase().includes('igm'))||c.evidence[0]],['Jurisdiction',c.jurisdiction]].map(([a,b])=><div className="report-field" key={a}><div className="field-title"><span/><b>{a}</b><Badge value="Source-backed"/></div><div className="field-columns"><p>{b}</p><small>Clinical reporting package</small></div></div>)}</section><section className="panel"><PanelTitle title="Evidence Available" sub="Complete FHIR resource evidence is maintained in one location" right={`${c.evidence?.length||0} resources`}/><p className="muted" style={{margin:'0 0 14px'}}>The full evidence list is available on Candidate Details, where it is paginated for easier review.</p><Link className="button secondary" to={`/candidates/${c.id}`}>View FHIR Resource Evidence <ArrowRight size={15}/></Link></section><section className="panel"><PanelTitle title="Extraction & Validation" sub="Clinical review package"/>{[['Clinical review',s.clinicalReviewStatus||'Complete'],['Extracted at',s.clinicalCompletedAt||'Demo extraction complete'],['Validation','28 valid ┬╖ 0 blocking'],['PHA destination',c.jurisdiction]].map(([a,b])=><div className="check-row" key={a}>{a}<span>{b}</span></div>)}</section></div><section className="panel pad admin-decision"><PanelTitle title="Admin Verification Decision" sub="This decision applies to this case only"/><div className="audit-note">Clinical reviewer: {s.clinicalReviewer||'Clinical Staff'} ┬╖ Completed: {s.clinicalCompletedAt||'Demo record'}<br/>Admin reviewer: {s.adminReviewer||'Not yet reviewed'} ┬╖ Decision: {s.adminDecisionAt||'Pending'}</div><div className="admin-actions"><button className="button primary" disabled={adminStatus==='Verified'||s.submissionStatus==='Submitted'} onClick={()=>update('Verified')}>Approve for Submission</button><button className="button secondary" disabled={s.submissionStatus==='Submitted'} onClick={()=>update('Returned for Correction')}>Return for Correction</button><span>Approval sets Admin Verification to Verified and Submission to Ready for Submission.</span></div></section></Page> }
 function BatchSubmission({queue,caseStates,submitBatch}) { const [selected,setSelected]=useState([]),[result,setResult]=useState(null);const rows=queue.map(id=>seedCandidates.find(c=>c.id===id)).filter(c=>c&&caseStates[c.id]?.adminVerificationStatus==='Verified'&&caseStates[c.id]?.submissionStatus==='Ready for Submission');const toggle=id=>setSelected(v=>v.includes(id)?v.filter(x=>x!==id):[...v,id]);const toggleAll=()=>setSelected(selected.length===rows.length?[]:rows.map(c=>c.id));return <Page title="Ready for Submission" subtitle="Select individually verified cases for optional grouped PHA submission."><div className="admin-callout">Grouped submission is a configurable POC demonstration. It does not imply that a PHA requires batch submission.</div><section className="panel"><PanelTitle title="Verified Cases" sub="Only Admin Verification = Verified cases are eligible" right={`${rows.length} eligible`}/><div className="batch-toolbar"><label><input type="checkbox" disabled={!rows.length} checked={rows.length>0&&selected.length===rows.length} onChange={toggleAll}/> Select All Verified</label><span>{selected.length} selected</span></div><div className="table-wrapper"><table><thead><tr><th>Select</th><th>Candidate ID</th><th>Patient</th><th>Condition</th><th>PHA Destination</th><th>Admin Verification</th><th>Submission</th></tr></thead><tbody>{rows.map(c=><tr key={c.id}><td><input type="checkbox" checked={selected.includes(c.id)} onChange={()=>toggle(c.id)}/></td><td>{c.id}</td><td>{c.patient}</td><td>{c.condition}</td><td>{c.jurisdiction}</td><td><Badge value={caseStates[c.id].adminVerificationStatus}/></td><td><Badge value={caseStates[c.id].submissionStatus}/></td></tr>)}</tbody></table></div>{!rows.length&&<div className="empty-state"><h3>No verified cases are ready</h3><p>Pending and returned cases cannot be selected. Verify cases individually first.</p><Link className="button secondary" to="/admin/reporting-queue">Open Reporting Queue</Link></div>}</section><div className="bottom-action"><span>{result?<>Created <b>{result.id}</b> ┬╖ {result.submittedAt} ┬╖ {result.pha} ┬╖ {result.ids.length} case(s) ┬╖ Awaiting Acknowledgement</>:`${selected.length} verified case(s) selected`}</span><button className="button primary" disabled={!selected.length} onClick={()=>{const batch=submitBatch(selected);setResult(batch);setSelected([])}}>Submit Selected Cases <ArrowRight size={15}/></button></div></Page> }
 function FinalAdminSubmissions({queue,caseStates,batches,setCaseState}) { const rows=queue.map(id=>seedCandidates.find(c=>c.id===id)).filter(Boolean).filter(c=>['Submitted','Acknowledged'].includes(caseStates[c.id]?.submissionStatus));return <Page title="Submission Status" subtitle="Track batch submission, PHA destination, and acknowledgement status."><section className="panel"><PanelTitle title="Submission Batches" sub="Mock submission records ┬╖ no live PHA connection" right={`${batches.length} batch(es)`}/>{batches.length?batches.map(b=><Link className="batch-card batch-link" key={b.id} to={`/admin/submissions/${b.id}`}><div><b>{b.id}</b><small>{b.submittedAt} ┬╖ {b.pha}</small></div><Badge value={b.acknowledgement}/><span>{b.ids.length} case(s)</span></Link>):<div className="empty-state"><FileCheck2 size={30}/><h3>No batch submissions yet</h3><p>Verified cases will appear in Ready for Submission.</p><Link className="button secondary" to="/admin/reporting-queue/batch">Open Ready for Submission</Link></div>}</section><section className="panel"><PanelTitle title="Submitted Cases" sub="Per-case submission status"/>{rows.map(c=>{const s=caseStates[c.id];return <div className="source-row" key={c.id}><b>{c.id} ┬╖ {c.patient} ┬╖ {s.batchId}</b><span>{s.submittedAt} ┬╖ {s.pha}</span><Badge value={s.submissionStatus}/>{s.submissionStatus==='Submitted'&&<button className="button small secondary" onClick={()=>setCaseState(c.id,{submissionStatus:'Acknowledged',status:'Acknowledged',acknowledgement:'Acknowledged'})}>Mark Acknowledged</button>}</div>})}</section></Page> }
 function BatchDetail({batches}) { const {batchId}=useParams(),b=batches.find(item=>item.id===batchId);if(!b)return <Page title="Batch not found" subtitle="No matching mock submission batch."/>;return <Page title={`Submission ${b.id}`} subtitle="Mock PHA submission details."><Crumbs active={b.id} id={b.ids?.[0]||'CAND-001'}/><section className="panel pad"><div className="info-grid">{[['BATCH ID',b.id],['SUBMITTED AT',b.submittedAt],['PHA DESTINATION',b.pha],['CASES',b.ids.length],['SUBMISSION STATUS',b.status],['ACKNOWLEDGEMENT',b.acknowledgement]].map(([a,v])=><Info key={a} label={a} value={v}/>)}</div></section>{b.ids.map(id=>{const c=seedCandidates.find(x=>x.id===id);return c&&<div className="panel batch-card" key={id}><b>{c.id} ┬╖ {c.patient}</b><span>{c.condition} ┬╖ {c.jurisdiction}</span></div>})}</Page> }
@@ -373,7 +685,7 @@ function PasswordField({id}) {
   return <span className="password-field-control">
     <input id={id} name="password" type={visible ? 'text' : 'password'} autoComplete="current-password" defaultValue={DEMO_PASSWORD} required/>
     <button type="button" className="password-visibility-toggle" aria-label={visible ? 'Hide password' : 'Show password'} aria-pressed={visible} title={visible ? 'Hide password' : 'Show password'} onClick={() => setVisible(value => !value)}>
-      {visible ? <EyeOff size={16}/> : <Eye size={16}/ >}
+      {visible ? <EyeOff size={16}/> : <Eye size={16} />}
     </button>
   </span>
 }
