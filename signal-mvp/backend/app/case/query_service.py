@@ -9,6 +9,8 @@ from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import CaseWorkflowRecord
+from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
+from backend.app.agents.deadline_escalation.service import DeadlineEscalationService
 from backend.app.case.workflow_api import _validation
 from .report_fields import available_case_report_fields, missing_report_fields
 
@@ -169,6 +171,27 @@ def list_cases(
     ]
 
     all_cases = db.query(Case).all()
+    case_by_id = {str(case.case_id): case for case in all_cases}
+    latest_escalations: dict[str, DeadlineEscalation] = {}
+    for escalation in db.query(DeadlineEscalation).order_by(DeadlineEscalation.created_at.desc()).all():
+        latest_escalations.setdefault(str(escalation.case_id), escalation)
+    deadline_rules = DeadlineCalculationService()
+    escalation_service = DeadlineEscalationService()
+    for item in items:
+        escalation = latest_escalations.get(item.case_id)
+        if item.deadline is None and escalation is not None:
+            item.deadline = escalation.deadline
+        if item.severity is None and escalation is not None and item.deadline is not None:
+            case = case_by_id.get(item.case_id)
+            try:
+                rule = deadline_rules._load_rule(
+                    disease=(case.disease or item.disease or "") if case else (item.disease or ""),
+                    jurisdiction=(escalation.jurisdiction or (case.jurisdiction if case else None) or item.jurisdiction or ""),
+                    rule_id=escalation.rule_id,
+                )
+                item.severity = escalation_service.evaluate_current_state(item.deadline, rule)["urgency"]
+            except ValueError:
+                item.severity = None
     at_risk_ids = {
         str(case.case_id)
         for case in all_cases
@@ -183,7 +206,6 @@ def list_cases(
         .all()
     )
     at_risk_ids.intersection_update(str(case.case_id) for case in all_cases)
-    case_by_id = {str(case.case_id): case for case in all_cases}
     readiness_rows = db.query(CaseWorkflowRecord).filter(
         CaseWorkflowRecord.record_type == "SUBMISSION_READINESS"
     ).order_by(CaseWorkflowRecord.created_at.desc()).all()
@@ -214,6 +236,9 @@ def list_cases(
         item.needs_review = item.case_id in review_case_ids
         item.deadline_risk = item.case_id in at_risk_ids
         item.report_ready = item.case_id in ready_case_ids
+        if item.deadline is not None and str(item.severity or "").upper() in {"HIGH", "CRITICAL"}:
+            item.deadline_risk = True
+            at_risk_ids.add(item.case_id)
 
     return CaseListResponse(
         items=items,
