@@ -1,23 +1,20 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { readReportingPreview, writeReportingPreview } from "../utils/reportingPreviewStorage.js";
 import {
   getCase,
-  getCaseValidation,
   getFormDefinition,
   renderForm,
   renderUrl,
   downloadRenderUrl,
-  updateCaseReport,
-  validateCase,
 } from "../api/signal.js";
 import "../styles/reporting-form.css";
 
 const FORM_ID = "TX_MEASLES_OUTBREAK_CRF_2025";
 const FORM_VERSION = "2025-05-07";
 const PAGE_SIZE = 5;
-const DEMO_FORM_INPUT_FIELDS = [
+const REPORTING_MISSING_INFO_FIELDS = [
   "reporting.investigated_by",
   "reporting.investigating_agency",
   "reporting.investigating_agency_email",
@@ -28,6 +25,7 @@ const pendingFormRenders = new Map();
 const responseData = (response) => response?.data ?? response;
 const toList = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isFilled = (value) => value !== null && value !== undefined && value !== "";
+const hasRequiredValue = (value) => isFilled(value) && String(value).trim() !== "";
 const isRecord = (value) => value && typeof value === "object" && !Array.isArray(value);
 
 function errorText(error) {
@@ -36,11 +34,6 @@ function errorText(error) {
   if (detail?.message) return detail.message;
   if (detail) return JSON.stringify(detail);
   return error?.message || "Request failed.";
-}
-
-function isDemoCaseData(data) {
-  return data?.facility?.facility_id === "SIGNAL-MVP-TX-DEMO"
-    && data?.patient?.source_patient_id === "PAT-HL7-001";
 }
 
 function renderFormOnce(caseId, formId, formVersion, fieldValues = {}) {
@@ -88,46 +81,6 @@ function initialFieldValue(caseData, definition) {
   return value ?? "";
 }
 
-function collectValues(value) {
-  if (Array.isArray(value)) return value.flatMap(collectValues);
-  if (isRecord(value)) {
-    return [value.field, value.path, value.name, value.message, value.detail]
-      .filter(isFilled)
-      .flatMap(collectValues);
-  }
-  return typeof value === "string" ? [value.trim()].filter(Boolean) : [];
-}
-
-function normalizeRequirements(validation, renderResult, definitions) {
-  const knownFields = new Set(toList(definitions).map((item) => item?.field).filter(Boolean));
-  const sourceValues = renderResult?.demo_mode
-    ? []
-    : [validation, validation?.data, validation?.validation].filter(Boolean);
-  const fields = [];
-  const messages = [];
-  const addField = (field) => { if (field && !fields.includes(field)) fields.push(field); };
-  const addMessage = (message) => { if (message && !messages.includes(message)) messages.push(message); };
-  const fieldKeys = ["required_missing_fields", "missing_fields", "missing_report_fields", "completion_required"];
-
-  sourceValues.forEach((source) => fieldKeys.forEach((key) => toList(source?.[key]).flatMap(collectValues).forEach((raw) => {
-    const text = String(raw).trim();
-    const provider = text.match(/provider information requires completion:\s*([a-z,\s]+)/i);
-    if (provider) {
-      provider[1].split(",").map((part) => part.trim()).filter(Boolean).forEach((part) => addField(`provider.${part}`));
-      return;
-    }
-    const reportField = text.match(/required report field (?:is )?missing:\s*([\w.]+)/i);
-    if (reportField) { addField(reportField[1]); return; }
-    if (/^facility name is missing\.?$/i.test(text)) { addField("facility.name"); return; }
-    if (/^patient date of birth is missing\.?$/i.test(text)) { addField("patient.date_of_birth"); return; }
-    if (knownFields.has(text) || /^[a-zA-Z_][\w-]*\.[a-zA-Z_][\w.-]*$/.test(text)) addField(text);
-    else addMessage(text.replace(/[.]$/, ""));
-  })));
-
-  toList(renderResult?.missing_required_fields).flatMap(collectValues).forEach(addField);
-  return { fields, messages };
-}
-
 function fieldLabel(field, definitions) {
   const metadata = toList(definitions).find((item) => item?.field === field);
   if (metadata?.label) return metadata.label;
@@ -170,10 +123,10 @@ export default function ReportingFormPage() {
   const { patientId: routePatientId = "", caseId = "" } = useParams();
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState(null);
-  const [validation, setValidation] = useState(null);
   const [formDefinition, setFormDefinition] = useState(null);
   const [renderResult, setRenderResult] = useState(null);
   const [fieldValues, setFieldValues] = useState({});
+  const [savedFieldValues, setSavedFieldValues] = useState({});
   const [visiblePage, setVisiblePage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -188,36 +141,32 @@ export default function ReportingFormPage() {
     ? `/patients/${encodeURIComponent(actualPatientId)}/case/${encodeURIComponent(caseId)}`
     : `/cases/${encodeURIComponent(caseId)}`;
   const definitions = toList(formDefinition?.fields);
-  const requirements = useMemo(() => normalizeRequirements(validation, renderResult, definitions), [validation, renderResult, definitions]);
-  const missingFields = requirements.fields;
-  const missingMessages = requirements.messages;
+  const missingFields = REPORTING_MISSING_INFO_FIELDS.filter((field) => !hasRequiredValue(savedFieldValues[field]));
+  const missingMessages = [];
   const pageCount = Math.ceil(missingFields.length / PAGE_SIZE);
   const visibleFields = missingFields.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE);
   const renderId = renderResult?.render_id;
   const pdfUrl = renderId ? renderUrl(renderId) : "";
   const downloadUrl = renderId ? downloadRenderUrl(renderId) : "";
   async function loadBackendData() {
-    const [caseResponse, validationResponse, formResponse] = await Promise.all([
+    const [caseResponse, formResponse] = await Promise.all([
       getCase(caseId),
-      getCaseValidation(caseId),
       getFormDefinition(FORM_ID),
     ]);
     const data = responseData(caseResponse);
-    const validationData = responseData(validationResponse);
     const definition = responseData(formResponse);
     setCaseData(data);
-    setValidation(validationData);
     setFormDefinition(definition);
-    const demoCase = isDemoCaseData(data);
-    const localPreview = demoCase ? readReportingPreview(caseId) : {};
+    const localPreview = readReportingPreview(caseId);
     const initialValues = Object.fromEntries(toList(definition?.fields).map((field) => [
       field.field,
-      demoCase && DEMO_FORM_INPUT_FIELDS.includes(field.field)
+      REPORTING_MISSING_INFO_FIELDS.includes(field.field)
         ? localPreview[field.field] ?? ""
         : initialFieldValue(data, field),
     ]));
     setFieldValues(initialValues);
-    return { data, validation: validationData, definition, initialValues };
+    setSavedFieldValues(initialValues);
+    return { data, definition, initialValues };
   }
 
   async function generateForm(isRegeneration = false, force = false, fieldOverrides = fieldValues) {
@@ -227,10 +176,9 @@ export default function ReportingFormPage() {
     setError("");
     setRenderResult(null);
     try {
-      const data = caseData || await getCase(caseId).then(responseData);
-      const transientValues = isDemoCaseData(data)
-        ? Object.fromEntries(DEMO_FORM_INPUT_FIELDS.map((field) => [field, fieldOverrides[field] || ""]))
-        : {};
+      const transientValues = Object.fromEntries(
+        REPORTING_MISSING_INFO_FIELDS.map((field) => [field, fieldOverrides[field] || ""])
+      );
       const rendered = responseData(await renderFormOnce(caseId, FORM_ID, FORM_VERSION, transientValues));
       if (!rendered?.render_id || (!rendered?.demo_mode && !rendered?.report_id)) throw new Error("The backend did not return the generated PDF identifier.");
       setRenderResult(rendered);
@@ -287,22 +235,15 @@ export default function ReportingFormPage() {
         setError("Enter at least one missing value before saving.");
         return;
       }
-      if (isDemoCaseData(caseData)) {
-        transientValues = { ...fieldValues, ...savedFields };
-        writeReportingPreview(caseId, Object.fromEntries(DEMO_FORM_INPUT_FIELDS.map((field) => [field, transientValues[field] ?? ""])));
-        setFieldValues(transientValues);
-        setVisiblePage(0);
-        saved = true;
-      } else {
-        await updateCaseReport(caseId, { report_fields: savedFields, reviewer_id: "reporting_user" });
-        setOperation("validate");
-        const latestValidation = responseData(await validateCase(caseId));
-        setValidation(latestValidation);
-        setOperation("reload");
-        await loadBackendData();
-        setVisiblePage(0);
-        saved = true;
-      }
+      transientValues = { ...fieldValues, ...savedFields };
+      const temporaryFields = Object.fromEntries(
+        REPORTING_MISSING_INFO_FIELDS.map((field) => [field, transientValues[field] ?? ""])
+      );
+      writeReportingPreview(caseId, temporaryFields);
+      setFieldValues(transientValues);
+      setSavedFieldValues(transientValues);
+      setVisiblePage(0);
+      saved = true;
     } catch (requestError) {
       setError(`Unable to save missing information. ${errorText(requestError)}`);
     } finally {
@@ -311,9 +252,9 @@ export default function ReportingFormPage() {
     }
     if (saved) {
       const updated = await generateForm(true, true, transientValues || fieldValues);
-      setMessage(isDemoCaseData(caseData)
-        ? (updated ? "Preview updated. These five entries are temporary and were not saved to the database." : "")
-        : "Your entries were saved. SIGNAL is regenerating the official form.");
+      setMessage(updated
+        ? "Your entries are saved in this browser session only and reset when the frontend starts again."
+        : "");
     }
   }
 
@@ -324,7 +265,7 @@ export default function ReportingFormPage() {
   return <section className="reporting-form-page">
     <header className="reporting-form-header">
       <div>
-        <button type="button" className="reporting-form-back" onClick={() => navigate(patientPath)}>← Back to Patient</button>
+        <button type="button" className="reporting-form-back" onClick={() => navigate(patientPath)}>← Back</button>
         <span className="reporting-form-eyebrow">SIGNAL · PATIENT WORKSPACE</span>
         <h1>Patient Reporting Form</h1>
         <p>Texas Measles Reporting Form · {patientName(patient)}</p>
@@ -332,8 +273,8 @@ export default function ReportingFormPage() {
     </header>
 
     {working && <SignalLoading
-      title={operation === "save" ? (isDemoCaseData(caseData) ? "Applying temporary entries" : "Saving missing information") : operation === "validate" ? "Checking saved values" : operation === "reload" || operation === "regenerate" ? "Updating the official form" : "Generating Texas Measles Reporting Form"}
-      message={operation === "save" && isDemoCaseData(caseData) ? "Applying your entries to this PDF preview only." : operation === "save" ? "Saving your entries to the case and refreshing the backend PDF." : "SIGNAL is updating the form from the saved case."}
+      title={operation === "save" ? "Saving temporary entries" : operation === "regenerate" ? "Updating the form preview" : "Generating Texas Measles Reporting Form"}
+      message={operation === "save" ? "Saving these values in this browser session only." : "SIGNAL is updating the temporary form preview."}
     />}
     {error && <div className="reporting-form-message is-error" role="alert"><strong>Reporting form error</strong><span>{error.replace(/^Unable to generate the Texas Measles Reporting Form\.\s*/, "")}</span>{error.startsWith("Unable to generate") && <button type="button" className="button" disabled={working} onClick={() => generateForm()}>Retry</button>}</div>}
     {message && <div className="reporting-form-message is-success" role="status">{message}</div>}

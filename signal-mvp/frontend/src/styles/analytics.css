@@ -1,0 +1,35 @@
+.analytics-page { --analytics-navy: #153a5b; --analytics-text: #17324d; --analytics-secondary: #6b7f93; --analytics-muted: #8a9aab; --analytics-border: #dde4ea; --analytics-orange: #ff6b3d; }
+.analytics-page .page-header { align-items: center; margin-bottom: 18px; }
+.analytics-scope { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 8px 12px; border: 1px solid var(--analytics-border); border-radius: 8px; background: #fff; color: var(--analytics-text); font-size: 12px; font-weight: 600; }
+.analytics-scope span { color: var(--analytics-muted); font-size: 11px; font-weight: 400; }
+.analytics-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.analytics-page .analytics-card { min-width: 0; padding: 15px; border: 1px solid var(--analytics-border); border-radius: 11px; background: #fff; box-shadow: 0 2px 8px rgb(23 50 77 / 4%); }
+.analytics-page .analytics-card h3 { margin: 0 0 13px; color: var(--analytics-text); font-size: 13px; font-weight: 650; }
+.analytics-kpi { min-height: 90px; }
+.analytics-kpi > span { color: var(--analytics-secondary); font-size: 10px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; }
+.analytics-kpi > strong { display: block; margin-top: 9px; color: var(--analytics-navy); font-size: 17px; font-weight: 650; line-height: 1.25; }
+.analytics-section { margin-top: 20px; }
+.analytics-section-heading { margin-bottom: 10px; }
+.analytics-section-heading h2 { margin: 0; color: var(--analytics-text); font-size: 16px; font-weight: 700; }
+.analytics-section-heading p { margin: 4px 0 0; color: var(--analytics-secondary); font-size: 11px; }
+.analytics-page .analytics-empty-card { display: grid; min-height: 104px; place-items: center; color: var(--analytics-muted); font-size: 12px; }
+.analytics-grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.analytics-bars { display: grid; gap: 13px; }
+.analytics-bar-row { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(70px, 2fr) 34px; align-items: center; gap: 10px; color: var(--analytics-secondary); font-size: 11px; }
+.analytics-bar-row strong { color: var(--analytics-text); font-size: 11px; text-align: right; }
+.analytics-bar-track { height: 7px; overflow: hidden; border-radius: 99px; background: #edf1f4; }
+.analytics-bar-track i { display: block; height: 100%; border-radius: inherit; background: #4f7fbf; }
+.analytics-metric-rows { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.analytics-metric-rows > div { display: flex; min-height: 58px; flex-direction: column; justify-content: space-between; gap: 7px; padding: 10px; border: 1px solid #edf1f4; border-radius: 8px; }
+.analytics-metric-rows span { color: var(--analytics-secondary); font-size: 10px; }
+.analytics-metric-rows strong { color: var(--analytics-text); font-size: 12px; font-weight: 650; }
+.analytics-lifecycle { display: flex; min-height: 105px; align-items: center; justify-content: space-between; gap: 5px; overflow-x: auto; }
+.analytics-lifecycle > div { display: flex; min-width: max-content; align-items: center; gap: 5px; }
+.analytics-stage { padding: 7px 8px; border: 1px solid var(--analytics-border); border-radius: 7px; color: var(--analytics-text); font-size: 10px; }
+.analytics-lifecycle strong { color: var(--analytics-muted); font-size: 9px; font-weight: 500; }
+.analytics-arrow { color: var(--analytics-muted); }
+.analytics-empty { margin: 0; color: var(--analytics-muted); font-size: 11px; }
+.analytics-state, .analytics-error { margin-top: 14px; padding: 22px; border: 1px solid var(--analytics-border); border-radius: 10px; background: #fff; color: var(--analytics-secondary); font-size: 12px; text-align: center; }
+.analytics-error { border-color: #e05252; background: #fdecec; color: #a42d2d; }
+@media (max-width: 900px) { .analytics-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 650px) { .analytics-page .page-header { align-items: flex-start; } .analytics-scope { align-items: flex-start; flex-direction: column; gap: 4px; } .analytics-grid-two { grid-template-columns: 1fr; } .analytics-lifecycle { justify-content: flex-start; } }

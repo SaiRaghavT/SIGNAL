@@ -1,0 +1,753 @@
+﻿/* =========================================================
+   SIGNAL — AI GOVERNANCE
+   Scoped exclusively to .ai-governance-page
+========================================================= */
+
+.ai-governance-page {
+  background: #f7f9fa;
+  color: #17324d;
+  min-height: 100%;
+  padding-bottom: 40px;
+}
+
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
+.ai-governance-page .page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.ai-governance-page .page-heading h1 {
+  margin: 0;
+  color: #153a5b;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ai-governance-page .page-heading p {
+  margin: 6px 0 0;
+  color: #6b7f93;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   INFORMATION NOTE
+========================================================= */
+
+.ai-governance-page > .note {
+  margin-bottom: 14px;
+}
+
+.ai-governance-page .note {
+  color: #6b7f93;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.ai-governance-page .note:not(.gov-callout .note) {
+  background: #eef4fb;
+  border: 1px solid #d8e5f2;
+  border-radius: 7px;
+  padding: 9px 11px;
+}
+
+/* =========================================================
+   TABS
+========================================================= */
+
+.ai-governance-page .gov-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #dde4ea;
+  overflow-x: auto;
+}
+
+.ai-governance-page .gov-tabs a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  color: #6b7f93;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.ai-governance-page .gov-tabs a:hover {
+  color: #153a5b;
+}
+
+.ai-governance-page .gov-tabs a.selected {
+  color: #ff6b3d;
+  border-bottom-color: #ff6b3d;
+}
+
+/* =========================================================
+   ALERT
+========================================================= */
+
+.ai-governance-page .alert-banner {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #f0cccc;
+  border-radius: 7px;
+  background: #fdecec;
+  color: #a93636;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* =========================================================
+   METRICS
+========================================================= */
+
+.ai-governance-page .gov-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ai-governance-page .metric-card {
+  position: relative;
+  min-height: 102px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #dde4ea;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(23, 50, 77, 0.04);
+  overflow: hidden;
+}
+
+.ai-governance-page .metric-card > span {
+  display: block;
+  padding-right: 22px;
+  color: #6b7f93;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1.35;
+}
+
+.ai-governance-page .metric-card > strong {
+  display: block;
+  margin-top: 8px;
+  color: #153a5b;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.ai-governance-page .metric-card > small {
+  display: block;
+  margin-top: 7px;
+  padding-right: 18px;
+  color: #8a9aab;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.ai-governance-page .metric-spark {
+  position: absolute;
+  right: 13px;
+  top: 13px;
+  color: #ff6b3d;
+  opacity: 0.75;
+}
+
+/* =========================================================
+   PANELS
+========================================================= */
+
+.ai-governance-page .panel {
+  margin-bottom: 14px;
+  background: #ffffff;
+  border: 1px solid #dde4ea;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(23, 50, 77, 0.035);
+  overflow: hidden;
+}
+
+.ai-governance-page .panel.pad {
+  padding: 15px;
+}
+
+.ai-governance-page .panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 15px;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.ai-governance-page .panel-header > div {
+  min-width: 0;
+}
+
+.ai-governance-page .panel-header h3 {
+  margin: 0;
+  color: #153a5b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ai-governance-page .panel-header p {
+  margin: 4px 0 0;
+  color: #6b7f93;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ai-governance-page .muted {
+  color: #8a9aab;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   WORKFLOW COMPONENTS
+========================================================= */
+
+.ai-governance-page .ai-architecture {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+
+.ai-governance-page .agent-card {
+  display: block;
+  min-width: 0;
+  padding: 13px;
+  background: #ffffff;
+  border: 1px solid #dde4ea;
+  border-radius: 7px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.ai-governance-page .agent-card:hover {
+  border-color: #ff6b3d;
+  box-shadow: 0 3px 10px rgba(23, 50, 77, 0.07);
+  transform: translateY(-1px);
+}
+
+.ai-governance-page .agent-card > b {
+  display: block;
+  color: #153a5b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.ai-governance-page .agent-card > p {
+  min-height: 34px;
+  margin: 6px 0 10px;
+  color: #6b7f93;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.ai-governance-page .agent-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-governance-page .agent-card small {
+  color: #8a9aab;
+  font-size: 9px;
+}
+
+/* =========================================================
+   BADGES
+========================================================= */
+
+.ai-governance-page .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 21px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid #dde4ea;
+  background: #f5f7f8;
+  color: #6b7f93;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.ai-governance-page .badge.success,
+.ai-governance-page .badge.succeeded,
+.ai-governance-page .badge.available,
+.ai-governance-page .badge.configured,
+.ai-governance-page .badge.observed {
+  background: #e8f7f0;
+  border-color: #c8eadb;
+  color: #1a805c;
+}
+
+.ai-governance-page .badge.failure,
+.ai-governance-page .badge.failed,
+.ai-governance-page .badge.error {
+  background: #fdecec;
+  border-color: #f2cece;
+  color: #c44343;
+}
+
+.ai-governance-page .badge.warning,
+.ai-governance-page .badge.pending,
+.ai-governance-page .badge.insufficient-data {
+  background: #fff4e5;
+  border-color: #f2dfbf;
+  color: #b36a11;
+}
+
+.ai-governance-page .badge.running,
+.ai-governance-page .badge.active {
+  background: #eef4fb;
+  border-color: #d7e4f1;
+  color: #4f7fbf;
+}
+
+.ai-governance-page .badge.not-available,
+.ai-governance-page .badge.not-configured,
+.ai-governance-page .badge.simulated,
+.ai-governance-page .badge.not-evaluated {
+  background: #f5f7f8;
+  border-color: #dde4ea;
+  color: #7b8996;
+}
+
+/* =========================================================
+   FILTERS
+========================================================= */
+
+.ai-governance-page .gov-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.ai-governance-page .gov-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #5f7285;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ai-governance-page .gov-filters input,
+.ai-governance-page .gov-filters select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 9px;
+  background: #ffffff;
+  border: 1px solid #d7e0e7;
+  border-radius: 5px;
+  color: #17324d;
+  font-size: 11px;
+  outline: none;
+}
+
+.ai-governance-page .gov-filters input::placeholder {
+  color: #a0adb9;
+}
+
+.ai-governance-page .gov-filters input:focus,
+.ai-governance-page .gov-filters select:focus {
+  border-color: #ff6b3d;
+  box-shadow: 0 0 0 2px rgba(255, 107, 61, 0.1);
+}
+
+/* =========================================================
+   TABLES
+========================================================= */
+
+.ai-governance-page .table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ai-governance-page table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.ai-governance-page th {
+  padding: 9px 11px;
+  background: #f7f9fa;
+  border-bottom: 1px solid #dde4ea;
+  color: #6b7f93;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ai-governance-page td {
+  padding: 10px 11px;
+  border-bottom: 1px solid #edf1f4;
+  color: #425a70;
+  font-size: 10px;
+  line-height: 1.45;
+  vertical-align: top;
+}
+
+.ai-governance-page tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ai-governance-page tbody tr:hover {
+  background: #fbfcfd;
+}
+
+.ai-governance-page td a,
+.ai-governance-page .governance-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #d95732;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ai-governance-page td a:hover,
+.ai-governance-page .governance-link:hover {
+  color: #ff6b3d;
+  text-decoration: underline;
+}
+
+/* =========================================================
+   SOURCE / AUDIT ROWS
+========================================================= */
+
+.ai-governance-page .source-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 15px;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.ai-governance-page .source-row:last-child {
+  border-bottom: 0;
+}
+
+.ai-governance-page .source-row b {
+  color: #17324d;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.ai-governance-page .source-row span {
+  color: #6b7f93;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.ai-governance-page .source-row small {
+  color: #8a9aab;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+.ai-governance-page .cases-empty {
+  padding: 18px 15px;
+  color: #7b8996;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   GOVERNANCE CALLOUT
+========================================================= */
+
+.ai-governance-page .gov-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #eef4fb;
+  border-color: #d7e4f1;
+}
+
+.ai-governance-page .gov-callout > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #4f7fbf;
+}
+
+.ai-governance-page .gov-callout b {
+  display: block;
+  color: #153a5b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ai-governance-page .gov-callout p {
+  margin: 5px 0 0;
+  color: #5f7285;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+/* =========================================================
+   TRACE FLOW
+========================================================= */
+
+.ai-governance-page .trace-flow {
+  display: flex;
+  gap: 8px;
+  padding: 14px;
+  overflow-x: auto;
+}
+
+.ai-governance-page .trace-item {
+  position: relative;
+  flex: 1 0 145px;
+  min-height: 92px;
+  padding: 11px;
+  background: #f8fafb;
+  border: 1px solid #dde4ea;
+  border-radius: 7px;
+}
+
+.ai-governance-page .trace-item > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: #fff0eb;
+  color: #ff6b3d;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.ai-governance-page .trace-item > b {
+  display: block;
+  color: #17324d;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.ai-governance-page .trace-item > p {
+  margin: 5px 0 0;
+  color: #5f7285;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.ai-governance-page .trace-item > small {
+  display: block;
+  margin-top: 5px;
+  color: #8a9aab;
+  font-size: 8px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   INFO GRID
+========================================================= */
+
+.ai-governance-page .info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: #dde4ea;
+  border-top: 1px solid #dde4ea;
+}
+
+.ai-governance-page .info {
+  min-width: 0;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.ai-governance-page .info small {
+  display: block;
+  color: #8a9aab;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+}
+
+.ai-governance-page .info b {
+  display: block;
+  margin-top: 5px;
+  color: #17324d;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   AGENT DETAIL
+========================================================= */
+
+.ai-governance-page .agent-detail {
+  overflow: hidden;
+}
+
+/* =========================================================
+   AUDIT PANEL
+========================================================= */
+
+.ai-governance-page .audit-panel {
+  overflow: hidden;
+}
+
+.ai-governance-page .audit-panel .source-row {
+  grid-template-columns:
+    minmax(180px, 1fr)
+    minmax(180px, 1fr)
+    minmax(200px, 1.4fr);
+}
+
+/* =========================================================
+   OUTCOME LEARNING
+========================================================= */
+
+.ai-governance-page .learning-flow {
+  overflow: hidden;
+}
+
+.ai-governance-page .learning-flow .trace-flow {
+  padding-top: 12px;
+}
+
+.ai-governance-page .learning-flow .trace-item {
+  min-height: 72px;
+}
+
+.ai-governance-page .learning-flow .trace-item > b {
+  margin-top: 2px;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1200px) {
+  .ai-governance-page .gov-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ai-governance-page .ai-architecture {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ai-governance-page .gov-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ai-governance-page .info-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .ai-governance-page .gov-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ai-governance-page .gov-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ai-governance-page .source-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .ai-governance-page .info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .ai-governance-page .page-heading h1 {
+    font-size: 20px;
+  }
+
+  .ai-governance-page .gov-tabs {
+    margin-left: -4px;
+    margin-right: -4px;
+  }
+
+  .ai-governance-page .gov-tabs a {
+    padding: 0 9px;
+  }
+
+  .ai-governance-page .gov-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-governance-page .ai-architecture {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-governance-page .gov-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-governance-page .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-governance-page .panel-header {
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .ai-governance-page .trace-flow {
+    flex-direction: column;
+  }
+
+  .ai-governance-page .trace-item {
+    flex: none;
+    width: 100%;
+  }
+}

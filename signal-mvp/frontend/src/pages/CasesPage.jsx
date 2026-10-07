@@ -200,7 +200,7 @@ export function CasesPage() {
     <section className="cases-page">
       <PageHeader
         title="Cases"
-        subtitle="Manage the complete lifecycle of reportable-condition cases from candidate detection through disposition and audit."
+        subtitle="Manage the complete lifecycle of reportable-condition cases from patient detection through disposition and audit."
       />
 
       {loading ? (
@@ -211,9 +211,9 @@ export function CasesPage() {
         <>
           <div className="cases-kpi-grid" aria-label="Case metrics">
             <article className="cases-kpi candidate">
-              <span className="cases-kpi-label">CANDIDATE CASES</span>
+              <span className="cases-kpi-label">PATIENT CASES</span>
               <strong className="cases-kpi-value">{counts.all}</strong>
-              <span className="cases-kpi-description">Evidence-linked candidates</span>
+              <span className="cases-kpi-description">Patients with linked evidence</span>
             </article>
             <article className="cases-kpi deadline">
               <span className="cases-kpi-label">AT-RISK DEADLINES</span>

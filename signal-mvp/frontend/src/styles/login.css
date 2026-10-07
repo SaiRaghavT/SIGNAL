@@ -89,6 +89,27 @@
 }
 .login-form-group input:focus { outline: 2px solid rgb(255 112 67 / 20%); border-color: var(--login-orange); }
 .login-form-group input::placeholder { color: #9aa6a1; }
+.login-password-field { position: relative; }
+.login-password-field input { padding-right: 48px; }
+.password-visibility-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #687771;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+.password-visibility-toggle:hover:not(:disabled) { background: #f0f3f4; color: var(--login-navy); }
+.password-visibility-toggle:focus-visible { outline: 3px solid rgb(255 112 67 / 32%); outline-offset: 1px; }
+.password-visibility-toggle:disabled { cursor: wait; opacity: .6; }
 .login-options { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #687771; }
 .login-options label { display: flex; align-items: center; gap: 7px; }
 .login-options input { accent-color: var(--login-orange); }

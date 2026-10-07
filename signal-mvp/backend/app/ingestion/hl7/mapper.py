@@ -53,10 +53,10 @@ def _extract_component(
 
     Example:
 
-        DOE^JOHN^A
+        PATIENT^SAMPLE^A
 
-    component 0 -> DOE
-    component 1 -> JOHN
+    component 0 -> PATIENT
+    component 1 -> SAMPLE
     component 2 -> A
     """
 

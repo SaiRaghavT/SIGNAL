@@ -262,7 +262,7 @@ const governanceService = {
       explainability_coverage: relevant.filter(item => (item.evidence || []).length > 0).length,
       outcome_learning_signals: data.cases.filter(item => relevantDisease(item.disease) && isTexas(item.jurisdiction)).length,
       configured_agents: configured,
-      data_label: 'Live backend component status, persisted candidate/case records, and workflow audit events',
+      data_label: 'Live backend component status, persisted patient/case records, and workflow audit events',
     }
   },
 }

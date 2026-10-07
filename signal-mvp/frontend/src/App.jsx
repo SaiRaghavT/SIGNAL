@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+﻿import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Patients from "./pages/Patients.jsx";
@@ -25,7 +25,27 @@ import {
   MonitoringPage,
   OutcomeLearningPage,
 } from "./pages/AiGovernance.jsx";
-import "./styles/ai-governance.css";
+import "./styles/ai-governance-feature.css";
+import "./styles/AiGovernance.css";
+
+// Clear temporary workflow values whenever the frontend boots. These values
+// survive route changes, but a frontend restart starts a clean local session.
+if (typeof window !== "undefined") {
+  const transientPrefixes = [
+    "signal:missing-information:",
+    "signal:reporting-preview:",
+    "signal:case-workflow-session:",
+    "signal:demo-workflow:",
+  ];
+  for (const storage of [window.sessionStorage, window.localStorage]) {
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (key && transientPrefixes.some((prefix) => key.startsWith(prefix))) {
+        storage.removeItem(key);
+      }
+    }
+  }
+}
 
 export default function App() {
   return (
@@ -67,3 +87,4 @@ export default function App() {
     </Routes>
   );
 }
+

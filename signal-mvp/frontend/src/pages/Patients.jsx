@@ -5,10 +5,9 @@ import { PageHeader } from "../components/ui/PageHeader.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import "../styles/patients.css";
 
-const API_PAGE_SIZE = 100;
 const PAGE_SIZE = 10;
-const EMPTY_VALUE = "—";
 const CONDITION_FILTER = "measles";
+const EMPTY_VALUE = "—";
 
 function formatDate(value) {
   if (!value) return EMPTY_VALUE;
@@ -64,19 +63,11 @@ function visiblePages(currentPage, totalPages) {
 
 export default function Patients() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [facility, setFacility] = useState("");
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => window.clearTimeout(timeoutId);
-  }, [search]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -87,9 +78,8 @@ export default function Patients() {
       setError(null);
       try {
         const response = await listCanonicalPatients({
-          page: 1,
-          page_size: API_PAGE_SIZE,
-          facility: facility || undefined,
+          page,
+          page_size: PAGE_SIZE,
           condition: CONDITION_FILTER,
           signal: controller.signal,
         });
@@ -106,33 +96,12 @@ export default function Patients() {
       active = false;
       controller.abort();
     };
-  }, [facility, refreshKey]);
+  }, [page, refreshKey]);
 
-  function updateSearch(value) {
-    setSearch(value);
-    setPage(1);
-  }
-
-  function updateFacility(value) {
-    setFacility(value);
-    setPage(1);
-  }
-
-  const patients = Array.isArray(result?.items) ? result.items : [];
-  const searchTerm = debouncedSearch.toLocaleLowerCase();
-  const filteredPatients = searchTerm
-    ? patients.filter((patient) => [
-      patient.first_name,
-      patient.last_name,
-      patient.source_patient_id,
-      patient.date_of_birth,
-      patient.condition,
-    ].filter(Boolean).join(" ").toLocaleLowerCase().includes(searchTerm))
-    : patients;
-  const totalPages = Math.ceil(filteredPatients.length / PAGE_SIZE);
-  const visiblePatients = filteredPatients.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const firstVisiblePatient = filteredPatients.length ? (page - 1) * PAGE_SIZE + 1 : 0;
-  const lastVisiblePatient = Math.min(page * PAGE_SIZE, filteredPatients.length);
+  const visiblePatients = Array.isArray(result?.items) ? result.items : [];
+  const totalPages = result?.pages || 0;
+  const firstVisiblePatient = result?.total ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const lastVisiblePatient = Math.min(page * PAGE_SIZE, result?.total || 0);
 
   return (
     <section className="patients-page">
@@ -153,29 +122,8 @@ export default function Patients() {
       </PageHeader>
 
       <div className="patients-card">
-        <div className="patients-toolbar">
-          <label className="patients-search">
-            <span className="sr-only">Search patients</span>
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => updateSearch(event.target.value)}
-              placeholder="Search patient, ID, DOB..."
-            />
-          </label>
-          <label className="patients-facility">
-            <span className="sr-only">Filter by facility</span>
-            <select value={facility} onChange={(event) => updateFacility(event.target.value)}>
-              <option value="">All Facilities</option>
-              {(result?.facilities || []).map((facilityName) => (
-                <option key={facilityName} value={facilityName}>{facilityName}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
         {loading ? (
-          <SignalLoading title="Loading patients..." message="Retrieving canonical patient records." />
+          <SignalLoading title="Loading patients..." message="Retrieving patient records." />
         ) : error ? (
           <div className="patients-error" role="alert">
             <p>Unable to load patients.</p>
@@ -185,7 +133,6 @@ export default function Patients() {
         ) : visiblePatients.length === 0 ? (
           <div className="patients-empty">
             <strong>No patients found</strong>
-            {(debouncedSearch || facility) && <p>No patients match the current search or facility filter.</p>}
           </div>
         ) : (
           <>
@@ -239,7 +186,7 @@ export default function Patients() {
 
             <nav className="patients-pagination" aria-label="Patient pages">
               <span className="patients-count">
-                Showing {firstVisiblePatient}–{lastVisiblePatient} of {filteredPatients.length} patients
+                Showing {firstVisiblePatient}–{lastVisiblePatient} of {result?.total || 0} patients
               </span>
               <div className="patients-page-controls">
                 <button type="button" onClick={() => setPage((current) => current - 1)} disabled={page <= 1}>Previous</button>

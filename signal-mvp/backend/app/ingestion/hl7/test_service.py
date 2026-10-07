@@ -13,8 +13,8 @@ from backend.app.models.patient import Patient
 SAMPLE_HL7 = (
     "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
     "202609281200||ORU^R01|MSG00001|P|2.5.1\r"
-    "PID|1||PAT-HL7-001^^^HOSPITAL||"
-    "DOE^JOHN||19900101|M\r"
+    "PID|1||PAT-HL7-TEST-001^^^HOSPITAL||"
+    "PATIENT^SAMPLE||19850505|M\r"
     "PV1|1|I|ER^01^01||||"
     "12345^SMITH^JANE\r"
     "ORC|RE|ORDER-HL7-001\r"
@@ -49,7 +49,7 @@ def test_ingest_hl7_message():
                 select(Patient).where(
                     Patient.source == "hl7",
                     Patient.source_patient_id
-                    == "PAT-HL7-001",
+                    == "PAT-HL7-TEST-001",
                 )
             )
             .scalar_one()
@@ -60,7 +60,7 @@ def test_ingest_hl7_message():
                 select(Encounter).where(
                     Encounter.source == "hl7",
                     Encounter.source_encounter_id
-                    == "hl7-encounter-PAT-HL7-001",
+                    == "hl7-encounter-PAT-HL7-TEST-001",
                 )
             )
             .scalar_one()
@@ -88,8 +88,8 @@ def test_ingest_hl7_message():
             .scalar_one()
         )
 
-        assert patient.first_name == "JOHN"
-        assert patient.last_name == "DOE"
+        assert patient.first_name == "SAMPLE"
+        assert patient.last_name == "PATIENT"
         assert encounter.patient_id == patient.patient_id
         assert observation.patient_id == patient.patient_id
         assert observation.encounter_id == encounter.encounter_id
@@ -112,7 +112,7 @@ def test_invalid_hl7_is_rejected_before_persistence():
     invalid_hl7 = (
         "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
         "202609281200||ORU^R01|MSG-INVALID|P|2.5.1\r"
-        "PID|1||||DOE^JOHN||19900101|M"
+        "PID|1||||PATIENT^SAMPLE||19850505|M"
     )
 
     db = SessionLocal()
@@ -139,7 +139,7 @@ def test_invalid_hl7_is_rejected_before_persistence():
                 select(Patient).where(
                     Patient.source == "hl7",
                     Patient.source_patient_id
-                    == "DOE",
+                    == "PATIENT",
                 )
             )
             .scalar_one_or_none()

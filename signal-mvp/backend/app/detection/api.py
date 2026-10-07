@@ -13,6 +13,8 @@ from backend.app.canonical.query_service import (
     get_patient_context,
 )
 from backend.app.database import get_db
+from backend.app.config.demo import DEMO_PATIENT_SOURCE_ID
+from backend.app.config.settings import settings
 from backend.app.candidate.service import persist_detection_candidates
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
@@ -55,6 +57,11 @@ def detect_patient_candidates(
 
     normalized_patient = canonical_context_to_detection_input(context)
 
+    uploaded_document_count = sum(
+        1
+        for document in context.get("clinical_documents", [])
+        if (document.get("provenance") or {}).get("source") == "document_upload"
+    )
     documents = process_documents(
         context.get("clinical_documents", [])
     )
@@ -80,7 +87,7 @@ def detect_patient_candidates(
 
         except RuntimeError as exc:
             print(
-                f"❌ DOCUMENT EVIDENCE CONFIG ERROR: "
+                f"DOCUMENT EVIDENCE CONFIG ERROR: "
                 f"{type(exc).__name__}: {exc}"
             )
             document_evidence_status = "failed"
@@ -88,7 +95,7 @@ def detect_patient_candidates(
 
         except Exception as exc:
             print(
-                f"❌ DOCUMENT EVIDENCE ERROR: "
+                f"DOCUMENT EVIDENCE ERROR: "
                 f"{type(exc).__name__}: {exc}"
             )
             document_evidence_status = "failed"
@@ -102,11 +109,12 @@ def detect_patient_candidates(
 
         result["document_evidence_status"] = document_evidence_status
         result["document_evidence_count"] = len(document_evidence)
+        result["uploaded_document_count"] = uploaded_document_count
         if document_evidence_error:
             result["document_evidence_error"] = document_evidence_error
         completed_at = datetime.now(timezone.utc)
         is_demo_patient = (
-            (context.get("patient") or {}).get("source_patient_id") == "PAT-HL7-001"
+            (context.get("patient") or {}).get("source_patient_id") == DEMO_PATIENT_SOURCE_ID
         )
         result["detection_run"] = {
             "status": "PREVIEW" if is_demo_patient else "COMPLETED",
@@ -115,7 +123,7 @@ def detect_patient_candidates(
         }
         result["demo_mode"] = is_demo_patient
         if is_demo_patient:
-            # The John Doe demo run is a session preview. Do not persist its
+            # The configured demo run is a session preview. Do not persist its
             # candidates or a completion event just because Run Detection ran.
             result["candidates"] = [
                 {**candidate, "status": "PREVIEW"}
@@ -175,6 +183,29 @@ def _document_ai_error_message(exc: Exception) -> str:
             "finish. Your uploaded document is saved. Try detection again shortly; "
             "structured record detection may still have completed."
         )
+    if any(marker in message for marker in ("api key", "api_key", "unauthorized", "permission denied", "403")):
+        return (
+            "The AI provider rejected the configured credentials or model access. "
+            "Check the local provider key and selected model, then restart the backend. "
+            "Your uploaded document is saved; structured record detection may still have completed."
+        )
+    if any(marker in message for marker in ("model not found", "not found", "404", "unsupported model")):
+        return (
+            "The configured AI model is unavailable to this provider account. "
+            "Select a currently available model in the local environment and restart the backend. "
+            "Your uploaded document is saved; structured record detection may still have completed."
+        )
+    detail = " ".join(str(exc).split())
+    for secret in (settings.gemini_api_key, settings.groq_api_key):
+        if secret:
+            detail = detail.replace(secret, "[redacted]")
+    detail = detail[:240]
+    if detail:
+        return (
+            f"AI document analysis failed ({type(exc).__name__}: {detail}). "
+            "Your uploaded document is saved. Check the backend terminal for the full error; "
+            "structured record detection may still have completed."
+        )
     return (
         "AI document analysis failed, so uploaded documents were not included in "
         "this detection run. Your documents are saved. Try again or check the "
@@ -192,7 +223,7 @@ def persist_selected_demo_candidate(
         context = get_patient_context(db=db, patient_id=request.patient_id)
     except CanonicalPatientNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    if (context.get("patient") or {}).get("source_patient_id") != "PAT-HL7-001":
+    if (context.get("patient") or {}).get("source_patient_id") != DEMO_PATIENT_SOURCE_ID:
         raise HTTPException(status_code=403, detail="This endpoint is only for the SIGNAL demo patient.")
 
     candidate = dict(request.candidate)
@@ -252,7 +283,7 @@ def extract_patient_evidence(
 
     except Exception as exc:
         print(
-            f"❌ EVIDENCE EXTRACTION ERROR: "
+            f"EVIDENCE EXTRACTION ERROR: "
             f"{type(exc).__name__}: {exc}"
         )
 

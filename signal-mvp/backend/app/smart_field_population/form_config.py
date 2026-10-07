@@ -1,10 +1,13 @@
-DEMO_FORM_INPUT_FIELDS = [
+REPORTING_MISSING_INFO_FIELDS = [
     "reporting.investigated_by",
     "reporting.investigating_agency",
     "reporting.investigating_agency_email",
     "reporting.investigating_agency_phone",
     "reporting.investigation_start_date",
 ]
+
+# Kept as a compatibility alias for the demo preview path.
+DEMO_FORM_INPUT_FIELDS = REPORTING_MISSING_INFO_FIELDS
 
 
 TEXAS_MEASLES_FORM = {

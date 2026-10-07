@@ -320,11 +320,11 @@ def test_candidate_explicit_clinical_event_time_is_used_without_using_created_at
 def test_measles_case_only_qualifies_and_preserves_deadline_rule_distinction():
     db = _session()
     patient_id = UUID("910b69db-2c7d-47c1-88d2-18558376601d")
-    deadline = datetime(2026, 10, 5, 21, 21, 32, 560284, tzinfo=timezone(timedelta(hours=5, minutes=30)))
-    event_time = datetime(2026, 10, 4, 15, 30, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+    deadline = datetime(2026, 10, 4, 15, 30, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+    event_time = datetime(2026, 10, 3, 15, 30, tzinfo=timezone(timedelta(hours=5, minutes=30)))
     patient = Patient(
-        patient_id=patient_id, source_patient_id="PAT-HL7-001", first_name="JOHN",
-        last_name="DOE", date_of_birth=date(1990, 1, 1), state="TX",
+        patient_id=patient_id, source_patient_id="TEST-MEASLES-001", first_name="SAMPLE",
+        last_name="PATIENT", date_of_birth=date(1985, 5, 5), state="TX",
         source="test", source_resource="Patient",
     )
     candidate_id = str(uuid4())
@@ -332,17 +332,17 @@ def test_measles_case_only_qualifies_and_preserves_deadline_rule_distinction():
     db.add(patient)
     db.flush()
     db.add(Candidate(
-        candidate_id=candidate_id, detection_key="john-doe-measles",
+        candidate_id=candidate_id, detection_key="sample-patient-measles",
         patient_id=str(patient_id), disease_id="measles", jurisdiction="TX",
         case_id=case_id, detection_source="LAB_RESULT", status="PROCESSED",
     ))
     observation = Observation(
-        observation_id=uuid4(), source_observation_id="john-doe-observation",
+        observation_id=uuid4(), source_observation_id="sample-patient-observation",
         patient_id=patient_id, observation_display="Measles IgM", value_text="Positive",
         effective_time=event_time, source="test", source_resource="Observation",
     )
     db.add_all([observation, LabResult(
-        lab_result_id=uuid4(), source_lab_result_id="john-doe-lab",
+        lab_result_id=uuid4(), source_lab_result_id="sample-patient-lab",
         patient_id=patient_id, test_display="Measles IgM", conclusion="Positive",
         effective_time=event_time, issued_time=event_time, source="test",
         source_resource="DiagnosticReport", observations=[observation],
@@ -366,7 +366,7 @@ def test_measles_case_only_qualifies_and_preserves_deadline_rule_distinction():
     assert result["total"] == 1
     assert len({item["patient_id"] for item in result["items"]}) == 1
     john = result["items"][0]
-    assert john["source_patient_id"] == "PAT-HL7-001"
+    assert john["source_patient_id"] == "TEST-MEASLES-001"
     assert john["condition"] == "Measles"
     assert john["deadline"]["deadline"] == deadline
     assert john["deadline"]["disease"] == "measles"

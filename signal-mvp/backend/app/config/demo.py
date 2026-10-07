@@ -1,7 +1,7 @@
 """Stable identifiers for SIGNAL's controlled Texas demo dataset."""
 
 DEMO_FACILITY_ID = "SIGNAL-MVP-TX-DEMO"
-DEMO_PATIENT_SOURCE_ID = "PAT-HL7-001"
+DEMO_PATIENT_SOURCE_ID = "SIGNAL-DEMO-TX-002"
 
 
 def is_demo_case(case) -> bool:

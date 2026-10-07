@@ -10,7 +10,10 @@ from backend.app.ecr.builder import build_ecr
 from backend.app.models.case import Case
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.schemas.validation import validate_ecr
-from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
+from backend.app.smart_field_population.form_config import (
+    REPORTING_MISSING_INFO_FIELDS,
+    TEXAS_MEASLES_FORM,
+)
 
 from .report_fields import is_missing, missing_report_fields
 from .schemas import CaseReportUpdateRequest, CaseReportUpdateResponse
@@ -30,6 +33,12 @@ def update_case_report(
     unknown_fields = sorted(set(request.report_fields) - allowed_fields)
     if unknown_fields:
         raise ValueError(f"Unknown report fields: {', '.join(unknown_fields)}")
+    transient_fields = sorted(set(request.report_fields) & set(REPORTING_MISSING_INFO_FIELDS))
+    if transient_fields:
+        raise ValueError(
+            "These missing-information values are browser-session only and cannot be saved to the case: "
+            + ", ".join(transient_fields)
+        )
 
     changed_fields = sorted(request.report_fields)
     report_updates = {key: value for key, value in request.report_fields.items() if not key.startswith(("provider.", "facility."))}

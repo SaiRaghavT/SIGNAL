@@ -168,9 +168,9 @@ function getValidationStatus(validation) {
   }
 
   if (
-    validation.status === "VALID" &&
     validation.valid === true &&
-    validation.ready_for_review === true
+    validation.ready_for_review === true &&
+    validation.status !== "INVALID"
   ) {
     return "VALID";
   }
@@ -545,11 +545,14 @@ export default function CaseWorkspacePage() {
     validationStatus === "VALID" &&
     validation?.ready_for_review === true;
 
-  const canSubmitToQueue =
-    readyForReview &&
+  const workflowConfirmed =
     reviewApproved &&
     attested &&
     reviewChecked;
+
+  const canSubmitToQueue =
+    readyForReview &&
+    workflowConfirmed;
 
 
   /* =======================================================
@@ -797,11 +800,11 @@ export default function CaseWorkspacePage() {
       const result = await markSubmissionReady(caseId, {
         actor_id: reviewer.id,
         review_confirmed: true,
-        review_decision: review?.status,
+        review_decision: reviewApproved ? "APPROVE" : reviewDecision,
         attestation_confirmed: true,
       });
       const queueResult = result?.data ?? result;
-      if (queueResult?.ready !== true || queueResult?.record?.status !== "READY") {
+      if (queueResult?.ready !== true || !["READY", "QUEUED"].includes(queueResult?.record?.status)) {
         throw new Error("SIGNAL did not confirm that this case is ready for the reporting queue.");
       }
       const patientId = routePatientId || data?.patient?.patient_id || data?.patient_id;
@@ -810,8 +813,19 @@ export default function CaseWorkspacePage() {
         : `/cases/${encodeURIComponent(caseId)}/queue`;
       navigate(queuePath, { state: { queueResult } });
     } catch (requestError) {
-      const detail = requestError?.response?.data?.detail;
-      setError(typeof detail === "string" ? detail : detail?.message || requestError?.message || "Unable to confirm queue readiness.");
+      const detail = requestError?.data?.detail;
+      const validation = detail?.validation;
+      const incompleteFields = [
+        ...(validation?.missing_fields || []),
+        ...(validation?.completion_required || []),
+      ].filter(Boolean);
+      const uniqueIncompleteFields = [...new Set(incompleteFields.map(String))];
+      const validationMessage = uniqueIncompleteFields.length
+        ? ` Complete these required fields first: ${uniqueIncompleteFields.join("; ")}`
+        : "";
+      setError(
+        `${typeof detail === "string" ? detail : detail?.message || requestError?.message || "Unable to confirm queue readiness."}${validationMessage}`
+      );
     } finally {
       setBusy("");
     }
@@ -1816,7 +1830,7 @@ export default function CaseWorkspacePage() {
           className="review-validation-submit"
           disabled={
             busy !== "" ||
-            !canSubmitToQueue
+            !workflowConfirmed
           }
           onClick={
             submitToQueue

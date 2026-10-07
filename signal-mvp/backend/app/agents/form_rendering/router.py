@@ -10,12 +10,15 @@ from .schemas import (
     FormRenderingResponse,
 )
 from .service import FormRenderingService, get_rendered_pdf_path
-from backend.app.smart_field_population.form_config import DEMO_FORM_INPUT_FIELDS, TEXAS_MEASLES_FORM
+from backend.app.smart_field_population.form_config import (
+    REPORTING_MISSING_INFO_FIELDS,
+    TEXAS_MEASLES_FORM,
+)
 from backend.app.database import get_db
 from backend.app.models.case import Case
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
-from backend.app.case.report_fields import available_case_report_fields, missing_report_fields
 from backend.app.config.demo import is_demo_case
+from backend.app.detection.disease_concepts import canonical_disease_id
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 
@@ -57,7 +60,10 @@ def render_form(
         form_disease = TEXAS_MEASLES_FORM["disease"].casefold()
         case_jurisdiction = (case.jurisdiction or "").strip().casefold()
         form_jurisdiction = TEXAS_MEASLES_FORM["jurisdiction"].casefold()
-        if case_jurisdiction not in {form_jurisdiction, "texas"} or case_disease != form_disease:
+        if (
+            case_jurisdiction not in {form_jurisdiction, "texas"}
+            or canonical_disease_id(case_disease) != canonical_disease_id(form_disease)
+        ):
             raise HTTPException(status_code=422, detail="No Texas measles form is configured for this case.")
         if request.form_id != TEXAS_MEASLES_FORM["form_id"]:
             raise HTTPException(status_code=422, detail=f"Unsupported form: {request.form_id}")
@@ -119,35 +125,30 @@ def render_form(
         for key, value in derived_values.items():
             if value not in (None, ""):
                 report_data.setdefault(key, value)
-        _, required_missing_fields = missing_report_fields(available_case_report_fields(case))
+        required_missing_fields = list(REPORTING_MISSING_INFO_FIELDS)
         demo_case = is_demo_case(case)
-        if demo_case:
-            # Demo form entries are supplied from the browser for this render
-            # only. Ignore any legacy values persisted before preview mode.
-            for field in DEMO_FORM_INPUT_FIELDS:
-                report_data.pop(field, None)
-            transient_fields = {
-                field: value for field, value in request.field_values.items()
-                if field in DEMO_FORM_INPUT_FIELDS and str(value or "").strip()
-            }
-            report_data.update(transient_fields)
-            demo_missing_fields = [
-                field for field in DEMO_FORM_INPUT_FIELDS
-                if field not in transient_fields
-            ]
-            required_missing_fields = [
-                field for field in required_missing_fields
-                if field not in DEMO_FORM_INPUT_FIELDS
-            ]
-            required_missing_fields = list(dict.fromkeys([*required_missing_fields, *demo_missing_fields]))
+        # These five workflow fields are browser-session values for every case.
+        # Ignore any legacy persisted copies and render only the current request.
+        for field in REPORTING_MISSING_INFO_FIELDS:
+            report_data.pop(field, None)
+        transient_fields = {
+            field: value for field, value in request.field_values.items()
+            if field in REPORTING_MISSING_INFO_FIELDS and str(value or "").strip()
+        }
+        report_data.update(transient_fields)
+        required_missing_fields = [
+            field for field in REPORTING_MISSING_INFO_FIELDS
+            if not report_data.get(field)
+        ]
         result = service.render_form(
             request,
             report_data,
-            demo_fill=demo_case,
+            demo_fill=True,
             required_missing_fields=required_missing_fields,
         )
         result.missing_required_fields = required_missing_fields
-        result.demo_mode = demo_case
+        transient_preview = bool(request.field_values)
+        result.demo_mode = demo_case or transient_preview
         if not result.render_id:
             raise HTTPException(
                 status_code=500,
@@ -156,7 +157,7 @@ def render_form(
         retrieval_url = f"{router.prefix}/{result.render_id}"
         result.retrieval_url = retrieval_url
         result.rendered_document = retrieval_url
-        if not demo_case:
+        if not demo_case and not transient_preview:
             report = Report(
                 case_id=str(case.case_id),
                 form_id=result.form_id,

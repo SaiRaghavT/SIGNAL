@@ -5,41 +5,31 @@
    ========================================================= */
 
 :root {
-  --rv-navy: #12395b;
-  --rv-navy-dark: #0f304d;
-  --rv-navy-soft: #1b4a70;
-
-  --rv-orange: #f9733b;
-  --rv-orange-dark: #e85f2a;
-  --rv-orange-soft: #fff1e9;
-
-  --rv-green: #18a979;
-  --rv-green-soft: #eaf8f2;
-  --rv-green-border: #c9ebdd;
-
-  --rv-amber: #f0a43c;
-  --rv-amber-soft: #fff6e8;
-  --rv-amber-border: #f3d9a8;
-
-  --rv-red: #dc5c5c;
-  --rv-red-soft: #fff1f1;
-
-  --rv-page-bg: #f5f6f7;
-  --rv-card: #ffffff;
-  --rv-soft: #f7f9fa;
-  --rv-input: #f5f7f9;
-
-  --rv-border: #dce3e8;
-  --rv-border-soft: #e8edf0;
-
-  --rv-text: #17324d;
-  --rv-text-secondary: #6f8292;
-  --rv-text-muted: #91a0ac;
-
-  --rv-white: #ffffff;
-
-  --rv-shadow:
-    0 2px 8px rgba(18, 57, 91, 0.055);
+  --rv-navy: var(--signal-navy);
+  --rv-navy-dark: var(--signal-navy);
+  --rv-navy-soft: var(--signal-navy);
+  --rv-orange: var(--signal-orange);
+  --rv-orange-dark: var(--signal-orange);
+  --rv-orange-soft: var(--signal-warning-bg);
+  --rv-green: var(--signal-success);
+  --rv-green-soft: var(--signal-success-bg);
+  --rv-green-border: var(--signal-border);
+  --rv-amber: var(--signal-warning);
+  --rv-amber-soft: var(--signal-warning-bg);
+  --rv-amber-border: var(--signal-border);
+  --rv-red: var(--signal-danger);
+  --rv-red-soft: var(--signal-danger-bg);
+  --rv-page-bg: var(--signal-bg);
+  --rv-card: var(--signal-card);
+  --rv-soft: var(--signal-surface);
+  --rv-input: var(--signal-card);
+  --rv-border: var(--signal-border);
+  --rv-border-soft: var(--signal-border);
+  --rv-text: var(--signal-text);
+  --rv-text-secondary: var(--signal-text-secondary);
+  --rv-text-muted: var(--signal-text-muted);
+  --rv-white: var(--signal-card);
+  --rv-shadow: var(--signal-shadow);
 }
 
 
@@ -143,7 +133,7 @@
 }
 
 .review-validation-back:hover {
-  border-color: #bfcbd3;
+  border-color: var(--signal-border);
   background: var(--rv-soft);
   color: var(--rv-navy-dark);
 }
@@ -172,7 +162,7 @@
   border: 1px solid var(--rv-border);
   border-radius: 5px;
 
-  background: #ffffff;
+  background: var(--signal-card);
   color: var(--rv-text-secondary);
 
   font-size: 8px;
@@ -184,11 +174,11 @@
 .review-validation-breadcrumb-item.active {
   border-color: var(--rv-navy);
   background: var(--rv-navy);
-  color: #ffffff;
+  color: var(--signal-card);
 }
 
 .review-validation-breadcrumb-separator {
-  color: #a4b0b9;
+  color: var(--signal-text-muted);
   font-size: 9px;
 }
 
@@ -309,7 +299,7 @@
   border: 1px solid var(--rv-amber-border);
 
   background: var(--rv-amber-soft);
-  color: #9b6a20;
+  color: var(--signal-warning);
 }
 
 .review-validation-badge.neutral {
@@ -498,8 +488,8 @@
 
   border-radius: 50%;
 
-  background: #ffe7bd;
-  color: #b9781d;
+  background: var(--signal-warning-bg);
+  color: var(--signal-warning);
 
   font-size: 9px;
   font-weight: 800;
@@ -510,13 +500,13 @@
 
   margin-bottom: 2px;
 
-  color: #8b6425;
+  color: var(--signal-warning);
 
   font-size: 8px;
 }
 
 .review-validation-evidence-notice span {
-  color: #9a7b48;
+  color: var(--signal-warning);
 
   font-size: 7px;
   line-height: 1.4;
@@ -568,7 +558,7 @@
 }
 
 .review-validation-check-icon.attention {
-  color: #a26c1b;
+  color: var(--signal-warning);
   background: var(--rv-amber-soft);
 }
 
@@ -793,7 +783,7 @@
   border: 1px solid var(--rv-border);
   border-radius: 6px;
 
-  background: #ffffff;
+  background: var(--signal-card);
 
   cursor: pointer;
 
@@ -803,7 +793,7 @@
 }
 
 .review-validation-decision-option:hover {
-  border-color: #bdcbd4;
+  border-color: var(--signal-border);
   background: var(--rv-soft);
 }
 
@@ -887,7 +877,7 @@
   border: 1px solid var(--rv-border);
   border-radius: 5px;
 
-  background: #ffffff;
+  background: var(--signal-card);
   color: var(--rv-text);
 
   font-family: inherit;
@@ -952,7 +942,7 @@
   border-radius: 50%;
 
   background: var(--rv-green);
-  color: #ffffff;
+  color: var(--signal-card);
 
   font-size: 10px;
   font-weight: 800;
@@ -961,7 +951,7 @@
 .review-validation-approved strong {
   display: block;
 
-  color: #176b52;
+  color: var(--signal-navy);
 
   font-size: 8px;
 }
@@ -971,7 +961,7 @@
 
   margin-top: 3px;
 
-  color: #53816f;
+  color: var(--signal-text-secondary);
 
   font-size: 7px;
 }
@@ -1063,7 +1053,7 @@
   border: 1px solid var(--rv-border);
   border-radius: 6px;
 
-  background: #ffffff;
+  background: var(--signal-card);
   color: var(--rv-navy);
 
   font-family: inherit;
@@ -1075,7 +1065,7 @@
 
 .review-validation-secondary-button:hover {
   border-color: var(--rv-navy);
-  background: #f5f8fa;
+  background: var(--signal-bg);
 }
 
 .review-validation-secondary-button:disabled {
@@ -1102,7 +1092,7 @@
   border: 1px solid var(--rv-border);
   border-radius: 7px;
 
-  background: #ffffff;
+  background: var(--signal-card);
 
   box-shadow: var(--rv-shadow);
 }
@@ -1143,7 +1133,7 @@
   border-radius: 7px;
 
   background: var(--rv-orange);
-  color: #ffffff;
+  color: var(--signal-card);
 
   font-family: inherit;
 
@@ -1191,16 +1181,16 @@
   border: 1px solid var(--rv-border);
   border-radius: 6px;
 
-  background: #ffffff;
+  background: var(--signal-card);
 
   font-size: 8px;
   line-height: 1.45;
 }
 
 .review-validation-message.error {
-  border-color: #efcccc;
+  border-color: var(--signal-border);
   background: var(--rv-red-soft);
-  color: #925050;
+  color: var(--signal-danger);
 }
 
 .review-validation-message strong {
@@ -1223,7 +1213,7 @@
   border: 1px solid var(--rv-border);
   border-radius: 8px;
 
-  background: #ffffff;
+  background: var(--signal-card);
 
   text-align: center;
 }
@@ -1470,18 +1460,18 @@
 }
 
 .review-validation-section-status.complete {
-  background: #eaf3e7;
-  color: #49734d;
+  background: var(--signal-success-bg);
+  color: var(--signal-success);
 }
 
 .review-validation-section-status.attention {
-  background: #fbefe7;
-  color: #a86642;
+  background: var(--signal-danger-bg);
+  color: var(--signal-danger);
 }
 
 .review-validation-section-status.not_checked {
-  background: #f1f3f1;
-  color: #8b9690;
+  background: var(--signal-bg);
+  color: var(--signal-text-muted);
 }
 
 .review-validation-action-bar {

@@ -1,111 +1,1813 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Activity, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react'
-import { governanceService, outcomeLearningService } from '../services/aiGovernanceService.js'
+import {
+  governanceService,
+  outcomeLearningService,
+} from '../services/aiGovernanceService.js'
+import '../styles/AiGovernance.css'
 
 function useLoad(loader, dependencies = []) {
   const [state, setState] = useState({ data: null, error: '' })
+
   useEffect(() => {
     let alive = true
-    loader().then(data => { if (alive) setState({ data, error: '' }) }).catch(error => { if (alive) setState({ data: null, error: error.message || 'Unable to retrieve SIGNAL records.' }) })
-    return () => { alive = false }
-  // Callers provide request dependencies; closures intentionally remain excluded.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    loader()
+      .then(data => {
+        if (alive) {
+          setState({ data, error: '' })
+        }
+      })
+      .catch(error => {
+        if (alive) {
+          setState({
+            data: null,
+            error:
+              error.message ||
+              'Unable to retrieve SIGNAL records.',
+          })
+        }
+      })
+
+    return () => {
+      alive = false
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies)
+
   return state
 }
 
-const links = [['Overview','/governance'],['AI Monitoring','/governance/monitoring'],['Model Evaluation','/governance/evaluation'],['Explainability','/governance/explainability'],['Agent Governance','/governance/agents'],['Outcome Learning','/governance/outcome-learning']]
-const field = value => value === undefined || value === null || value === '' ? 'not_available' : String(value)
-const dateTime = value => value ? new Date(value).toLocaleString() : 'not_available'
+const links = [
+  ['Overview', '/governance'],
+  ['AI Monitoring', '/governance/monitoring'],
+  ['Model Evaluation', '/governance/evaluation'],
+  ['Explainability', '/governance/explainability'],
+  ['Agent Governance', '/governance/agents'],
+  ['Outcome Learning', '/governance/outcome-learning'],
+]
+
+const field = value =>
+  value === undefined || value === null || value === ''
+    ? 'not_available'
+    : String(value)
+
+const dateTime = value =>
+  value ? new Date(value).toLocaleString() : 'not_available'
 
 function GovLayout({ title, sub, children }) {
   const { pathname } = useLocation()
-  return <div className="page"><div className="page-heading"><div><h1>{title}</h1><p>{sub}</p></div></div><div className="note">Live SIGNAL backend data. Model execution IDs, model-version history, and benchmark labels are not persisted in this POC.</div><div className="gov-tabs">{links.map(([name,path]) => <Link key={path} to={path} className={pathname === path ? 'selected' : ''}>{name}</Link>)}</div>{children}</div>
+
+  return (
+    <div className="page ai-governance-page">
+      <div className="page-heading">
+        <div>
+          <h1>{title}</h1>
+          <p>{sub}</p>
+        </div>
+      </div>
+
+      <div className="note">
+        Live SIGNAL backend data. Model execution IDs, model-version
+        history, and benchmark labels are not persisted in this POC.
+      </div>
+
+      <div className="gov-tabs">
+        {links.map(([name, path]) => (
+          <Link
+            key={path}
+            to={path}
+            className={pathname === path ? 'selected' : ''}
+          >
+            {name}
+          </Link>
+        ))}
+      </div>
+
+      {children}
+    </div>
+  )
 }
-function ErrorNote({ error }) { return error ? <div className="alert-banner" role="alert">{error}</div> : null }
-function Metric({ label, value, note }) { return <div className="metric-card"><span>{label}</span><strong>{value ?? 'not_available'}</strong><small>{note}</small><Activity className="metric-spark" size={18}/></div> }
-function Status({ children }) { const text = children || 'not_available'; const key = String(text).toLowerCase().replaceAll(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); return <span className={`badge ${key}`}>{text}</span> }
-function Table({ headers, rows, empty }) { return <section className="panel"><div className="table-wrapper"><table><thead><tr>{headers.map(header => <th key={header}>{header}</th>)}</tr></thead><tbody>{rows}</tbody></table></div>{!rows.length && <div className="note">{empty}</div>}</section> }
+
+function ErrorNote({ error }) {
+  return error ? (
+    <div className="alert-banner" role="alert">
+      {error}
+    </div>
+  ) : null
+}
+
+function Metric({ label, value, note }) {
+  return (
+    <div className="metric-card">
+      <span>{label}</span>
+      <strong>{value ?? 'not_available'}</strong>
+      <small>{note}</small>
+      <Activity className="metric-spark" size={18} />
+    </div>
+  )
+}
+
+function Status({ children }) {
+  const text = children || 'not_available'
+
+  const key = String(text)
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+
+  return (
+    <span className={`badge ${key}`}>
+      {text}
+    </span>
+  )
+}
+
+function Table({ headers, rows, empty }) {
+  return (
+    <section className="panel">
+      <div className="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              {headers.map(header => (
+                <th key={header}>{header}</th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>{rows}</tbody>
+        </table>
+      </div>
+
+      {!rows.length && (
+        <div className="note">
+          {empty}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/* =========================================================
+   GOVERNANCE OVERVIEW
+========================================================= */
 
 export function GovernanceOverview() {
-  const overview = useLoad(() => governanceService.getGovernanceOverview(), [])
-  const agents = useLoad(() => governanceService.getAgents(), [])
-  const findings = useLoad(() => governanceService.getGovernanceFindings(), [])
+  const overview = useLoad(
+    () => governanceService.getGovernanceOverview(),
+    []
+  )
+
+  const agents = useLoad(
+    () => governanceService.getAgents(),
+    []
+  )
+
+  const findings = useLoad(
+    () => governanceService.getGovernanceFindings(),
+    []
+  )
+
   const d = overview.data
-  return <GovLayout title="AI Governance Overview" sub="Current oversight status for the Texas Measles workflow components."><ErrorNote error={overview.error || agents.error || findings.error}/><div className="metrics-grid gov-metrics"><Metric label="WORKFLOW COMPONENTS" value={d?.registered_agents} note="Names and status from backend"/><Metric label="AVAILABLE" value={d?.active_agents} note="Backend availability flag"/><Metric label="PERSISTED AUDIT EVENTS" value={d?.recent_executions} note="Workflow ledger records"/><Metric label="AUDIT FAILURE STATUS" value={d?.execution_failures} note="Persisted events marked failure"/><Metric label="EVALUATION RUNS" value="not_available" note="No benchmark records"/><Metric label="NOT CONFIGURED / SIMULATED" value={d?.agents_requiring_review} note="Backend component status"/><Metric label="CANDIDATES WITH EVIDENCE" value={d?.explainability_coverage} note="Measles candidate records"/><Metric label="TEXAS MEASLES CASES" value={d?.outcome_learning_signals} note="Jurisdiction-resolved cases"/></div><section className="panel"><div className="panel-header"><div><h3>Workflow Components</h3><p>Names and configuration reported by the running backend.</p></div></div><div className="ai-architecture">{(agents.data || []).map(agent => <Link to={`/governance/agents/${agent.agent_id}`} className="agent-card" key={agent.agent_id}><b>{agent.name}</b><p>{agent.purpose || agent.description}</p><div><Status>{agent.status}</Status><small>{agent.configured ? 'Configured' : 'Not configured'}</small></div></Link>)}</div></section><section className="panel"><div className="panel-header"><div><h3>Governance data checks</h3><p>Checks run against stored candidate confidence and source evidence; findings do not change candidate or reportability status.</p></div><small className="muted">{findings.data?.length ?? '...'} findings</small></div>{findings.data?.length ? findings.data.map((item,index) => <div className="source-row" key={`${item.candidate_id}-${item.reason}-${index}`}><b>{item.reason}</b><span>{item.disease} · {item.status}</span><Link to={`/candidates/${item.candidate_id}`}>Review candidate <ArrowRight size={13}/></Link></div>) : findings.data && <div className="cases-empty">No missing evidence or invalid confidence values were found in the stored measles candidates. Model version and runtime behavior checks remain not_evaluated because execution metadata is not persisted.</div>}</section><section className="panel pad gov-callout"><ShieldCheck/><div><b>Human control remains in the workflow</b><p>Candidate fusion, reportability rules, and evidence extraction provide inputs. Clinical staff and authorized reviewers retain clinical and reporting decisions. Findings link to the existing candidate workflow and do not make clinical decisions.</p></div></section></GovLayout>
+
+  return (
+    <GovLayout
+      title="AI Governance Overview"
+      sub="Current oversight status for the Texas Measles workflow components."
+    >
+      <ErrorNote
+        error={
+          overview.error ||
+          agents.error ||
+          findings.error
+        }
+      />
+
+      <div className="metrics-grid gov-metrics">
+        <Metric
+          label="WORKFLOW COMPONENTS"
+          value={d?.registered_agents}
+          note="Names and status from backend"
+        />
+
+        <Metric
+          label="AVAILABLE"
+          value={d?.active_agents}
+          note="Backend availability flag"
+        />
+
+        <Metric
+          label="PERSISTED AUDIT EVENTS"
+          value={d?.recent_executions}
+          note="Workflow ledger records"
+        />
+
+        <Metric
+          label="AUDIT FAILURE STATUS"
+          value={d?.execution_failures}
+          note="Persisted events marked failure"
+        />
+
+        <Metric
+          label="EVALUATION RUNS"
+          value="not_available"
+          note="No benchmark records"
+        />
+
+        <Metric
+          label="NOT CONFIGURED / SIMULATED"
+          value={d?.agents_requiring_review}
+          note="Backend component status"
+        />
+
+        <Metric
+          label="PATIENTS WITH EVIDENCE"
+          value={d?.explainability_coverage}
+          note="Measles patient records"
+        />
+
+        <Metric
+          label="TEXAS MEASLES CASES"
+          value={d?.outcome_learning_signals}
+          note="Jurisdiction-resolved cases"
+        />
+      </div>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h3>Workflow Components</h3>
+            <p>
+              Names and configuration reported by the running backend.
+            </p>
+          </div>
+        </div>
+
+        <div className="ai-architecture">
+          {(agents.data || []).map(agent => (
+            <Link
+              to={`/governance/agents/${agent.agent_id}`}
+              className="agent-card"
+              key={agent.agent_id}
+            >
+              <b>{agent.name}</b>
+
+              <p>
+                {agent.purpose || agent.description}
+              </p>
+
+              <div>
+                <Status>{agent.status}</Status>
+
+                <small>
+                  {agent.configured
+                    ? 'Configured'
+                    : 'Not configured'}
+                </small>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h3>Governance Data Checks</h3>
+            <p>
+              Checks run against stored patient detection confidence and
+              source evidence; findings do not change patient records
+              or reportability status.
+            </p>
+          </div>
+
+          <small className="muted">
+            {findings.data?.length ?? '...'} findings
+          </small>
+        </div>
+
+        {findings.data?.length
+          ? findings.data.map((item, index) => (
+              <div
+                className="source-row"
+                key={`${item.candidate_id}-${item.reason}-${index}`}
+              >
+                <b>{item.reason}</b>
+
+                <span>
+                  {item.disease} · {item.status}
+                </span>
+
+                <Link
+                  to={`/patients`}
+                  className="governance-link"
+                >
+                  Review patient
+                  <ArrowRight size={13} />
+                </Link>
+              </div>
+            ))
+          : findings.data && (
+              <div className="cases-empty">
+                No missing evidence or invalid confidence values
+                were found in the stored measles patient records.
+                Model version and runtime behavior checks remain
+                not_evaluated because execution metadata is not
+                persisted.
+              </div>
+            )}
+      </section>
+
+      <section className="panel pad gov-callout">
+        <ShieldCheck />
+
+        <div>
+          <b>Human control remains in the workflow</b>
+
+          <p>
+            Patient detection, reportability rules, and evidence
+            extraction provide inputs. Clinical staff and
+            authorized reviewers retain clinical and reporting
+            decisions. Findings do not make clinical decisions.
+          </p>
+        </div>
+      </section>
+    </GovLayout>
+  )
 }
+
+/* =========================================================
+   AI MONITORING
+========================================================= */
 
 export function MonitoringPage() {
-  const agents = useLoad(() => governanceService.getAgents(), [])
-  const [filters, setFilters] = useState({ agent_id:'', status:'', candidate_id:'', started_after:'', started_before:'' })
-  const events = useLoad(() => governanceService.getExecutions(), [])
+  const agents = useLoad(
+    () => governanceService.getAgents(),
+    []
+  )
+
+  const [filters, setFilters] = useState({
+    agent_id: '',
+    status: '',
+    candidate_id: '',
+    started_after: '',
+    started_before: '',
+  })
+
+  const events = useLoad(
+    () => governanceService.getExecutions(),
+    []
+  )
+
   const allRows = events.data || []
+
   const rows = allRows.filter(row => {
     const timestamp = Date.parse(row.timestamp)
-    return (!filters.agent_id || row.agent_id === filters.agent_id) &&
-      (!filters.status || row.status === filters.status) &&
-      (!filters.candidate_id || (row.candidate_id || '').toLowerCase().includes(filters.candidate_id.toLowerCase())) &&
-      (!filters.started_after || timestamp >= Date.parse(filters.started_after)) &&
-      (!filters.started_before || timestamp <= Date.parse(filters.started_before))
+
+    return (
+      (!filters.agent_id ||
+        row.agent_id === filters.agent_id) &&
+      (!filters.status ||
+        row.status === filters.status) &&
+      (!filters.candidate_id ||
+        (row.candidate_id || '')
+          .toLowerCase()
+          .includes(
+            filters.candidate_id.toLowerCase()
+          )) &&
+      (!filters.started_after ||
+        timestamp >= Date.parse(filters.started_after)) &&
+      (!filters.started_before ||
+        timestamp <= Date.parse(filters.started_before))
+    )
   })
-  const statuses = [...new Set(allRows.map(row => row.status).filter(Boolean))].sort()
-  const update = (key, value) => setFilters(current => ({ ...current, [key]:value }))
-  return <GovLayout title="AI Monitoring" sub="Persisted audit activity related to workflow components; this is not complete model telemetry."><ErrorNote error={events.error || agents.error}/><div className="metrics-grid gov-metrics"><Metric label="MATCHING AUDIT EVENTS" value={rows.length} note="Persisted ledger records"/><Metric label="SUCCESS STATUS" value={rows.filter(row => row.status === 'SUCCESS').length} note="Event status"/><Metric label="FAILURE STATUS" value={rows.filter(row => row.status === 'FAILURE').length} note="Event status"/><Metric label="MODEL LATENCY" value="not_available" note="Not captured"/></div><section className="panel pad gov-filters"><label>Component<select value={filters.agent_id} onChange={event => update('agent_id',event.target.value)}><option value="">All components</option>{(agents.data || []).map(agent => <option key={agent.agent_id} value={agent.agent_id}>{agent.name}</option>)}</select></label><label>Event status<select value={filters.status} onChange={event => update('status',event.target.value)}><option value="">All statuses</option>{statuses.map(status => <option key={status}>{status}</option>)}</select></label><label>Candidate ID<input value={filters.candidate_id} onChange={event => update('candidate_id',event.target.value)} placeholder="Any candidate"/></label><label>After<input type="datetime-local" value={filters.started_after} onChange={event => update('started_after',event.target.value)}/></label><label>Before<input type="datetime-local" value={filters.started_before} onChange={event => update('started_before',event.target.value)}/></label></section><Table headers={['Audit ID','Component','Candidate','Event type','Status','Timestamp','Details']} rows={rows.map(row => <tr key={row.audit_id}><td>{row.audit_id}</td><td>{row.agent_id || 'unknown component'}</td><td>{field(row.candidate_id)}</td><td>{row.output_type}</td><td><Status>{row.status}</Status></td><td>{dateTime(row.timestamp)}</td><td>{row.detail}</td></tr>)} empty="No persisted audit events match these filters. Component-level execution telemetry is not currently stored."/></GovLayout>
+
+  const statuses = [
+    ...new Set(
+      allRows
+        .map(row => row.status)
+        .filter(Boolean)
+    ),
+  ].sort()
+
+  const update = (key, value) => {
+    setFilters(current => ({
+      ...current,
+      [key]: value,
+    }))
+  }
+
+  return (
+    <GovLayout
+      title="AI Monitoring"
+      sub="Persisted audit activity related to workflow components; this is not complete model telemetry."
+    >
+      <ErrorNote
+        error={events.error || agents.error}
+      />
+
+      <div className="metrics-grid gov-metrics">
+        <Metric
+          label="MATCHING AUDIT EVENTS"
+          value={rows.length}
+          note="Persisted ledger records"
+        />
+
+        <Metric
+          label="SUCCESS STATUS"
+          value={
+            rows.filter(
+              row => row.status === 'SUCCESS'
+            ).length
+          }
+          note="Event status"
+        />
+
+        <Metric
+          label="FAILURE STATUS"
+          value={
+            rows.filter(
+              row => row.status === 'FAILURE'
+            ).length
+          }
+          note="Event status"
+        />
+
+        <Metric
+          label="MODEL LATENCY"
+          value="not_available"
+          note="Not captured"
+        />
+      </div>
+
+      <section className="panel pad gov-filters">
+        <label>
+          Component
+
+          <select
+            value={filters.agent_id}
+            onChange={event =>
+              update(
+                'agent_id',
+                event.target.value
+              )
+            }
+          >
+            <option value="">
+              All components
+            </option>
+
+            {(agents.data || []).map(agent => (
+              <option
+                key={agent.agent_id}
+                value={agent.agent_id}
+              >
+                {agent.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Event status
+
+          <select
+            value={filters.status}
+            onChange={event =>
+              update(
+                'status',
+                event.target.value
+              )
+            }
+          >
+            <option value="">
+              All statuses
+            </option>
+
+            {statuses.map(status => (
+              <option key={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Patient detection ID
+
+          <input
+            value={filters.candidate_id}
+            onChange={event =>
+              update(
+                'candidate_id',
+                event.target.value
+              )
+            }
+            placeholder="Any detection ID"
+          />
+        </label>
+
+        <label>
+          After
+
+          <input
+            type="datetime-local"
+            value={filters.started_after}
+            onChange={event =>
+              update(
+                'started_after',
+                event.target.value
+              )
+            }
+          />
+        </label>
+
+        <label>
+          Before
+
+          <input
+            type="datetime-local"
+            value={filters.started_before}
+            onChange={event =>
+              update(
+                'started_before',
+                event.target.value
+              )
+            }
+          />
+        </label>
+      </section>
+
+      <Table
+        headers={[
+          'Audit ID',
+          'Component',
+          'Detection ID',
+          'Event type',
+          'Status',
+          'Timestamp',
+          'Details',
+        ]}
+        rows={rows.map(row => (
+          <tr key={row.audit_id}>
+            <td>{row.audit_id}</td>
+            <td>
+              {row.agent_id ||
+                'unknown component'}
+            </td>
+            <td>
+              {field(row.candidate_id)}
+            </td>
+            <td>
+              {row.output_type}
+            </td>
+            <td>
+              <Status>
+                {row.status}
+              </Status>
+            </td>
+            <td>
+              {dateTime(row.timestamp)}
+            </td>
+            <td>
+              {row.detail}
+            </td>
+          </tr>
+        ))}
+        empty="No persisted audit events match these filters. Component-level execution telemetry is not currently stored."
+      />
+    </GovLayout>
+  )
 }
+
+/* =========================================================
+   MODEL EVALUATION
+========================================================= */
 
 export function EvaluationPage() {
-  const state = useLoad(() => governanceService.getEvaluationReadiness(), [])
+  const state = useLoad(
+    () => governanceService.getEvaluationReadiness(),
+    []
+  )
+
   const d = state.data
-  const confidence = d?.mean_confidence == null ? 'not_available' : `${(d.mean_confidence * 100).toFixed(1)}%`
-  return <GovLayout title="Model Evaluation" sub="Evaluation readiness based only on stored measles candidate and reviewer outcome data."><ErrorNote error={state.error}/><div className="metrics-grid gov-metrics"><Metric label="MEASLES CANDIDATES" value={d?.candidate_count} note="Persisted candidate rows"/><Metric label="CANDIDATES WITH CONFIDENCE" value={d?.confidence_count} note="Stored confidence values"/><Metric label="MEAN CONFIDENCE" value={confidence} note="Descriptive only; not accuracy"/><Metric label="REVIEWED TEXAS CASES" value={d?.reviewed_cases} note="Persisted reviewer decisions"/></div><section className="panel pad gov-callout"><CheckCircle2/><div><b>Classification metrics: insufficient_data</b><p>Accuracy, precision, recall, F1, and false-positive/negative rates are not calculated because there is no labeled Texas Measles evaluation set linked to ground-truth outcomes. Confidence values alone do not establish model performance.</p></div></section><Table headers={['Candidate','Candidate status','Confidence','Reviewer outcome','Reportability','Submission / PHA']} rows={(d?.records || []).map(row => <tr key={row.candidate_id}><td><Link to={`/candidates/${row.candidate_id}`}>{row.candidate_id}</Link></td><td>{row.candidate_status || 'not_available'}</td><td>{row.confidence == null ? 'not_available' : `${(Number(row.confidence) * 100).toFixed(1)}%`}</td><td>{row.reviewer_decision}</td><td>{row.reportability_decision}</td><td>{row.pha_outcome}</td></tr>)} empty="No Texas Measles candidate records are available."/><Table headers={['Evaluation metric','Status','Reason']} rows={['Accuracy','Precision','Recall','F1','False-positive rate','False-negative rate'].map(metric => <tr key={metric}><td>{metric}</td><td><Status>insufficient_data</Status></td><td>No linked labeled evaluation outcomes are available.</td></tr>)} empty="Evaluation metrics are not available."/></GovLayout>
+
+  const confidence =
+    d?.mean_confidence == null
+      ? 'not_available'
+      : `${(
+          d.mean_confidence * 100
+        ).toFixed(1)}%`
+
+  return (
+    <GovLayout
+      title="Model Evaluation"
+      sub="Evaluation readiness based on measles patient detection and reviewer outcome data."
+    >
+      <ErrorNote error={state.error} />
+
+      <div className="metrics-grid gov-metrics">
+        <Metric
+          label="MEASLES PATIENTS"
+          value={d?.candidate_count}
+          note="Patient records"
+        />
+
+        <Metric
+          label="PATIENTS WITH CONFIDENCE"
+          value={d?.confidence_count}
+          note="Stored confidence values"
+        />
+
+        <Metric
+          label="MEAN CONFIDENCE"
+          value={confidence}
+          note="Descriptive only; not accuracy"
+        />
+
+        <Metric
+          label="REVIEWED TEXAS CASES"
+          value={d?.reviewed_cases}
+          note="Persisted reviewer decisions"
+        />
+      </div>
+
+      <section className="panel pad gov-callout">
+        <CheckCircle2 />
+
+        <div>
+          <b>
+            Classification metrics: insufficient_data
+          </b>
+
+          <p>
+            Accuracy, precision, recall, F1, and
+            false-positive/negative rates are not
+            calculated because there is no labeled Texas
+            Measles evaluation set linked to ground-truth
+            outcomes. Confidence values alone do not
+            establish model performance.
+          </p>
+        </div>
+      </section>
+
+      <Table
+        headers={[
+          'Patient detection ID',
+          'Detection status',
+          'Confidence',
+          'Reviewer outcome',
+          'Reportability',
+          'Submission / PHA',
+        ]}
+        rows={(d?.records || []).map(row => (
+          <tr key={row.candidate_id}>
+            <td>
+              {row.candidate_id}
+            </td>
+
+            <td>
+              {row.candidate_status ||
+                'not_available'}
+            </td>
+
+            <td>
+              {row.confidence == null
+                ? 'not_available'
+                : `${(
+                    Number(
+                      row.confidence
+                    ) * 100
+                  ).toFixed(1)}%`}
+            </td>
+
+            <td>
+              {row.reviewer_decision}
+            </td>
+
+            <td>
+              {row.reportability_decision}
+            </td>
+
+            <td>
+              {row.pha_outcome}
+            </td>
+          </tr>
+        ))}
+        empty="No Texas Measles patient records are available."
+      />
+
+      <Table
+        headers={[
+          'Evaluation metric',
+          'Status',
+          'Reason',
+        ]}
+        rows={[
+          'Accuracy',
+          'Precision',
+          'Recall',
+          'F1',
+          'False-positive rate',
+          'False-negative rate',
+        ].map(metric => (
+          <tr key={metric}>
+            <td>{metric}</td>
+
+            <td>
+              <Status>
+                insufficient_data
+              </Status>
+            </td>
+
+            <td>
+              No linked labeled evaluation
+              outcomes are available.
+            </td>
+          </tr>
+        ))}
+        empty="Evaluation metrics are not available."
+      />
+    </GovLayout>
+  )
 }
+
+/* =========================================================
+   EXPLAINABILITY
+========================================================= */
 
 export function ExplainabilityPage() {
-  const state = useLoad(() => governanceService.getEvidenceTraces(), [])
+  const state = useLoad(
+    () => governanceService.getEvidenceTraces(),
+    []
+  )
+
   const traces = state.data || []
-  const [selected, setSelected] = useState('')
-  const trace = traces.find(item => item.candidate_id === selected) || traces[0]
-  return <GovLayout title="Explainability" sub="Traceable source evidence, candidate output, case review, and outcome context. No hidden model reasoning is exposed."><ErrorNote error={state.error}/><section className="panel pad gov-filters"><label>Candidate<select value={trace?.candidate_id || ''} onChange={event => setSelected(event.target.value)}>{traces.map(item => <option key={item.candidate_id} value={item.candidate_id}>{item.candidate_id}</option>)}</select></label></section>{trace ? <><section className="panel"><div className="panel-header"><div><h3>Evidence trace · {trace.candidate_id}</h3><p>{field(trace.candidate?.disease)} · Candidate state: {field(trace.output?.type)}</p></div><Status>{trace.human_decision?.status}</Status></div><div className="trace-flow">{[{title:'FHIR / source records',body:trace.source?.name,ref:trace.source?.reference},{title:'Supporting evidence',body:(trace.evidence || []).map(item => item.text).join('; ') || 'not_available',ref:(trace.evidence || []).map(item => item.reference).filter(Boolean).join(', ') || 'not_available'},{title:'Detection component',body:trace.agent_id || 'not_available',ref:'Component version: not_available'},{title:'Candidate output',body:trace.output?.type,ref:`${trace.output?.reference || 'not_available'} · confidence ${trace.confidence ?? 'not_available'}`},{title:'Linked case',body:trace.case?.status || (trace.candidate?.case_id ? 'Case linked; details unavailable' : 'No case linked'),ref:trace.case?.case_id || trace.candidate?.case_id || 'not_available'},{title:'Human review',body:trace.human_decision?.status,ref:[trace.human_decision?.reviewer,trace.human_decision?.role,trace.human_decision?.comments].filter(Boolean).join(' · ') || 'No linked review record'},{title:'Submission / outcome',body:trace.outcome?.status,ref:[trace.outcome?.reference,trace.outcome?.acknowledgement_id,trace.outcome?.destination].filter(Boolean).join(' · ') || 'not_available'}].map((item,index) => <div className="trace-item" key={item.title}><span>{String(index+1).padStart(2,'0')}</span><b>{item.title}</b><p>{item.body || 'not_available'}</p><small>{item.ref || 'not_available'}</small></div>)}</div></section><Table headers={['Candidate','Patient','Jurisdiction','Source type','Evidence references','Audit reference','Confidence']} rows={<tr><td>{trace.candidate_id}</td><td>{trace.candidate?.patient_id || 'not_available'}</td><td>{trace.candidate?.jurisdiction || trace.case?.jurisdiction || 'not_available'}</td><td>{trace.source?.type || 'not_available'}</td><td>{(trace.evidence || []).map(item => item.reference).filter(Boolean).join(', ') || 'not_available'}</td><td>{trace.execution_id || 'not_available'}</td><td>{trace.confidence ?? 'not_available'}</td></tr>} empty="No source evidence is available for this candidate."/>{trace.case && <section className="panel pad gov-callout"><ShieldCheck/><div><b>Case decision context</b><p>Reportability: {field(trace.case.reportability_decision)} · Validation: {field(trace.case.validation?.status || (trace.case.validation?.valid === true ? 'VALID' : trace.case.validation?.valid === false ? 'INVALID' : null))}</p><p>Clinical evidence: {JSON.stringify(trace.case.evidence?.clinical || {})}</p><p>Laboratory evidence: {JSON.stringify(trace.case.evidence?.laboratory || [])}</p></div></section>}</> : <div className="panel pad">{traces.length === 0 ? 'No measles candidates are available from the database.' : 'Select a candidate to view its evidence.'}</div>}</GovLayout>
+
+  const [selected, setSelected] =
+    useState('')
+
+  const trace =
+    traces.find(
+      item =>
+        item.candidate_id === selected
+    ) || traces[0]
+
+  return (
+    <GovLayout
+      title="Explainability"
+      sub="Traceable source evidence, patient detection, case review, and outcome context. No hidden model reasoning is exposed."
+    >
+      <ErrorNote error={state.error} />
+
+      <section className="panel pad gov-filters">
+        <label>
+          Patient
+
+          <select
+            value={
+              trace?.candidate_id || ''
+            }
+            onChange={event =>
+              setSelected(
+                event.target.value
+              )
+            }
+          >
+            {traces.map(item => (
+              <option
+                key={item.candidate_id}
+                value={item.candidate_id}
+              >
+                {item.candidate_id}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
+      {trace ? (
+        <>
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>
+                  Evidence trace ·{' '}
+                  {trace.candidate_id}
+                </h3>
+
+                <p>
+                  {field(
+                    trace.candidate?.disease
+                  )}{' '}
+                  · Patient detection status:{' '}
+                  {field(
+                    trace.output?.type
+                  )}
+                </p>
+              </div>
+
+              <Status>
+                {trace.human_decision?.status}
+              </Status>
+            </div>
+
+            <div className="trace-flow">
+              {[
+                {
+                  title:
+                    'FHIR / source records',
+                  body:
+                    trace.source?.name,
+                  ref:
+                    trace.source?.reference,
+                },
+                {
+                  title:
+                    'Supporting evidence',
+                  body:
+                    (trace.evidence || [])
+                      .map(item => item.text)
+                      .join('; ') ||
+                    'not_available',
+                  ref:
+                    (trace.evidence || [])
+                      .map(
+                        item =>
+                          item.reference
+                      )
+                      .filter(Boolean)
+                      .join(', ') ||
+                    'not_available',
+                },
+                {
+                  title:
+                    'Detection component',
+                  body:
+                    trace.agent_id ||
+                    'not_available',
+                  ref:
+                    'Component version: not_available',
+                },
+                {
+                  title:
+                    'Patient detection',
+                  body:
+                    trace.output?.type,
+                  ref: `${trace.output?.reference || 'not_available'} · confidence ${
+                    trace.confidence ??
+                    'not_available'
+                  }`,
+                },
+                {
+                  title:
+                    'Linked case',
+                  body:
+                    trace.case?.status ||
+                    (trace.candidate?.case_id
+                      ? 'Case linked; details unavailable'
+                      : 'No case linked'),
+                  ref:
+                    trace.case?.case_id ||
+                    trace.candidate?.case_id ||
+                    'not_available',
+                },
+                {
+                  title:
+                    'Human review',
+                  body:
+                    trace.human_decision
+                      ?.status,
+                  ref:
+                    [
+                      trace.human_decision
+                        ?.reviewer,
+                      trace.human_decision
+                        ?.role,
+                      trace.human_decision
+                        ?.comments,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') ||
+                    'No linked review record',
+                },
+                {
+                  title:
+                    'Submission / outcome',
+                  body:
+                    trace.outcome?.status,
+                  ref:
+                    [
+                      trace.outcome
+                        ?.reference,
+                      trace.outcome
+                        ?.acknowledgement_id,
+                      trace.outcome
+                        ?.destination,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') ||
+                    'not_available',
+                },
+              ].map((item, index) => (
+                <div
+                  className="trace-item"
+                  key={item.title}
+                >
+                  <span>
+                    {String(index + 1).padStart(
+                      2,
+                      '0'
+                    )}
+                  </span>
+
+                  <b>{item.title}</b>
+
+                  <p>
+                    {item.body ||
+                      'not_available'}
+                  </p>
+
+                  <small>
+                    {item.ref ||
+                      'not_available'}
+                  </small>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <Table
+            headers={[
+              'Detection ID',
+              'Patient',
+              'Jurisdiction',
+              'Source type',
+              'Evidence references',
+              'Audit reference',
+              'Confidence',
+            ]}
+            rows={[
+              <tr key={trace.candidate_id}>
+                <td>
+                  {trace.candidate_id}
+                </td>
+
+                <td>
+                  {trace.candidate
+                    ?.patient_id ||
+                    'not_available'}
+                </td>
+
+                <td>
+                  {trace.candidate
+                    ?.jurisdiction ||
+                    trace.case
+                      ?.jurisdiction ||
+                    'not_available'}
+                </td>
+
+                <td>
+                  {trace.source?.type ||
+                    'not_available'}
+                </td>
+
+                <td>
+                  {(trace.evidence || [])
+                    .map(
+                      item =>
+                        item.reference
+                    )
+                    .filter(Boolean)
+                    .join(', ') ||
+                    'not_available'}
+                </td>
+
+                <td>
+                  {trace.execution_id ||
+                    'not_available'}
+                </td>
+
+                <td>
+                  {trace.confidence ??
+                    'not_available'}
+                </td>
+              </tr>,
+            ]}
+            empty="No source evidence is available for this patient."
+          />
+
+          {trace.case && (
+            <section className="panel pad gov-callout">
+              <ShieldCheck />
+
+              <div>
+                <b>
+                  Case decision context
+                </b>
+
+                <p>
+                  Reportability:{' '}
+                  {field(
+                    trace.case
+                      .reportability_decision
+                  )}{' '}
+                  · Validation:{' '}
+                  {field(
+                    trace.case.validation
+                      ?.status ||
+                      (trace.case.validation
+                        ?.valid === true
+                        ? 'VALID'
+                        : trace.case
+                            .validation
+                            ?.valid === false
+                        ? 'INVALID'
+                        : null)
+                  )}
+                </p>
+
+                <p>
+                  Clinical evidence:{' '}
+                  {JSON.stringify(
+                    trace.case.evidence
+                      ?.clinical || {}
+                  )}
+                </p>
+
+                <p>
+                  Laboratory evidence:{' '}
+                  {JSON.stringify(
+                    trace.case.evidence
+                      ?.laboratory || []
+                  )}
+                </p>
+              </div>
+            </section>
+          )}
+        </>
+      ) : (
+        <div className="panel pad">
+          {traces.length === 0
+            ? 'No measles patients are available from the database.'
+            : 'Select a patient to view their evidence.'}
+        </div>
+      )}
+    </GovLayout>
+  )
 }
 
+/* =========================================================
+   AGENT GOVERNANCE
+========================================================= */
+
 export function AgentGovernancePage() {
-  const agents = useLoad(() => governanceService.getAgents(), [])
-  const audit = useLoad(() => governanceService.getAuditEvents(), [])
-  const summary = useLoad(() => governanceService.getAuditSummary(), [])
+  const agents = useLoad(
+    () => governanceService.getAgents(),
+    []
+  )
+
+  const audit = useLoad(
+    () => governanceService.getAuditEvents(),
+    []
+  )
+
+  const summary = useLoad(
+    () => governanceService.getAuditSummary(),
+    []
+  )
+
   const auditRows = audit.data || []
-  return <GovLayout title="Agent Governance" sub="Actual backend component status and persisted activity; execution versions are not stored."><ErrorNote error={agents.error || audit.error || summary.error}/><Table headers={['Component ID','Description','Availability','Configured','Simulated','Last activity','Audit events','Errors / Warnings','Version']} rows={(agents.data || []).map(agent => {
-    const events = auditRows.filter(event => event.agent_id === agent.agent_id)
-    const latest = events[0]
-    const failures = events.filter(event => event.status === 'FAILURE')
-    const counts = summary.data?.by_component?.[agent.agent_id]
-    return <tr key={agent.agent_id}><td><Link to={`/governance/agents/${agent.agent_id}`}>{agent.agent_id}</Link></td><td>{agent.purpose}</td><td><Status>{agent.status}</Status></td><td>{String(agent.configured)}</td><td>{String(agent.simulated)}</td><td>{dateTime(latest?.timestamp || agent.last_execution)}</td><td>{counts?.total ?? events.length}</td><td>{agent.error || (counts?.failure || failures.length ? `${counts?.failure ?? failures.length} failed audit event(s)` : 'none')}</td><td>{agent.version || 'not_available'}</td></tr>
-  })} empty="No component status records are available."/><section className="panel audit-panel"><div className="panel-header"><div><h3>Workflow Audit History</h3><p>Records from SIGNAL audit ledger</p></div></div>{auditRows.slice(0,50).map(event => <div className="source-row" key={event.audit_id}><b>{dateTime(event.timestamp)} · {event.action}</b><span>{event.agent_id || 'unknown component'} · {event.audit_id}</span><small>{event.actor || 'unknown actor'} · {event.detail}</small></div>)}{auditRows.length === 0 && <p className="note">No persisted audit events are available.</p>}</section></GovLayout>
+
+  return (
+    <GovLayout
+      title="Agent Governance"
+      sub="Actual backend component status and persisted activity; execution versions are not stored."
+    >
+      <ErrorNote
+        error={
+          agents.error ||
+          audit.error ||
+          summary.error
+        }
+      />
+
+      <Table
+        headers={[
+          'Component ID',
+          'Description',
+          'Availability',
+          'Configured',
+          'Simulated',
+          'Last activity',
+          'Audit events',
+          'Errors / Warnings',
+          'Version',
+        ]}
+        rows={(agents.data || []).map(agent => {
+          const events =
+            auditRows.filter(
+              event =>
+                event.agent_id ===
+                agent.agent_id
+            )
+
+          const latest = events[0]
+
+          const failures =
+            events.filter(
+              event =>
+                event.status ===
+                'FAILURE'
+            )
+
+          const counts =
+            summary.data?.by_component?.[
+              agent.agent_id
+            ]
+
+          return (
+            <tr key={agent.agent_id}>
+              <td>
+                <Link
+                  to={`/governance/agents/${agent.agent_id}`}
+                >
+                  {agent.agent_id}
+                </Link>
+              </td>
+
+              <td>
+                {agent.purpose}
+              </td>
+
+              <td>
+                <Status>
+                  {agent.status}
+                </Status>
+              </td>
+
+              <td>
+                {String(
+                  agent.configured
+                )}
+              </td>
+
+              <td>
+                {String(
+                  agent.simulated
+                )}
+              </td>
+
+              <td>
+                {dateTime(
+                  latest?.timestamp ||
+                    agent.last_execution
+                )}
+              </td>
+
+              <td>
+                {counts?.total ??
+                  events.length}
+              </td>
+
+              <td>
+                {agent.error ||
+                  (counts?.failure ||
+                  failures.length
+                    ? `${
+                        counts?.failure ??
+                        failures.length
+                      } failed audit event(s)`
+                    : 'none')}
+              </td>
+
+              <td>
+                {agent.version ||
+                  'not_available'}
+              </td>
+            </tr>
+          )
+        })}
+        empty="No component status records are available."
+      />
+
+      <section className="panel audit-panel">
+        <div className="panel-header">
+          <div>
+            <h3>
+              Workflow Audit History
+            </h3>
+
+            <p>
+              Records from SIGNAL audit
+              ledger
+            </p>
+          </div>
+        </div>
+
+        {auditRows
+          .slice(0, 50)
+          .map(event => (
+            <div
+              className="source-row"
+              key={event.audit_id}
+            >
+              <b>
+                {dateTime(
+                  event.timestamp
+                )}{' '}
+                · {event.action}
+              </b>
+
+              <span>
+                {event.agent_id ||
+                  'unknown component'}{' '}
+                · {event.audit_id}
+              </span>
+
+              <small>
+                {event.actor ||
+                  'unknown actor'}{' '}
+                · {event.detail}
+              </small>
+            </div>
+          ))}
+
+        {auditRows.length === 0 && (
+          <p className="note">
+            No persisted audit events are
+            available.
+          </p>
+        )}
+      </section>
+    </GovLayout>
+  )
 }
+
+/* =========================================================
+   AGENT DETAIL
+========================================================= */
 
 export function AgentDetailPage() {
   const { agentId } = useParams()
-  const agent = useLoad(() => governanceService.getAgent(agentId), [agentId])
-  const events = useLoad(() => governanceService.getExecutions({ agent_id:agentId }), [agentId])
-  if (agent.error) return <GovLayout title="Component Details" sub={agentId}><ErrorNote error={agent.error}/></GovLayout>
-  if (!agent.data) return <GovLayout title="Component Details" sub="Loading runtime component status..."/>
+
+  const agent = useLoad(
+    () => governanceService.getAgent(agentId),
+    [agentId]
+  )
+
+  const events = useLoad(
+    () =>
+      governanceService.getExecutions({
+        agent_id: agentId,
+      }),
+    [agentId]
+  )
+
+  if (agent.error) {
+    return (
+      <GovLayout
+        title="Component Details"
+        sub={agentId}
+      >
+        <ErrorNote error={agent.error} />
+      </GovLayout>
+    )
+  }
+
+  if (!agent.data) {
+    return (
+      <GovLayout
+        title="Component Details"
+        sub="Loading runtime component status..."
+      />
+    )
+  }
+
   const item = agent.data
-  return <GovLayout title="Component Details" sub={item.name}><section className="panel pad agent-detail"><div className="panel-header"><div><h3>{item.name}</h3><p>{item.description}</p></div><Status>{item.status}</Status></div><div className="info-grid">{[['COMPONENT ID',item.agent_id],['PURPOSE',item.purpose],['CONFIGURED',String(item.configured)],['SIMULATED',String(item.simulated)],['RUNTIME ERROR',item.error || 'none'],['VERSION','not_available'],['MODEL','not_available'],['EVALUATION','not_evaluated']].map(([name,value]) => <div className="info" key={name}><small>{name}</small><b>{field(value)}</b></div>)}</div></section><Table headers={['Audit ID','Event type','Status','Timestamp','Candidate','Details']} rows={(events.data || []).map(row => <tr key={row.audit_id}><td>{row.audit_id}</td><td>{row.action}</td><td>{row.status}</td><td>{dateTime(row.timestamp)}</td><td>{field(row.candidate_id)}</td><td>{row.detail}</td></tr>)} empty="No persisted audit records for this component. Execution runs and model metadata are not stored."/></GovLayout>
+
+  return (
+    <GovLayout
+      title="Component Details"
+      sub={item.name}
+    >
+      <section className="panel pad agent-detail">
+        <div className="panel-header">
+          <div>
+            <h3>{item.name}</h3>
+
+            <p>
+              {item.description}
+            </p>
+          </div>
+
+          <Status>
+            {item.status}
+          </Status>
+        </div>
+
+        <div className="info-grid">
+          {[
+            [
+              'COMPONENT ID',
+              item.agent_id,
+            ],
+            [
+              'PURPOSE',
+              item.purpose,
+            ],
+            [
+              'CONFIGURED',
+              String(
+                item.configured
+              ),
+            ],
+            [
+              'SIMULATED',
+              String(
+                item.simulated
+              ),
+            ],
+            [
+              'RUNTIME ERROR',
+              item.error || 'none',
+            ],
+            [
+              'VERSION',
+              'not_available',
+            ],
+            [
+              'MODEL',
+              'not_available',
+            ],
+            [
+              'EVALUATION',
+              'not_evaluated',
+            ],
+          ].map(([name, value]) => (
+            <div
+              className="info"
+              key={name}
+            >
+              <small>{name}</small>
+              <b>
+                {field(value)}
+              </b>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <Table
+        headers={[
+          'Audit ID',
+          'Event type',
+          'Status',
+          'Timestamp',
+          'Detection ID',
+          'Details',
+        ]}
+        rows={(events.data || []).map(
+          row => (
+            <tr key={row.audit_id}>
+              <td>
+                {row.audit_id}
+              </td>
+
+              <td>
+                {row.action}
+              </td>
+
+              <td>
+                <Status>
+                  {row.status}
+                </Status>
+              </td>
+
+              <td>
+                {dateTime(
+                  row.timestamp
+                )}
+              </td>
+
+              <td>
+                {field(
+                  row.candidate_id
+                )}
+              </td>
+
+              <td>
+                {row.detail}
+              </td>
+            </tr>
+          )
+        )}
+        empty="No persisted audit records for this component. Execution runs and model metadata are not stored."
+      />
+    </GovLayout>
+  )
 }
 
+/* =========================================================
+   OUTCOME LEARNING
+========================================================= */
+
 export function OutcomeLearningPage() {
-  const state = useLoad(() => outcomeLearningService.getDashboard(), [])
-  const overview = state.data?.overview
-  const rows = state.data?.rows || []
-  const insights = state.data?.insights || []
-  return <GovLayout title="Outcome Learning" sub="Read-only analysis of actual Texas Measles case review, reportability, and submission outcomes."><ErrorNote error={state.error}/><section className="panel learning-flow"><div className="panel-header"><div><h3>Outcome feedback path</h3><p>Historical outcomes inform improvement suggestions. No automatic model or rule update is performed.</p></div></div><div className="trace-flow">{['Persisted case','Candidate evidence','Human review','Reportability','Submission / PHA status','Outcome analysis','Human engineering review'].map((item,index) => <div className="trace-item" key={item}><span>{String(index+1).padStart(2,'0')}</span><b>{item}</b></div>)}</div></section><div className="metrics-grid gov-metrics"><Metric label="TEXAS MEASLES CASES ANALYZED" value={overview?.analyzed} note="Persisted case rows"/><Metric label="HUMAN REVIEW DECISIONS" value={overview?.feedback} note="Persisted review records"/><Metric label="ACKNOWLEDGEMENTS" value={overview?.pha} note="Stored status; PHA transport may be simulated"/><Metric label="OUTCOME PATTERNS" value={overview?.analysis} note="Derived from stored outcomes"/></div>{overview?.status === 'insufficient_data' && <section className="panel pad gov-callout"><Activity/><div><b>insufficient_data</b><p>No Texas Measles reviewer outcomes are currently persisted. Candidates without a case and human decision are not treated as accepted or rejected. Learning insights will appear when linked outcomes exist.</p></div></section>}<Table headers={['Case','Candidate','AI / candidate status','Reviewer decision','Reportability','Validation','Submission / PHA','Review note','Evidence']} rows={rows.map(row => <tr key={row.id}><td><Link to={`/governance/outcome-learning/${row.id}`}>{row.id}</Link></td><td>{row.candidate_id}</td><td>{row.ai_output}</td><td>{row.reviewer_decision}</td><td>{row.reportability_decision}</td><td>{row.validation_status}</td><td>{row.pha_outcome}{row.submission_simulated ? ' (simulated)' : ''}</td><td>{row.correction_reason !== 'not_available' ? row.correction_reason : row.review_reason}</td><td>{(row.evidence || []).map(item => item.source_type || item.display).filter(Boolean).join(', ') || 'not_available'}</td></tr>)} empty="No jurisdiction-resolved Texas Measles cases with stored outcomes are available."/><section className="panel"><div className="panel-header"><div><h3>Observed outcome patterns</h3><p>Patterns are derived from persisted reviews, evidence, validation, submission, and acknowledgement results.</p></div></div>{insights.map(item => <div className="source-row" key={item.pattern}><b>{item.pattern} · {item.cases} cases</b><span>{Object.entries(item.decisions).map(([decision,count]) => `${decision}: ${count}`).join(' · ')}</span><small>{item.suggestion}</small></div>)}{state.data && insights.length === 0 && <div className="cases-empty">insufficient_data: no persisted case review or downstream outcomes are available for pattern analysis.</div>}</section><div className="note">Insights are advisory and require human / engineering review. This feature does not change detection models, clinical decisions, or reporting rules.</div></GovLayout>
+  const state = useLoad(
+    () =>
+      outcomeLearningService.getDashboard(),
+    []
+  )
+
+  const overview =
+    state.data?.overview
+
+  const rows =
+    state.data?.rows || []
+
+  const insights =
+    state.data?.insights || []
+
+  return (
+    <GovLayout
+      title="Outcome Learning"
+      sub="Read-only analysis of actual Texas Measles case review, reportability, and submission outcomes."
+    >
+      <ErrorNote error={state.error} />
+
+      <section className="panel learning-flow">
+        <div className="panel-header">
+          <div>
+            <h3>
+              Outcome feedback path
+            </h3>
+
+            <p>
+              Historical outcomes inform
+              improvement suggestions. No
+              automatic model or rule update
+              is performed.
+            </p>
+          </div>
+        </div>
+
+        <div className="trace-flow">
+          {[
+            'Persisted case',
+            'Patient evidence',
+            'Human review',
+            'Reportability',
+            'Submission / PHA status',
+            'Outcome analysis',
+            'Human engineering review',
+          ].map((item, index) => (
+            <div
+              className="trace-item"
+              key={item}
+            >
+              <span>
+                {String(
+                  index + 1
+                ).padStart(2, '0')}
+              </span>
+
+              <b>{item}</b>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="metrics-grid gov-metrics">
+        <Metric
+          label="TEXAS MEASLES CASES ANALYZED"
+          value={overview?.analyzed}
+          note="Persisted case rows"
+        />
+
+        <Metric
+          label="HUMAN REVIEW DECISIONS"
+          value={overview?.feedback}
+          note="Persisted review records"
+        />
+
+        <Metric
+          label="ACKNOWLEDGEMENTS"
+          value={overview?.pha}
+          note="Stored status; PHA transport may be simulated"
+        />
+
+        <Metric
+          label="OUTCOME PATTERNS"
+          value={overview?.analysis}
+          note="Derived from stored outcomes"
+        />
+      </div>
+
+      {overview?.status ===
+        'insufficient_data' && (
+        <section className="panel pad gov-callout">
+          <Activity />
+
+          <div>
+            <b>
+              insufficient_data
+            </b>
+
+            <p>
+              No Texas Measles reviewer
+              outcomes are currently
+              persisted. Patients without a
+              case and human decision are not
+              treated as accepted or rejected.
+              Learning insights will appear when
+              linked outcomes exist.
+            </p>
+          </div>
+        </section>
+      )}
+
+      <Table
+        headers={[
+          'Case',
+          'Patient detection ID',
+          'AI / detection status',
+          'Reviewer decision',
+          'Reportability',
+          'Validation',
+          'Submission / PHA',
+          'Review note',
+          'Evidence',
+        ]}
+        rows={rows.map(row => (
+          <tr key={row.id}>
+            <td>
+              <Link
+                to={`/governance/outcome-learning/${row.id}`}
+              >
+                {row.id}
+              </Link>
+            </td>
+
+            <td>
+              {row.candidate_id}
+            </td>
+
+            <td>
+              {row.ai_output}
+            </td>
+
+            <td>
+              {row.reviewer_decision}
+            </td>
+
+            <td>
+              {row.reportability_decision}
+            </td>
+
+            <td>
+              {row.validation_status}
+            </td>
+
+            <td>
+              {row.pha_outcome}
+              {row.submission_simulated
+                ? ' (simulated)'
+                : ''}
+            </td>
+
+            <td>
+              {row.correction_reason !==
+              'not_available'
+                ? row.correction_reason
+                : row.review_reason}
+            </td>
+
+            <td>
+              {(row.evidence || [])
+                .map(
+                  item =>
+                    item.source_type ||
+                    item.display
+                )
+                .filter(Boolean)
+                .join(', ') ||
+                'not_available'}
+            </td>
+          </tr>
+        ))}
+        empty="No jurisdiction-resolved Texas Measles cases with stored outcomes are available."
+      />
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h3>
+              Observed Outcome Patterns
+            </h3>
+
+            <p>
+              Patterns are derived from
+              persisted reviews, evidence,
+              validation, submission, and
+              acknowledgement results.
+            </p>
+          </div>
+        </div>
+
+        {insights.map(item => (
+          <div
+            className="source-row"
+            key={item.pattern}
+          >
+            <b>
+              {item.pattern} ·{' '}
+              {item.cases} cases
+            </b>
+
+            <span>
+              {Object.entries(
+                item.decisions
+              )
+                .map(
+                  ([decision, count]) =>
+                    `${decision}: ${count}`
+                )
+                .join(' · ')}
+            </span>
+
+            <small>
+              {item.suggestion}
+            </small>
+          </div>
+        ))}
+
+        {state.data &&
+          insights.length === 0 && (
+            <div className="cases-empty">
+              insufficient_data: no
+              persisted case review or
+              downstream outcomes are
+              available for pattern analysis.
+            </div>
+          )}
+      </section>
+
+      <div className="note">
+        Insights are advisory and require
+        human / engineering review. This
+        feature does not change detection
+        models, clinical decisions, or
+        reporting rules.
+      </div>
+    </GovLayout>
+  )
 }
+
+/* =========================================================
+   LEARNING SIGNAL DETAIL
+========================================================= */
 
 export function LearningSignalDetail() {
   const { signalId } = useParams()
-  const state = useLoad(() => outcomeLearningService.getLearningSignal(signalId), [signalId])
+
+  const state = useLoad(
+    () =>
+      outcomeLearningService.getLearningSignal(
+        signalId
+      ),
+    [signalId]
+  )
+
   const signal = state.data
-  if (state.error) return <GovLayout title="Outcome Record" sub={signalId}><ErrorNote error={state.error}/></GovLayout>
-  if (!signal) return <GovLayout title="Outcome Record" sub="Loading persisted outcome..."/>
-  return <GovLayout title="Outcome Record" sub={`Case ${signal.id}`}><section className="panel pad"><div className="panel-header"><div><h3>{signal.disease || 'Measles'} · {signal.jurisdiction || 'Texas'}</h3><p>{signal.candidate_id} · {dateTime(signal.timestamp)}</p></div><Status>{signal.status}</Status></div><div className="info-grid">{[['CANDIDATE STATUS',signal.ai_output],['REVIEWER DECISION',signal.reviewer_decision],['REPORTABILITY',signal.reportability_decision],['SUBMISSION / PHA STATUS',signal.pha_outcome],['REVIEW REASON',signal.review_reason],['SOURCE EVIDENCE',(signal.evidence || []).map(item => item.display || item.source_type).filter(Boolean).join(', ')],['JURISDICTION',signal.jurisdiction],['OUTCOME DATA STATUS',signal.reviewer_decision === 'not_available' ? 'insufficient_data' : 'observed']].map(([name,value]) => <div className="info" key={name}><small>{name}</small><b>{field(value)}</b></div>)}</div></section><div className="panel pad gov-callout"><CheckCircle2/><div><b>Human-reviewed learning record</b><p>This outcome supports analysis and future evaluation only. It does not directly retrain or change a production model or reporting rule.</p></div></div></GovLayout>
+
+  if (state.error) {
+    return (
+      <GovLayout
+        title="Outcome Record"
+        sub={signalId}
+      >
+        <ErrorNote error={state.error} />
+      </GovLayout>
+    )
+  }
+
+  if (!signal) {
+    return (
+      <GovLayout
+        title="Outcome Record"
+        sub="Loading persisted outcome..."
+      />
+    )
+  }
+
+  return (
+    <GovLayout
+      title="Outcome Record"
+      sub={`Case ${signal.id}`}
+    >
+      <section className="panel pad">
+        <div className="panel-header">
+          <div>
+            <h3>
+              {signal.disease ||
+                'Measles'}{' '}
+              ·{' '}
+              {signal.jurisdiction ||
+                'Texas'}
+            </h3>
+
+            <p>
+              {signal.candidate_id} ·{' '}
+              {dateTime(
+                signal.timestamp
+              )}
+            </p>
+          </div>
+
+          <Status>
+            {signal.status}
+          </Status>
+        </div>
+
+        <div className="info-grid">
+          {[
+            [
+              'PATIENT STATUS',
+              signal.ai_output,
+            ],
+            [
+              'REVIEWER DECISION',
+              signal.reviewer_decision,
+            ],
+            [
+              'REPORTABILITY',
+              signal.reportability_decision,
+            ],
+            [
+              'SUBMISSION / PHA STATUS',
+              signal.pha_outcome,
+            ],
+            [
+              'REVIEW REASON',
+              signal.review_reason,
+            ],
+            [
+              'SOURCE EVIDENCE',
+              (signal.evidence || [])
+                .map(
+                  item =>
+                    item.display ||
+                    item.source_type
+                )
+                .filter(Boolean)
+                .join(', '),
+            ],
+            [
+              'JURISDICTION',
+              signal.jurisdiction,
+            ],
+            [
+              'OUTCOME DATA STATUS',
+              signal.reviewer_decision ===
+              'not_available'
+                ? 'insufficient_data'
+                : 'observed',
+            ],
+          ].map(([name, value]) => (
+            <div
+              className="info"
+              key={name}
+            >
+              <small>{name}</small>
+
+              <b>
+                {field(value)}
+              </b>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="panel pad gov-callout">
+        <CheckCircle2 />
+
+        <div>
+          <b>
+            Human-reviewed learning record
+          </b>
+
+          <p>
+            This outcome supports analysis
+            and future evaluation only. It
+            does not directly retrain or
+            change a production model or
+            reporting rule.
+          </p>
+        </div>
+      </div>
+    </GovLayout>
+  )
 }

@@ -296,10 +296,13 @@ def _patient_deadline(
     disease_filter: str | None = None,
     last_encounter: datetime | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
+    # The patient worklist's condition filter is the normalized disease name
+    # used by the reporting rule catalog. Prefer it over workflow codes such as
+    # SNOMED URIs when calculating a cohort deadline.
     disease = (
-        (case.disease if case else None)
+        disease_filter
+        or (case.disease if case else None)
         or (candidate.disease_id if candidate else None)
-        or disease_filter
     )
     measles_conditions = []
     for condition in conditions:
@@ -313,7 +316,7 @@ def _patient_deadline(
         measles_conditions.append(condition)
 
     positive_lab_event_time = None
-    if lab_results:
+    if lab_results and last_encounter is None:
         detection_input = canonical_context_to_detection_input(
             {
                 "patient": _patient_to_dict(patient),
@@ -382,7 +385,7 @@ def _patient_deadline(
 
     # A stored deadline is authoritative and does not need a reconstructed event time.
     persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
-    if persisted_deadline is not None:
+    if persisted_deadline is not None and last_encounter is None:
         reporting = rule.get("reporting", {})
         return {
             "deadline": persisted_deadline,
@@ -397,10 +400,14 @@ def _patient_deadline(
 
     # Imported conditions can carry a DOB as onset_time. Do not treat that as
     # evidence of an acute reportable event; recorded_time is administrative.
-    for condition in measles_conditions:
-        if condition.onset_time and _not_patient_birth_date(patient, condition.onset_time):
-            event_time = condition.onset_time
-            break
+    # Patient table deadlines are recalculated from the latest encounter so
+    # stale workflow deadlines or older clinical events do not override it.
+    event_time = last_encounter
+    if event_time is None:
+        for condition in measles_conditions:
+            if condition.onset_time and _not_patient_birth_date(patient, condition.onset_time):
+                event_time = condition.onset_time
+                break
 
     if event_time is None:
         event_time = positive_lab_event_time
@@ -471,10 +478,18 @@ def list_patients(
     elif condition_text:
         query = query.filter(Patient.patient_id.in_(_condition_patient_filter(db, condition_text)))
 
-    total = query.count()
     ordered_query = query.order_by(Patient.created_at.desc(), Patient.patient_id.asc())
-    patients = ordered_query.offset((page - 1) * page_size).limit(page_size).all()
-    patient_ids = [patient.patient_id for patient in patients]
+    is_measles_worklist = condition_text.casefold() == "measles"
+    if is_measles_worklist:
+        worklist_patients = ordered_query.all()
+        total = len(worklist_patients)
+        start = (page - 1) * page_size
+        patients = worklist_patients[start:start + page_size]
+    else:
+        total = query.count()
+        patients = ordered_query.offset((page - 1) * page_size).limit(page_size).all()
+        worklist_patients = patients
+    patient_ids = [patient.patient_id for patient in worklist_patients]
 
     facilities = [
         row[0]
@@ -516,11 +531,11 @@ def list_patients(
         last_encounter_by_patient = dict(
             db.query(
                 Encounter.patient_id,
-                func.max(func.coalesce(Encounter.start_time, Encounter.end_time)),
+                func.max(func.coalesce(Encounter.end_time, Encounter.start_time)),
             )
             .filter(
                 Encounter.patient_id.in_(patient_ids),
-                func.coalesce(Encounter.start_time, Encounter.end_time).isnot(None),
+                func.coalesce(Encounter.end_time, Encounter.start_time).isnot(None),
             )
             .group_by(Encounter.patient_id)
             .all()
@@ -597,7 +612,7 @@ def list_patients(
 
     deadlines_by_patient: dict[UUID, tuple[dict[str, Any] | None, str | None]] = {}
     jurisdiction_by_patient: dict[UUID, str | None] = {}
-    for patient in patients:
+    for patient in worklist_patients:
         candidate = candidates_by_patient.get(str(patient.patient_id))
         case = (
             cases_by_candidate.get(candidate.candidate_id) if candidate else None
@@ -612,6 +627,12 @@ def list_patients(
             disease_filter="measles" if condition_text.casefold() == "measles" else None,
             last_encounter=last_encounter_by_patient.get(patient.patient_id),
         )
+
+        deadline_data, reason = deadlines_by_patient[patient.patient_id]
+        if deadline_data:
+            existing_priority = (case.severity if case else None) or (candidate.severity if candidate else None)
+            if not deadline_data.get("urgency") and existing_priority:
+                deadline_data["urgency"] = existing_priority
 
     return {
         "items": [

@@ -5,8 +5,8 @@
   margin: 0 auto;
   padding: 28px 32px 56px;
   overflow-x: clip;
-  background: #f4f7f5;
-  color: #193832;
+  background: var(--signal-bg);
+  color: var(--signal-text);
 }
 
 .review-validation-page > .case-header-modern,
@@ -38,122 +38,122 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #52645d;
+  color: var(--signal-text-secondary);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
 
-.review-back-button:hover { color: #193832; }
+.review-back-button:hover { color: var(--signal-text); }
 .review-back-button:focus-visible { outline: 3px solid rgba(91, 132, 104, .28); outline-offset: 3px; border-radius: 3px; }
-.review-page-header .case-kicker { color: #66756f; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
-.review-page-header h1 { margin: 8px 0 5px; color: #193832; font-size: clamp(25px, 3vw, 32px); line-height: 1.2; letter-spacing: -.025em; }
-.review-page-header p { margin: 0; color: #66756f; font-size: 14px; line-height: 1.5; }
+.review-page-header .case-kicker { color: var(--signal-text-secondary); font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.review-page-header h1 { margin: 8px 0 5px; color: var(--signal-text); font-size: clamp(25px, 3vw, 32px); line-height: 1.2; letter-spacing: -.025em; }
+.review-page-header p { margin: 0; color: var(--signal-text-secondary); font-size: 14px; line-height: 1.5; }
 
 .review-validation-page .review-message {
   margin-top: 0;
   margin-bottom: 16px;
   padding: 12px 15px;
-  border: 1px solid #dce5e0;
+  border: 1px solid var(--signal-border);
   border-radius: 9px;
-  background: #fff;
+  background: var(--signal-card);
   font-size: 13px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
-.review-message.is-error { border-color: #e7c9bf; background: #fff7f4; color: #8c5141; }
-.review-message.is-success { border-color: #cedfce; background: #f4f8f3; color: #345c43; }
+.review-message.is-error { border-color: var(--signal-border); background: var(--signal-surface); color: var(--signal-danger); }
+.review-message.is-success { border-color: var(--signal-border); background: var(--signal-bg); color: var(--signal-navy); }
 .review-page-content { display: grid; gap: 16px; }
 
 .review-section-card,
 .review-submit-card {
   min-width: 0;
-  border: 1px solid #dce5e0;
+  border: 1px solid var(--signal-border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--signal-card);
   box-shadow: 0 2px 8px rgba(25, 56, 50, .035);
 }
 
-.review-section-heading { padding: 18px 21px 14px; border-bottom: 1px solid #edf1ee; }
+.review-section-heading { padding: 18px 21px 14px; border-bottom: 1px solid var(--signal-border); }
 .review-section-heading > span,
-.review-submit-card > div > span { color: #66756f; font-size: 10px; font-weight: 800; letter-spacing: .09em; }
+.review-submit-card > div > span { color: var(--signal-text-secondary); font-size: 10px; font-weight: 800; letter-spacing: .09em; }
 .review-section-heading h2,
-.review-submit-card h2 { margin: 5px 0 0; color: #193832; font-size: 18px; line-height: 1.35; }
+.review-submit-card h2 { margin: 5px 0 0; color: var(--signal-text); font-size: 18px; line-height: 1.35; }
 
 .review-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 20px; margin: 0; padding: 8px 21px 18px; }
 .review-summary-grid > div { min-width: 0; padding: 11px 0 7px; }
 .review-summary-grid dt,
-.review-data-group dt { margin: 0 0 5px; color: #66756f; font-size: 11px; font-weight: 700; }
+.review-data-group dt { margin: 0 0 5px; color: var(--signal-text-secondary); font-size: 11px; font-weight: 700; }
 .review-summary-grid dd,
-.review-data-group dd { min-width: 0; margin: 0; color: #193832; font-size: 13px; overflow-wrap: anywhere; }
+.review-data-group dd { min-width: 0; margin: 0; color: var(--signal-text); font-size: 13px; overflow-wrap: anywhere; }
 
-.review-preview-notice { margin: 14px 20px 0; padding: 11px 13px; border: 1px solid #e7dfca; border-radius: 8px; background: #fffaf0; color: #6e6045; font-size: 12px; line-height: 1.5; }
+.review-preview-notice { margin: 14px 20px 0; padding: 11px 13px; border: 1px solid var(--signal-border); border-radius: 8px; background: var(--signal-warning-bg); color: var(--signal-text-secondary); font-size: 12px; line-height: 1.5; }
 .review-data-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; padding: 17px 20px 20px; }
-.review-data-group { min-width: 0; padding: 15px; border: 1px solid #e5ece7; border-radius: 9px; background: #fbfcfb; }
+.review-data-group { min-width: 0; padding: 15px; border: 1px solid var(--signal-border); border-radius: 9px; background: var(--signal-surface); }
 .review-data-group h3,
-.review-validation-detail h3 { margin: 0 0 11px; color: #193832; font-size: 13px; line-height: 1.4; }
+.review-validation-detail h3 { margin: 0 0 11px; color: var(--signal-text); font-size: 13px; line-height: 1.4; }
 .review-data-group > dl { display: grid; gap: 12px; margin: 0; }
 .review-data-group > dl > div { min-width: 0; }
 .review-data-group > dl > div > dd { line-height: 1.5; white-space: normal; }
-.review-empty-value { margin: 0; color: #66756f; font-size: 13px; }
+.review-empty-value { margin: 0; color: var(--signal-text-secondary); font-size: 13px; }
 
-.review-readable-object { display: grid; gap: 8px; margin: 4px 0 0; padding: 10px 12px; border-left: 2px solid #dce5e0; border-radius: 0 6px 6px 0; background: #f5f8f6; }
+.review-readable-object { display: grid; gap: 8px; margin: 4px 0 0; padding: 10px 12px; border-left: 2px solid var(--signal-border); border-radius: 0 6px 6px 0; background: var(--signal-bg); }
 .review-readable-object > div { display: grid; grid-template-columns: minmax(95px, .7fr) minmax(0, 1.3fr); gap: 10px; min-width: 0; }
-.review-readable-object dt { margin: 0; color: #66756f; font-size: 10px; font-weight: 650; }
-.review-readable-object dd { min-width: 0; margin: 0; color: #193832; font-size: 11px; overflow-wrap: anywhere; white-space: pre-wrap; }
-.review-readable-list { display: grid; gap: 5px; margin: 4px 0 0; padding-left: 18px; color: #193832; font-size: 11px; }
+.review-readable-object dt { margin: 0; color: var(--signal-text-secondary); font-size: 10px; font-weight: 650; }
+.review-readable-object dd { min-width: 0; margin: 0; color: var(--signal-text); font-size: 11px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.review-readable-list { display: grid; gap: 5px; margin: 4px 0 0; padding-left: 18px; color: var(--signal-text); font-size: 11px; }
 
-.review-overall-state { display: grid; gap: 5px; margin: 17px 20px 0; padding: 16px; border: 1px solid #e6dfcc; border-left: 4px solid #c48b71; border-radius: 9px; background: #fffaf2; }
-.review-overall-state > span { color: #66756f; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
-.review-overall-state > strong { color: #193832; font-size: 17px; line-height: 1.35; }
-.review-overall-state p { margin: 2px 0 0; color: #52645d; font-size: 12px; line-height: 1.5; }
-.review-overall-state.is-ready { border-color: #d3e2d2; border-left-color: #9caf88; background: #f4f8f3; }
-.review-overall-state.is-error { border-color: #e7c9bf; border-left-color: #b75c4f; background: #fff7f4; }
-.review-local-values { margin: 10px 16px; padding: 13px 14px; border: 1px solid #dce5e0; border-radius: 8px; background: #fbfcfb; }
-.review-local-values h3 { margin: 0; color: #193832; font-size: 13px; }
-.review-local-values > div > p { margin: 4px 0 0; color: #66756f; font-size: 11px; line-height: 1.45; }
+.review-overall-state { display: grid; gap: 5px; margin: 17px 20px 0; padding: 16px; border: 1px solid var(--signal-border); border-left: 4px solid var(--signal-danger); border-radius: 9px; background: var(--signal-surface); }
+.review-overall-state > span { color: var(--signal-text-secondary); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.review-overall-state > strong { color: var(--signal-text); font-size: 17px; line-height: 1.35; }
+.review-overall-state p { margin: 2px 0 0; color: var(--signal-text-secondary); font-size: 12px; line-height: 1.5; }
+.review-overall-state.is-ready { border-color: var(--signal-border); border-left-color: var(--signal-text-muted); background: var(--signal-bg); }
+.review-overall-state.is-error { border-color: var(--signal-border); border-left-color: var(--signal-danger); background: var(--signal-surface); }
+.review-local-values { margin: 10px 16px; padding: 13px 14px; border: 1px solid var(--signal-border); border-radius: 8px; background: var(--signal-surface); }
+.review-local-values h3 { margin: 0; color: var(--signal-text); font-size: 13px; }
+.review-local-values > div > p { margin: 4px 0 0; color: var(--signal-text-secondary); font-size: 11px; line-height: 1.45; }
 .review-local-values dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 16px; margin: 12px 0 0; }
 .review-local-values dl > div { min-width: 0; }
-.review-local-values dt { margin: 0 0 3px; color: #66756f; font-size: 10px; font-weight: 700; }
-.review-local-values dd { min-width: 0; margin: 0; color: #193832; font-size: 12px; overflow-wrap: anywhere; }
-.review-local-empty { margin: 12px 0 0; color: #66756f; font-size: 12px; }
+.review-local-values dt { margin: 0 0 3px; color: var(--signal-text-secondary); font-size: 10px; font-weight: 700; }
+.review-local-values dd { min-width: 0; margin: 0; color: var(--signal-text); font-size: 12px; overflow-wrap: anywhere; }
+.review-local-empty { margin: 12px 0 0; color: var(--signal-text-secondary); font-size: 12px; }
 .review-validation-note,
-.review-prerequisite { margin: 14px 20px; color: #66756f; font-size: 12px; line-height: 1.55; }
-.review-validation-detail { margin: 12px 20px; padding: 13px 15px; border: 1px solid #e5ece7; border-radius: 8px; color: #52645d; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.review-prerequisite { margin: 14px 20px; color: var(--signal-text-secondary); font-size: 12px; line-height: 1.55; }
+.review-validation-detail { margin: 12px 20px; padding: 13px 15px; border: 1px solid var(--signal-border); border-radius: 8px; color: var(--signal-text-secondary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .review-validation-detail ul { margin: 7px 0 0; padding-left: 20px; }
 .review-validation-detail li + li { margin-top: 5px; }
-.review-validation-detail.is-error { border-color: #e7c9bf; background: #fff7f4; }
-.review-validation-detail.is-warning { border-color: #e8dfcf; background: #fffaf2; }
-.review-secondary-button { min-height: 38px; margin: 0 8px 18px 20px; padding: 8px 13px; border: 1px solid #dce5e0; border-radius: 8px; background: #fff; color: #193832; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
-.review-secondary-button:hover:not(:disabled) { border-color: #9caf88; background: #f8faf8; }
+.review-validation-detail.is-error { border-color: var(--signal-border); background: var(--signal-surface); }
+.review-validation-detail.is-warning { border-color: var(--signal-border); background: var(--signal-surface); }
+.review-secondary-button { min-height: 38px; margin: 0 8px 18px 20px; padding: 8px 13px; border: 1px solid var(--signal-border); border-radius: 8px; background: var(--signal-card); color: var(--signal-text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.review-secondary-button:hover:not(:disabled) { border-color: var(--signal-text-muted); background: var(--signal-surface); }
 .review-secondary-button:disabled { opacity: .5; cursor: not-allowed; }
 
-.review-validation-page .review-description { margin: 15px 20px 10px; padding: 0; color: #52645d; font-size: 13px; line-height: 1.6; }
+.review-validation-page .review-description { margin: 15px 20px 10px; padding: 0; color: var(--signal-text-secondary); font-size: 13px; line-height: 1.6; }
 .review-human-form { padding: 0 20px 20px; }
-.review-confirm-control { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 16px; color: #193832; font-size: 13px; line-height: 1.5; }
-.review-confirm-control input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: #193832; flex: 0 0 17px; }
+.review-confirm-control { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 16px; color: var(--signal-text); font-size: 13px; line-height: 1.5; }
+.review-confirm-control input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--signal-text); flex: 0 0 17px; }
 .review-input-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-bottom: 14px; }
-.review-input-grid label { display: grid; gap: 6px; min-width: 0; color: #52645d; font-size: 12px; font-weight: 700; }
+.review-input-grid label { display: grid; gap: 6px; min-width: 0; color: var(--signal-text-secondary); font-size: 12px; font-weight: 700; }
 .review-input-grid input,
-.review-input-grid textarea { width: 100%; min-height: 40px; box-sizing: border-box; border: 1px solid #dce5e0; border-radius: 8px; padding: 9px 11px; background: #fff; color: #193832; font: inherit; font-weight: 500; }
+.review-input-grid textarea { width: 100%; min-height: 40px; box-sizing: border-box; border: 1px solid var(--signal-border); border-radius: 8px; padding: 9px 11px; background: var(--signal-card); color: var(--signal-text); font: inherit; font-weight: 500; }
 .review-input-grid textarea { resize: vertical; }
 .review-input-grid input:focus,
-.review-input-grid textarea:focus { outline: 3px solid rgba(91, 132, 104, .16); border-color: #71977a; }
+.review-input-grid textarea:focus { outline: 3px solid rgba(91, 132, 104, .16); border-color: var(--signal-text-secondary); }
 .review-input-grid input:disabled,
-.review-input-grid textarea:disabled { background: #f4f7f5; color: #89958f; }
+.review-input-grid textarea:disabled { background: var(--signal-bg); color: var(--signal-text-muted); }
 .review-input-wide { grid-column: 1 / -1; }
-.review-primary-button { min-height: 42px; padding: 10px 16px; border: 0; border-radius: 8px; background: #193832; color: #fff; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
-.review-primary-button:hover:not(:disabled) { background: #294b43; }
+.review-primary-button { min-height: 42px; padding: 10px 16px; border: 0; border-radius: 8px; background: var(--signal-text); color: var(--signal-card); font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
+.review-primary-button:hover:not(:disabled) { background: var(--signal-text); }
 .review-primary-button:focus-visible { outline: 3px solid rgba(91, 132, 104, .3); outline-offset: 2px; }
 .review-primary-button:disabled { opacity: .48; cursor: not-allowed; }
-.review-persisted-state { display: grid; gap: 7px; margin: 16px 20px 20px; padding: 15px; border: 1px solid #dce5e0; border-radius: 9px; background: #f8faf8; color: #52645d; font-size: 12px; overflow-wrap: anywhere; }
-.review-persisted-state strong { color: #193832; font-size: 14px; }
-.review-persisted-state.is-success { border-color: #d3e2d2; background: #f4f8f3; }
-.review-submit-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px; border-left: 4px solid #9caf88; }
+.review-persisted-state { display: grid; gap: 7px; margin: 16px 20px 20px; padding: 15px; border: 1px solid var(--signal-border); border-radius: 9px; background: var(--signal-surface); color: var(--signal-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.review-persisted-state strong { color: var(--signal-text); font-size: 14px; }
+.review-persisted-state.is-success { border-color: var(--signal-border); background: var(--signal-bg); }
+.review-submit-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px; border-left: 4px solid var(--signal-text-muted); }
 .review-submit-card h2 { margin: 5px 0 0; font-size: 19px; }
-.review-submit-card p { max-width: 680px; margin: 7px 0 0; color: #66756f; font-size: 12px; line-height: 1.55; }
+.review-submit-card p { max-width: 680px; margin: 7px 0 0; color: var(--signal-text-secondary); font-size: 12px; line-height: 1.55; }
 .review-submit-card .review-primary-button { flex: 0 0 auto; }
 
 /* Keep Review & Validation aligned with the compact Patient Reporting Form. */
@@ -172,7 +172,7 @@
 .review-validation-page .review-page-header {
   margin-bottom: 18px;
   padding-bottom: 15px;
-  border-bottom: 1px solid #dce5e0;
+  border-bottom: 1px solid var(--signal-border);
 }
 
 .review-page-header h1 {
@@ -191,7 +191,7 @@
 
 .review-section-heading {
   padding: 14px 18px 12px;
-  background: #fbfcfb;
+  background: var(--signal-surface);
   border-radius: 10px 10px 0 0;
 }
 
@@ -266,96 +266,96 @@
 
 /* Match the reporting form's sage, blue-gray, and soft status palette. */
 .case-workspace-page.review-validation-page {
-  background: #f4f7f5;
-  color: #304945;
+  background: var(--signal-bg);
+  color: var(--signal-text);
 }
 
-.review-page-header { border-color: #dce5e0; }
+.review-page-header { border-color: var(--signal-border); }
 .review-page-header .case-kicker,
 .review-section-heading > span,
-.review-submit-card > div > span { color: #8a9ea7; }
+.review-submit-card > div > span { color: var(--signal-text-muted); }
 .review-page-header p,
 .review-summary-grid dt,
 .review-validation-note,
-.review-prerequisite { color: #81908c; }
+.review-prerequisite { color: var(--signal-text-secondary); }
 .review-back-button,
 .review-data-group dt,
-.review-local-values dt { color: #526762; }
+.review-local-values dt { color: var(--signal-text-secondary); }
 
 .review-validation-page .review-section-card,
 .review-validation-page .review-submit-card {
-  border-color: #dce5e0;
-  background: #fff;
+  border-color: var(--signal-border);
+  background: var(--signal-card);
   box-shadow: 0 2px 10px rgb(25 56 50 / 5%);
 }
 
-.review-section-heading { border-color: #e7ece9; background: #fbfcfb; }
+.review-section-heading { border-color: var(--signal-border); background: var(--signal-surface); }
 .review-data-group,
-.review-local-values { border-color: #e4ebe7; background: #f6f9f7; }
+.review-local-values { border-color: var(--signal-border); background: var(--signal-bg); }
 .review-data-group h3,
 .review-validation-detail h3,
-.review-local-values h3 { color: #304945; }
+.review-local-values h3 { color: var(--signal-text); }
 .review-data-group dd,
 .review-summary-grid dd,
-.review-local-values dd { color: #304945; }
+.review-local-values dd { color: var(--signal-text); }
 
 .review-overall-state,
 .review-overall-state.is-incomplete {
-  border-color: #e7d6c9;
-  border-left-color: #c48b71;
-  background: #fffaf6;
+  border-color: var(--signal-border);
+  border-left-color: var(--signal-danger);
+  background: var(--signal-surface);
 }
-.review-overall-state.is-incomplete > strong { color: #765d4d; }
+.review-overall-state.is-incomplete > strong { color: var(--signal-text-secondary); }
 .review-overall-state.is-ready,
 .review-persisted-state.is-success {
-  border-color: #cce0d1;
-  border-left-color: #527e62;
-  background: #f3f8f4;
+  border-color: var(--signal-border);
+  border-left-color: var(--signal-text-secondary);
+  background: var(--signal-bg);
 }
 .review-overall-state.is-error,
 .review-validation-detail.is-error,
 .review-message.is-error {
-  border-color: #e7d6c9;
-  background: #fffaf6;
-  color: #765d4d;
+  border-color: var(--signal-border);
+  background: var(--signal-surface);
+  color: var(--signal-text-secondary);
 }
-.review-message.is-success { border-color: #cce0d1; background: #f3f8f4; color: #527e62; }
-.review-validation-detail.is-warning { border-color: #e7d6c9; background: #fffaf6; }
-.review-validation-detail { border-color: #e4ebe7; color: #526762; }
+.review-message.is-success { border-color: var(--signal-border); background: var(--signal-bg); color: var(--signal-text-secondary); }
+.review-validation-detail.is-warning { border-color: var(--signal-border); background: var(--signal-surface); }
+.review-validation-detail { border-color: var(--signal-border); color: var(--signal-text-secondary); }
 
 .review-input-grid input,
 .review-input-grid textarea {
-  border-color: #cfdad5;
+  border-color: var(--signal-border);
   border-radius: 6px;
-  color: #304945;
+  color: var(--signal-text);
 }
 .review-input-grid input:focus,
 .review-input-grid textarea:focus {
-  border-color: #8a9ea7;
+  border-color: var(--signal-text-muted);
   box-shadow: 0 0 0 3px rgb(138 158 167 / 12%);
 }
 .review-input-grid input:disabled,
-.review-input-grid textarea:disabled { background: #f7f9f7; color: #81908c; }
-.review-confirm-control input { accent-color: #527e62; }
-.review-secondary-button { border-color: #cfdad5; color: #304945; }
-.review-secondary-button:hover:not(:disabled) { border-color: #8a9ea7; background: #f6f9f7; }
-.review-primary-button { background: #52695e; }
-.review-primary-button:hover:not(:disabled) { background: #40584d; }
-.review-persisted-state { border-color: #cce0d1; background: #f3f8f4; color: #526762; }
-.review-persisted-state strong { color: #304945; }
-.review-submit-card { border-left-color: #9caf88; }
-.review-submit-card p { color: #66756f; }
+.review-input-grid textarea:disabled { background: var(--signal-bg); color: var(--signal-text-secondary); }
+.review-confirm-control input { accent-color: var(--signal-text-secondary); }
+.review-secondary-button { border-color: var(--signal-border); color: var(--signal-text); }
+.review-secondary-button:hover:not(:disabled) { border-color: var(--signal-text-muted); background: var(--signal-bg); }
+.review-primary-button { background: var(--signal-text-secondary); }
+.review-primary-button:hover:not(:disabled) { background: var(--signal-navy); }
+.review-persisted-state { border-color: var(--signal-border); background: var(--signal-bg); color: var(--signal-text-secondary); }
+.review-persisted-state strong { color: var(--signal-text); }
+.review-submit-card { border-left-color: var(--signal-text-muted); }
+.review-submit-card p { color: var(--signal-text-secondary); }
 
 /* Patient Workspace palette: slate surfaces, navy text, and orange actions. */
 .case-workspace-page.review-validation-page {
-  background: #f4f6f8;
-  color: #17233c;
+  background: var(--signal-bg);
+  color: var(--signal-text);
 }
 
-.review-page-header { border-color: #e5e7eb; }
+.review-page-header { border-color: var(--signal-border); }
 .review-page-header .case-kicker,
 .review-section-heading > span,
-.review-submit-card > div > span { color: #7b8794; }
+.review-submit-card > div > span { color: var(--signal-text-secondary); }
 .review-page-header h1,
 .review-section-heading h2,
 .review-submit-card h2,
@@ -363,81 +363,81 @@
 .review-data-group dd,
 .review-local-values dd,
 .review-overall-state > strong,
-.review-persisted-state strong { color: #17233c; }
+.review-persisted-state strong { color: var(--signal-text); }
 .review-page-header p,
 .review-back-button,
 .review-summary-grid dt,
 .review-data-group dt,
 .review-validation-note,
 .review-prerequisite,
-.review-local-values dt { color: #64748b; }
-.review-back-button:hover { color: #334155; }
+.review-local-values dt { color: var(--signal-text-secondary); }
+.review-back-button:hover { color: var(--signal-navy); }
 .review-back-button:focus-visible { outline-color: rgb(232 117 36 / 28%); }
 
 .review-validation-page .review-section-card,
 .review-validation-page .review-submit-card {
-  border-color: #dfe4ea;
-  background: #fff;
+  border-color: var(--signal-border);
+  background: var(--signal-card);
   box-shadow: 0 2px 8px rgb(15 23 42 / 4%);
 }
-.review-section-heading { border-color: #e5e7eb; background: #fafbfc; }
+.review-section-heading { border-color: var(--signal-border); background: var(--signal-surface); }
 .review-data-group,
-.review-local-values { border-color: #e3e7eb; background: #fafbfc; }
+.review-local-values { border-color: var(--signal-border); background: var(--signal-surface); }
 .review-data-group h3,
 .review-validation-detail h3,
-.review-local-values h3 { color: #1f2937; }
+.review-local-values h3 { color: var(--signal-text); }
 .review-local-values > div > p,
-.review-local-empty { color: #7b8794; }
+.review-local-empty { color: var(--signal-text-secondary); }
 
 .review-overall-state,
 .review-overall-state.is-incomplete {
-  border-color: #e7b58e;
-  border-left-color: #e87524;
-  background: #fff7f0;
+  border-color: var(--signal-text-muted);
+  border-left-color: var(--signal-warning);
+  background: var(--signal-warning-bg);
 }
-.review-overall-state.is-incomplete > strong { color: #bd5d1c; }
+.review-overall-state.is-incomplete > strong { color: var(--signal-warning); }
 .review-overall-state.is-ready {
-  border-color: #dfe4ea;
-  border-left-color: #17233c;
-  background: #f7f8fa;
+  border-color: var(--signal-border);
+  border-left-color: var(--signal-text);
+  background: var(--signal-surface);
 }
 .review-overall-state.is-error,
 .review-validation-detail.is-error,
 .review-message.is-error {
-  border-color: #e8cccc;
-  background: #fff4f4;
-  color: #a34848;
+  border-color: var(--signal-border);
+  background: var(--signal-bg);
+  color: var(--signal-danger);
 }
 .review-message.is-success,
-.review-persisted-state.is-success { border-color: #dfe4ea; background: #f7f8fa; color: #344054; }
-.review-validation-detail.is-warning { border-color: #e7b58e; background: #fff7f0; }
-.review-validation-detail { border-color: #e3e7eb; color: #4b5563; }
+.review-persisted-state.is-success { border-color: var(--signal-border); background: var(--signal-surface); color: var(--signal-navy); }
+.review-validation-detail.is-warning { border-color: var(--signal-text-muted); background: var(--signal-warning-bg); }
+.review-validation-detail { border-color: var(--signal-border); color: var(--signal-navy); }
 
 .review-input-grid label,
-.review-confirm-control { color: #344054; }
+.review-confirm-control { color: var(--signal-navy); }
 .review-input-grid input,
 .review-input-grid textarea {
-  border-color: #cfd6de;
+  border-color: var(--signal-border);
   border-radius: 6px;
-  color: #17233c;
+  color: var(--signal-text);
 }
 .review-input-grid input:focus,
 .review-input-grid textarea:focus {
-  border-color: #e87524;
+  border-color: var(--signal-warning);
   box-shadow: 0 0 0 3px rgb(232 117 36 / 12%);
 }
 .review-input-grid input:disabled,
-.review-input-grid textarea:disabled { background: #f7f8fa; color: #7b8794; }
-.review-confirm-control input { accent-color: #e87524; }
-.review-secondary-button { border-color: #cfd6de; color: #17233c; }
-.review-secondary-button:hover:not(:disabled) { border-color: #e87524; background: #f7f8fa; }
-.review-primary-button { background: #e87524; }
-.review-primary-button:hover:not(:disabled) { background: #d96417; }
-.review-primary-button:focus-visible { outline-color: rgb(232 117 36 / 30%); }
-.review-persisted-state { border-color: #dfe4ea; background: #f7f8fa; color: #4b5563; }
-.review-persisted-state strong { color: #17233c; }
-.review-submit-card { border-left-color: #e87524; }
-.review-submit-card p { color: #64748b; }
+.review-input-grid textarea:disabled { background: var(--signal-surface); color: var(--signal-text-secondary); }
+.review-confirm-control input { accent-color: var(--signal-warning); }
+.review-secondary-button { border-color: var(--signal-border); color: var(--signal-text); }
+.review-secondary-button:hover:not(:disabled) { border-color: var(--signal-warning); background: var(--signal-surface); }
+.review-primary-button { background: var(--signal-orange); }
+.review-primary-button:hover:not(:disabled) { background: var(--signal-navy); }
+.review-primary-button:focus-visible { outline-color: rgb(255 107 61 / 30%); }
+.review-persisted-state { border-color: var(--signal-border); background: var(--signal-surface); color: var(--signal-navy); }
+.review-persisted-state strong { color: var(--signal-text); }
+.review-submit-card { border-left-color: var(--signal-warning); }
+.review-submit-card p { color: var(--signal-text-secondary); }
 
 /* Box individual review values like the Patient Workspace info tiles. */
 .review-summary-grid {
@@ -448,17 +448,17 @@
 .review-local-values dl > div {
   min-width: 0;
   padding: 12px;
-  border: 1px solid #e3e7eb;
+  border: 1px solid var(--signal-border);
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--signal-surface);
 }
 .review-summary-grid > div { padding-top: 11px; }
 .review-local-values dl { gap: 9px; }
 .review-summary-grid > div,
 .review-local-values dl > div {
-  border-color: #e0e5ea;
-  background: #fafbfc;
+  border-color: var(--signal-border);
+  background: var(--signal-surface);
   box-shadow: none;
 }
 .review-summary-grid dt,
-.review-local-values dt { color: #687381; }
+.review-local-values dt { color: var(--signal-text-secondary); }

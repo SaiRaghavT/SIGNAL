@@ -30,6 +30,7 @@ import {
 import {
   getCaseValidation,
   getSubmissionReadiness,
+  calculateDeadline,
 } from "../api/workflow.js";
 
 import "../styles/queue-acknowledgement.css";
@@ -53,6 +54,24 @@ const prettify = (value) =>
     .replace(/\b\w/g, (letter) =>
       letter.toUpperCase()
     );
+
+
+function conditionLabel(value, displayValue) {
+  const display = String(displayValue || "").trim();
+  if (display) return prettify(display);
+
+  const raw = String(value || "").trim();
+  const snomedCode = raw.match(/(?:\||\/)(\d+)$/)?.[1];
+  if (/^(measles|rubeola)$/i.test(raw) || ["14189004", "14168008", "7180009"].includes(snomedCode)) {
+    return "Measles";
+  }
+
+  // Avoid exposing terminology URLs or opaque codes as a condition label.
+  if (/^https?:\/\//i.test(raw) || /^\d+$/.test(raw)) {
+    return "Condition recorded";
+  }
+  return prettify(raw) || "Not returned";
+}
 
 
 function errorMessage(error) {
@@ -240,6 +259,9 @@ export default function QueueAcknowledgementPage() {
   const [readiness, setReadiness] =
     useState(null);
 
+  const [calculatedDeadline, setCalculatedDeadline] =
+    useState(null);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -268,9 +290,33 @@ export default function QueueAcknowledgementPage() {
         getSubmissionReadiness(caseId),
       ]);
 
-      setCaseData(
-        responseData(caseResponse)
-      );
+      const loadedCase = responseData(caseResponse);
+      setCaseData(loadedCase);
+
+      const savedDeadline = loadedCase?.deadline || loadedCase?.reporting_deadline;
+      if (savedDeadline) {
+        setCalculatedDeadline(null);
+      } else {
+        setCalculatedDeadline(null);
+        const disease = String(loadedCase?.disease || "").trim();
+        const code = disease.match(/(?:\||\/)(\d+)$/)?.[1];
+        const isMeasles = /^(measles|rubeola)$/i.test(disease) || ["14189004", "14168008", "7180009"].includes(code);
+        const jurisdiction = String(loadedCase?.jurisdiction || "").trim();
+        if (isMeasles && jurisdiction && loadedCase?.created_at) {
+          try {
+            const ruleId = String(loadedCase?.rule_id || "").trim();
+            const deadlineResponse = await calculateDeadline({
+              event_time: loadedCase.created_at,
+              disease: "measles",
+              jurisdiction: /^texas$/i.test(jurisdiction) ? "TX" : jurisdiction,
+              ...(ruleId && ruleId !== "NO_RULE_AVAILABLE" ? { rule_id: ruleId } : {}),
+            });
+            setCalculatedDeadline(responseData(deadlineResponse));
+          } catch {
+            // Keep the queue page usable when no rule is configured.
+          }
+        }
+      }
 
       setJourney(
         responseData(journeyResponse)
@@ -329,13 +375,16 @@ export default function QueueAcknowledgementPage() {
     );
 
   const condition =
-    prettify(caseData?.disease) ||
-    "Not returned";
+    conditionLabel(caseData?.disease, caseData?.disease_display || caseData?.condition_display);
 
   const deadline =
     deadlineLabel(
-      caseData?.deadline
+      caseData?.deadline || caseData?.reporting_deadline || calculatedDeadline?.deadline
     );
+
+  const deadlineSubtitle = caseData?.deadline || caseData?.reporting_deadline
+    ? "Configured reporting deadline"
+    : calculatedDeadline?.calculation_basis || "No reporting deadline rule is available";
 
 
   /* =======================================================
@@ -345,9 +394,12 @@ export default function QueueAcknowledgementPage() {
   const queueRecord =
     readiness?.record || null;
 
+  const queuedForCompletion =
+    queueRecord?.status === "QUEUED";
+
   const queueConfirmed =
     readiness?.ready === true &&
-    queueRecord?.status === "READY";
+    ["READY", "QUEUED"].includes(queueRecord?.status);
 
   const queueReference =
     queueRecord?.record_id ||
@@ -423,7 +475,7 @@ export default function QueueAcknowledgementPage() {
       admin:
         dispatchRecorded
           ? "complete"
-          : queueConfirmed
+          : queueConfirmed && !queuedForCompletion
           ? "current"
           : "pending",
 
@@ -439,6 +491,7 @@ export default function QueueAcknowledgementPage() {
     [
       validated,
       queueConfirmed,
+      queuedForCompletion,
       dispatchRecorded,
       phrAcknowledged,
     ]
@@ -446,20 +499,24 @@ export default function QueueAcknowledgementPage() {
 
 
   const queueStatus = queueConfirmed
-    ? "READY"
+    ? queuedForCompletion ? "QUEUED" : "READY"
     : "PENDING";
 
   const queueStatusSubtitle =
     queueConfirmed
-      ? "Ready for authorized reporting"
+      ? queuedForCompletion
+        ? "Queued; required reporting details remain"
+        : "Ready for authorized reporting"
       : "Queue handoff not confirmed";
 
 
   const adminStatus =
     dispatchRecorded
       ? "Complete"
-      : queueConfirmed
+      : queueConfirmed && !queuedForCompletion
       ? "Current"
+      : queuedForCompletion
+      ? "Pending completion"
       : "Pending";
 
 
@@ -479,8 +536,8 @@ export default function QueueAcknowledgementPage() {
      NAVIGATION
      ======================================================= */
 
-  const backToReview = () => {
-    navigate(casePath);
+  const backToPatients = () => {
+    navigate("/patients");
   };
 
 
@@ -600,7 +657,7 @@ export default function QueueAcknowledgementPage() {
         <button
           type="button"
           className="queue-back-button"
-          onClick={backToReview}
+          onClick={backToPatients}
         >
           <ArrowLeft size={15} />
           Back
@@ -653,7 +710,7 @@ export default function QueueAcknowledgementPage() {
         <StatusCard
           label="Reporting Deadline"
           value={deadline}
-          subtitle="Configured reporting deadline"
+          subtitle={deadlineSubtitle}
           accent="blue"
         />
 
@@ -694,7 +751,7 @@ export default function QueueAcknowledgementPage() {
                 }`}
               >
                 {queueConfirmed
-                  ? "READY"
+                  ? queuedForCompletion ? "QUEUED" : "READY"
                   : "PENDING"}
               </span>
 
@@ -730,13 +787,17 @@ export default function QueueAcknowledgementPage() {
 
                 <strong>
                   {queueConfirmed
-                    ? "Reporting package is ready for authorized reporting staff."
+                    ? queuedForCompletion
+                      ? "Case added to the reporting queue with completion still required."
+                      : "Reporting package is ready for authorized reporting staff."
                     : "Reporting package is not yet confirmed in the authorized queue."}
                 </strong>
 
                 <p>
                   {queueConfirmed
-                    ? "Super Admin review is the next step before any dispatch to Texas DSHS."
+                    ? queuedForCompletion
+                      ? "Complete the missing reporting details before Super Admin review or dispatch."
+                      : "Super Admin review is the next step before any dispatch to Texas DSHS."
                     : "Return to Review & Validation and complete the required queue handoff."}
                 </p>
 
@@ -767,13 +828,17 @@ export default function QueueAcknowledgementPage() {
 
                 <strong>
                   {queueConfirmed
-                    ? "Super Admin Review & Dispatch"
+                    ? queuedForCompletion
+                      ? "Complete Reporting Details"
+                      : "Super Admin Review & Dispatch"
                     : "Confirm Queue Handoff"}
                 </strong>
 
                 <p>
                   {queueConfirmed
-                    ? "An authorized reporting user reviews the package and dispatches it through the approved reporting channel."
+                    ? queuedForCompletion
+                      ? "The case is in the queue, but required details must be completed before dispatch."
+                      : "An authorized reporting user reviews the package and dispatches it through the approved reporting channel."
                     : "The case must be confirmed as queue-ready before authorized reporting staff can continue."}
                 </p>
               </div>
@@ -830,7 +895,9 @@ export default function QueueAcknowledgementPage() {
                 }
                 note={
                   queueConfirmed
-                    ? "Queue ready"
+                    ? queuedForCompletion
+                      ? "Queued; completion pending"
+                      : "Queue ready"
                     : "Pending queue handoff"
                 }
               />
@@ -900,7 +967,7 @@ export default function QueueAcknowledgementPage() {
                 }`}
               >
                 {queueConfirmed
-                  ? "Ready"
+                  ? queuedForCompletion ? "Queued" : "Ready"
                   : "Pending"}
               </span>
 
@@ -914,7 +981,9 @@ export default function QueueAcknowledgementPage() {
               </span>
 
               <strong>
-                Super Admin Reporting Queue
+                {queuedForCompletion
+                  ? "Super Admin Reporting Queue · Completion Needed"
+                  : "Super Admin Reporting Queue"}
               </strong>
 
             </div>
@@ -941,7 +1010,9 @@ export default function QueueAcknowledgementPage() {
 
               <strong>
                 {queueConfirmed
-                  ? "Super Admin Review"
+                  ? queuedForCompletion
+                    ? "Complete reporting details"
+                    : "Super Admin Review"
                   : "Complete Queue Handoff"}
               </strong>
 
@@ -986,34 +1057,33 @@ export default function QueueAcknowledgementPage() {
 
           <article className="queue-card queue-important-card">
 
-            <div className="queue-important-icon">
-              <UserRoundCheck
-                size={18}
-                aria-hidden="true"
-              />
-            </div>
+  <div className="queue-important-icon">
+    <UserRoundCheck
+      size={18}
+      aria-hidden="true"
+    />
+  </div>
 
-            <div>
+  <div>
 
-              <span className="queue-eyebrow">
-                AUTHORIZED REPORTING
-              </span>
+    <span className="queue-eyebrow">
+      AUTHORIZED REPORTING
+    </span>
 
-              <h3>
-                No PHA submission from this page
-              </h3>
+    <h3>
+      Submitted to Admin Reporting Queue
+    </h3>
 
-              <p>
-                This page tracks queue readiness
-                and downstream acknowledgement.
-                Texas DSHS dispatch occurs only
-                after authorized reporting staff
-                review and send the package.
-              </p>
+    <p>
+      The reporting package has been successfully
+      handed off to the authorized reporting staff
+      for review and dispatch through the approved
+      reporting channel.
+    </p>
 
-            </div>
+  </div>
 
-          </article>
+</article>
 
 
           {/* =================================================
@@ -1021,13 +1091,13 @@ export default function QueueAcknowledgementPage() {
               ================================================= */}
 
           <button
-            type="button"
-            className="queue-return-button"
-            onClick={backToReview}
-          >
-            <ArrowLeft size={14} />
-            Back to Review &amp; Validation
-          </button>
+  type="button"
+  className="queue-back-button"
+  onClick={() => navigate("/patients")}
+>
+  <ArrowLeft size={16} aria-hidden="true" />
+  Back
+</button>
 
         </aside>
 

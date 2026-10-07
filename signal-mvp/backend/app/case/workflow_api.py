@@ -338,10 +338,13 @@ def create_attestation(case_id: UUID, request: AttestationBody, db: Session = De
 def get_submission_readiness(case_id: UUID, db: Session = Depends(get_db)) -> dict[str, Any]:
     case = _case(db, case_id)
     row = _latest(db, case_id, SUBMISSION_READINESS_TYPE)
+    valid = _validation(case)["valid"]
     current = (
         row is not None
-        and row.status == "READY"
-        and _validation(case)["valid"]
+        and (
+            (row.status == "READY" and valid)
+            or row.status == "QUEUED"
+        )
     )
     return _submission_readiness_response(case, current, row)
 
@@ -356,25 +359,32 @@ def mark_submission_ready(
     validation = _validation(case)
     review = _latest(db, case_id, RECORD_TYPES["review"])
     attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
-    if not validation["valid"]:
-        raise HTTPException(status_code=409, detail={"message": "Case validation is incomplete.", "validation": validation})
+    persisted_review_approved = (
+        review is not None
+        and (review.status or "").strip().upper() in {"APPROVE", "APPROVED"}
+    )
     session_review_confirmed = (
         request.review_confirmed
-        and (request.review_decision or "").strip().upper() == "APPROVE"
+        and (request.review_decision or "").strip().upper() in {"APPROVE", "APPROVED"}
     )
-    if (review is None or review.status != "APPROVE") and not session_review_confirmed:
+    if not persisted_review_approved and not session_review_confirmed:
         raise HTTPException(status_code=409, detail="An approved human review is required before queue readiness.")
     if (attestation is None or attestation.status != "ATTESTED") and not request.attestation_confirmed:
         raise HTTPException(status_code=409, detail="An attestation confirmation is required before queue readiness.")
     existing = _latest(db, case_id, SUBMISSION_READINESS_TYPE)
-    if existing is not None and existing.status == "READY":
+    queue_status = "READY" if validation["valid"] else "QUEUED"
+    if existing is not None and existing.status == queue_status:
         return _submission_readiness_response(case, True, existing)
     row = _record(
         db,
         case_id,
         SUBMISSION_READINESS_TYPE,
-        "READY",
-        {"ready_for_authorized_reporting": True},
+        queue_status,
+        {
+            "ready_for_authorized_reporting": validation["valid"],
+            "queued_for_completion": not validation["valid"],
+            "missing_fields": validation["missing_fields"],
+        },
         request.actor_id.strip(),
     )
     return _submission_readiness_response(case, True, row)

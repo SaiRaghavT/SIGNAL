@@ -222,7 +222,7 @@ def _extract_with_gemini(
 
         except Exception as exc:
             print(
-                f"❌ GEMINI ERROR: "
+                f"GEMINI ERROR: "
                 f"{type(exc).__name__}: {exc}"
             )
             raise
@@ -362,7 +362,7 @@ def _extract_with_groq(
                 continue
 
             print(
-                f"❌ GROQ ERROR: "
+                f"GROQ ERROR: "
                 f"{type(exc).__name__}: {exc}"
             )
             raise

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     gemini_enabled: bool = False
     llm_provider: str = "gemini"
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.8-flash"
     groq_api_key: str | None = None
     groq_model: str = "openai/gpt-oss-20b"
     tesseract_cmd: str | None = None
