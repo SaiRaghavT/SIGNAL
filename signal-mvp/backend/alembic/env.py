@@ -23,6 +23,7 @@ from backend.app.models import (
     Report,
     Acknowledgement,
     SubmissionAttempt,
+    DemoCaseBaseline,
 )
 
 # Alembic Config object

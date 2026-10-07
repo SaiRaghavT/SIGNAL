@@ -58,8 +58,8 @@ def _session() -> Session:
 def _create_existing_hl7_patient(db: Session) -> Patient:
     patient = Patient(
         source_patient_id=PATIENT_SOURCE_ID,
-        first_name="JOHN",
-        last_name="DOE",
+        first_name="SAMPLE",
+        last_name="PATIENT",
         state=None,
         source="hl7",
         source_resource="PID",
@@ -144,7 +144,7 @@ def test_seed_updates_existing_hl7_patient_and_removes_unreferenced_legacy_demo(
         ).count() == 0
         context = get_patient_context(db, patient.patient_id)
         assert context["patient"]["source_patient_id"] == PATIENT_SOURCE_ID
-        assert context["patient"]["first_name"] == "JOHN"
+        assert context["patient"]["first_name"] == "SAMPLE"
         assert context["patient"]["address"]["state"] == "TX"
         assert context["patient"]["address"]["county"] == "Travis"
         assert context["encounters"][0]["facility_id"] == DEMO_FACILITY_ID
@@ -196,7 +196,7 @@ def test_seed_updates_existing_hl7_patient_and_removes_unreferenced_legacy_demo(
             assert len(items) == 1
             item = items[0]
             assert item["source_patient_id"] == PATIENT_SOURCE_ID
-            assert item["first_name"] == "JOHN"
+            assert item["first_name"] == "SAMPLE"
             assert item["condition"] == "Measles"
             assert item["deadline"]["disease"] == "measles"
             assert item["deadline"]["jurisdiction"] == "TX"

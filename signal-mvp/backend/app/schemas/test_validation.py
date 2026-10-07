@@ -11,7 +11,7 @@ def make_ecr(**overrides):
         "jurisdiction": "TX",
         "disease": "measles",
         "patient": {
-            "date_of_birth": "1990-01-01",
+            "date_of_birth": "1985-05-05",
         },
         "facility": {
             "name": "Test Hospital",

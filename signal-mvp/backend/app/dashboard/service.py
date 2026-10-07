@@ -1,6 +1,9 @@
-from sqlalchemy import func, or_
+from datetime import datetime, timezone
+
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
+from backend.app.canonical.query_service import list_patients
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.follow_up import FollowUp
@@ -12,7 +15,7 @@ from .schemas import DashboardSummaryResponse
 
 
 def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
-    """Aggregate dashboard counts from persisted records only."""
+    """Aggregate dashboard counts from the existing Measles worklist and workflow records."""
 
     cases = db.query(Case.case_id).count()
     reportable_cases = (
@@ -45,6 +48,54 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         .count()
     )
 
+    # Reuse the canonical worklist service so this KPI and Priority Work use
+    # the same backend cohort and the exact deadline values exposed to Patients.
+    measles_worklist = list_patients(db, page=1, page_size=100_000, condition="measles")
+    local_today = datetime.now().astimezone().date()
+    measles_patients_due_today = 0
+    for patient in measles_worklist["items"]:
+        deadline_data = patient.get("deadline")
+        deadline_value = deadline_data.get("deadline") if isinstance(deadline_data, dict) else deadline_data
+        if isinstance(deadline_value, str):
+            try:
+                deadline_value = datetime.fromisoformat(deadline_value.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+        if not isinstance(deadline_value, datetime):
+            continue
+        if deadline_value.tzinfo is None:
+            deadline_value = deadline_value.replace(tzinfo=timezone.utc)
+        if deadline_value.astimezone().date() == local_today:
+            measles_patients_due_today += 1
+
+    measles_case_filter = func.lower(Case.disease).like("%measles%")
+    reported_case_ids = (
+        db.query(Submission.case_id.label("case_id"))
+        .filter(Submission.status.in_(("SUBMITTED", "ACKNOWLEDGED")))
+        .distinct()
+        .subquery()
+    )
+    reported_measles_cases = (
+        db.query(Case.case_id)
+        .join(reported_case_ids, cast(Case.case_id, String) == reported_case_ids.c.case_id)
+        .filter(measles_case_filter)
+        .distinct()
+        .count()
+    )
+
+    # The case workflow has no separate ACTIVE enum: its open action states are
+    # NEEDS_REVIEW and REPORT. Exclude cases with an actual submitted/acknowledged
+    # record; HOLD is not an open reporting action.
+    active_measles_cases = (
+        db.query(Case.case_id)
+        .filter(
+            measles_case_filter,
+            Case.status.in_(("NEEDS_REVIEW", "REPORT")),
+            ~cast(Case.case_id, String).in_(select(reported_case_ids.c.case_id)),
+        )
+        .count()
+    )
+
     return DashboardSummaryResponse(
         cases=cases,
         reportable_cases=reportable_cases,
@@ -52,6 +103,10 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         submitted_cases=submitted_cases,
         follow_up_cases=follow_up_cases,
         upcoming_deadlines=upcoming_deadlines,
+        total_measles_patients=measles_worklist["total"],
+        active_measles_cases=active_measles_cases,
+        measles_patients_due_today=measles_patients_due_today,
+        reported_measles_cases=reported_measles_cases,
     )
 
 
@@ -80,7 +135,13 @@ def get_dashboard_deadlines(db: Session) -> dict:
         .limit(50)
         .all()
     )
+    counts_by_status = (
+        db.query(DeadlineEscalation.status, func.count(DeadlineEscalation.escalation_id))
+        .group_by(DeadlineEscalation.status)
+        .all()
+    )
     return {
+        "by_status": {str(status): count for status, count in counts_by_status},
         "items": [
             {
                 "case_id": item.case_id,
@@ -113,6 +174,14 @@ def get_reporting_status(db: Session) -> dict:
         .group_by(Case.jurisdiction)
         .all()
     )
+    case_conditions = (
+        db.query(Case.disease, func.count(Case.case_id))
+        .filter(Case.disease.isnot(None))
+        .group_by(Case.disease)
+        .order_by(func.count(Case.case_id).desc())
+        .limit(20)
+        .all()
+    )
     conditions = (
         db.query(Condition.condition_display, func.count(Condition.condition_id))
         .filter(Condition.condition_display.isnot(None))
@@ -127,6 +196,7 @@ def get_reporting_status(db: Session) -> dict:
         "submissions": {str(name): count for name, count in submissions_by_status},
         "jurisdictions": {str(name): count for name, count in jurisdictions},
         "conditions": {str(name): count for name, count in conditions},
+        "case_conditions": {str(name): count for name, count in case_conditions},
         "quality": {
             "cases_needing_review": required_review,
             "case_count": db.query(Case.case_id).count(),

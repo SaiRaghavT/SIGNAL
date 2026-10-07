@@ -16,6 +16,8 @@ const reviewCase = (caseId, body) => request(`/api/cases/${encodeURIComponent(ca
 const updateCaseReview = (caseId, body) => request(`/api/cases/${encodeURIComponent(caseId)}/review`, { method: "PATCH", body: JSON.stringify(body) });
 const getCaseAttestation = (caseId) => request(`/api/cases/${encodeURIComponent(caseId)}/attestation`);
 const attestCase = (caseId, body) => request(`/api/cases/${encodeURIComponent(caseId)}/attestation`, { method: "POST", body: JSON.stringify(body) });
+const getSubmissionReadiness = (caseId) => request(`/api/cases/${encodeURIComponent(caseId)}/submission-readiness`);
+const markSubmissionReady = (caseId, body) => request(`/api/cases/${encodeURIComponent(caseId)}/submission-readiness`, { method: "POST", body: JSON.stringify(body) });
 const submitEcr = (caseId) => request("/api/agents/ecr-submission/submit", { method: "POST", body: JSON.stringify({ case_id: caseId }) });
 const trackSubmission = (submissionId) => request("/api/agents/submission-tracking/track", { method: "POST", body: JSON.stringify({ submission_id: submissionId }) });
 const acknowledge = (submissionId) => request("/api/agents/acknowledgement/process", { method: "POST", body: JSON.stringify({ submission_id: submissionId }) });
@@ -41,6 +43,7 @@ export {
   followUp,
   getCaseAttestation,
   getCaseReview,
+  getSubmissionReadiness,
   getCaseValidation,
   getFormDefinition,
   getRenderedFormPdf,
@@ -52,6 +55,7 @@ export {
   reviewCase,
   updateCaseReview,
   renderForm,
+  markSubmissionReady,
   retrySubmission,
   submitEcr,
   trackSubmission,

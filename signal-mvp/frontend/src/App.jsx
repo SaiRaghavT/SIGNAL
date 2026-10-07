@@ -2,6 +2,14 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Activity, AlertTriangle, Bell, Check, ChevronRight, ClipboardList, FileCheck2, LayoutDashboard, Search, Settings, ShieldCheck, Users, BriefcaseBusiness, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Menu, RefreshCw } from 'lucide-react'
 import './App.css'
+import './styles/ai-governance-feature.css'
+import './styles/AiGovernance.css'
+import CaseWorkspacePage from './pages/CaseWorkspacePage.jsx'
+import CaseCompletion from './pages/CaseCompletion.jsx'
+import FollowUpWorkspace from './pages/FollowUpWorkspace.jsx'
+import QueueAcknowledgementPage from './pages/QueueAcknowledgementPage.jsx'
+import ReportingFormPage from './pages/ReportingFormPage.jsx'
+import SubmissionWorkspace from './pages/SubmissionWorkspace.jsx'
 import { GovernanceOverview, MonitoringPage, EvaluationPage, ExplainabilityPage, AgentGovernancePage, OutcomeLearningPage, LearningSignalDetail, AgentDetailPage } from './pages/AiGovernance.jsx'
 import SeedReportingFormPage from './pages/SeedReportingFormPage.jsx'
 import { reportingWorkflowService } from './services/reportingWorkflowService.js'
@@ -106,6 +114,18 @@ function App() {
       <Route path="/admin/dashboard" element={<RoleGate role={role} required="admin"><ReportingAdminDashboard/></RoleGate>}/>
       <Route path="/patients" element={<RoleGate role={role} required="clinical"><Patients/></RoleGate>} />
       <Route path="/patients/:patientId" element={<RoleGate role={role} required="clinical"><PatientWorkspace/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId" element={<RoleGate role={role} required="clinical"><CaseWorkspacePage/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/reporting-form" element={<RoleGate role={role} required="clinical"><ReportingFormPage/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/submission" element={<RoleGate role={role} required="clinical"><SubmissionWorkspace/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/follow-up" element={<RoleGate role={role} required="clinical"><FollowUpWorkspace/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/completion" element={<RoleGate role={role} required="clinical"><CaseCompletion/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/queue" element={<RoleGate role={role} required="clinical"><QueueAcknowledgementPage/></RoleGate>} />
+      <Route path="/cases/:caseId" element={<RoleGate role={role} required="clinical"><CaseWorkspacePage/></RoleGate>} />
+      <Route path="/cases/:caseId/reporting-form" element={<RoleGate role={role} required="clinical"><ReportingFormPage/></RoleGate>} />
+      <Route path="/cases/:caseId/completion" element={<RoleGate role={role} required="clinical"><CaseCompletion/></RoleGate>} />
+      <Route path="/cases/:caseId/queue" element={<RoleGate role={role} required="clinical"><QueueAcknowledgementPage/></RoleGate>} />
+      <Route path="/submissions/case/:caseId" element={<RoleGate role={role} required="clinical"><SubmissionWorkspace/></RoleGate>} />
+      <Route path="/follow-ups/case/:caseId" element={<RoleGate role={role} required="clinical"><FollowUpWorkspace/></RoleGate>} />
       <Route path="/candidates" element={<RoleGate role={role} required="clinical"><Candidates caseStates={caseStates}/></RoleGate>} /><Route path="/candidates/:id" element={<RoleGate role={role} required="clinical"><CandidateRoute><CandidateDetails caseStates={caseStates}/></CandidateRoute></RoleGate>} />
       <Route path="/candidates/:id/reporting-form" element={<RoleGate role={role} required="clinical"><SeedReportingFormPage/></RoleGate>} />
       <Route path="/candidates/:id/extraction" element={<RoleGate role={role} required="clinical"><CandidateRoute><Extraction /></CandidateRoute></RoleGate>} /><Route path="/candidates/:id/reporting-data" element={<RoleGate role={role} required="clinical"><CandidateRoute><ReportingData /></CandidateRoute></RoleGate>} />

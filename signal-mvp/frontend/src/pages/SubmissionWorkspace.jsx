@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
-import { useDemoWorkflow } from "../hooks/useDemoWorkflow.js";
 import { getCase, getJourney, getCaseReview, getCaseAttestation, submitEcr, trackSubmission, processAcknowledgement, retrySubmission } from "../api/signal.js";
 import "../styles/submission-workspace.css";
 
@@ -21,7 +20,6 @@ function ResponseItems({ title, items }) {
 export default function SubmissionWorkspace() {
   const { patientId: routePatientId, caseId = "" } = useParams();
   const navigate = useNavigate();
-  const demo = useDemoWorkflow(caseId);
   const [caseData, setCaseData] = useState(null);
   const [journey, setJourney] = useState(null);
   const [review, setReview] = useState(null);
@@ -50,14 +48,13 @@ export default function SubmissionWorkspace() {
       setJourney(journeyData);
       setReview(reviewResponse?.data || reviewResponse);
       setAttestation(attestationResponse?.data || attestationResponse);
-      const hasDemoSubmission = !demo.active || demo.stages.submission === "COMPLETED";
-      setSubmission(hasDemoSubmission ? latestSubmission(journeyData) : null);
+      setSubmission(latestSubmission(journeyData));
       setTracking(null);
       setAcknowledgement(null);
     } catch (err) {
       setError(err?.response?.data?.detail || err?.message || "Unable to load case and workflow status.");
     } finally { setLoading(false); }
-  }, [caseId, demo.active, demo.stages.submission]);
+  }, [caseId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -74,6 +71,7 @@ export default function SubmissionWorkspace() {
   const caseWorkspacePath = patientId
     ? `/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}`
     : `/cases/${encodeURIComponent(caseId)}`;
+  const patientPath = patientId ? `/patients/${encodeURIComponent(patientId)}` : "/patients";
   const patientName = patientLabel(patient);
   const destination = submission?.destination || "Not configured in workflow data";
   const status = acknowledgement?.status || tracking?.status || submission?.status || (stages.submission?.status === "PENDING" ? "Not submitted" : stages.submission?.status);
@@ -85,15 +83,11 @@ export default function SubmissionWorkspace() {
   const readiness = [
     ["Case available", Boolean(caseData), caseData ? caseData.status : "Not available"],
     ["Reportability decision", Boolean(caseData?.reportability_decision || stages.reportability?.available), caseData?.reportability_decision || stages.reportability?.status],
-    ["Reporting package", demo.active ? demo.stages.reporting === "COMPLETED" : Boolean(list(journey?.supporting_audit_events).some((event) => ["FORM_RENDERED", "CASE_MANUAL_REPORT_PREPARED"].includes(event.event_type))), "Generated form or preparation record"],
-    ["Validation, review and attestation", demo.active
-      ? demo.stages.validation === "COMPLETED" && demo.stages.review === "COMPLETED" && demo.stages.attestation === "COMPLETED"
-      : stages.validation?.status === "COMPLETED" && review?.status === "APPROVE" && attestation?.status === "ATTESTED",
-    demo.active
-      ? `Validation ${demo.stages.validation || "NOT_STARTED"} · Review ${demo.stages.review || "NOT_STARTED"} · Attestation ${demo.stages.attestation || "NOT_STARTED"}`
-      : `${stages.validation?.status || "Validation not recorded"} · ${review?.status || "Review not recorded"} · ${attestation?.status || "Attestation not recorded"}`],
+    ["Reporting package", stages.reporting?.status === "COMPLETED", stages.reporting?.status || "No generated report recorded"],
+    ["Validation, review and attestation", stages.validation?.status === "COMPLETED" && review?.status === "APPROVE" && attestation?.status === "ATTESTED",
+      `${stages.validation?.status || "Validation not recorded"} · ${review?.status || "Review not recorded"} · ${attestation?.status || "Attestation not recorded"}`],
   ];
-  const canSubmit = readiness.every((item) => item[1]) && (demo.active ? demo.stages.validation === "COMPLETED" : stages.validation?.status === "COMPLETED");
+  const canSubmit = readiness.every((item) => item[1]) && stages.validation?.status === "COMPLETED";
 
   async function act(label, action, onSuccess) {
     setWorking(true); setOperation(label); setError(""); setMessage("");
@@ -116,7 +110,6 @@ export default function SubmissionWorkspace() {
     if (!window.confirm(`Submit the electronic case report for ${patientName}, ${display(caseData.disease)}, ${display(caseData.jurisdiction)}? Destination: ${destination}.`)) return;
     act("Submission", () => submitEcr(caseId), (result) => {
       setSubmission(result);
-      if (result?.submission_id) demo.complete("submission");
     });
   }
   function track() {
@@ -127,7 +120,6 @@ export default function SubmissionWorkspace() {
     if (!submission?.submission_id) return;
     act("Acknowledgement", () => processAcknowledgement(submission.submission_id), (result) => {
       setAcknowledgement(result);
-      if (/ACKNOWLEDGED|ACCEPTED/i.test(result?.status || "")) demo.complete("acknowledgement");
     });
   }
   function retry() {
@@ -166,7 +158,7 @@ export default function SubmissionWorkspace() {
       <div><span>REPORTING JURISDICTION</span><strong>{display(caseData.jurisdiction)}</strong><small>Configured for this case</small></div>
       <div><span>REPORTABLE CONDITION</span><strong>{display(caseData.disease)}</strong><small>Rule: {display(caseData.rule_id)}</small></div>
       <div><span>SUBMISSION STATUS</span><strong className={`status-text ${tone(status)}`}>{display(status)}</strong><small>{submission?.submission_id || "No submission ID recorded"}</small></div>
-      <div><span>REPORTING CHANNEL</span><strong>Electronic Reporting</strong><small>{simulated ? "MOCK_PHA · Simulation" : "eCR / eICR · configured destination"}</small></div>
+      <div><span>REPORTING CHANNEL</span><strong>{display(submission?.channel)}</strong><small>{display(destination)}</small></div>
     </div>
 
     <main className="submission-grid">
@@ -181,7 +173,7 @@ export default function SubmissionWorkspace() {
 
         {submission && <article className="submission-card-main">
           <div className="submission-card-title"><div><span className="submission-number">02</span><div><h3>Submission Package</h3><p>Persisted submission details returned by the backend.</p></div></div></div>
-          <dl className="submission-result-grid"><div><dt>Submission ID</dt><dd>{display(submission.submission_id)}</dd></div><div><dt>Status</dt><dd>{display(submission.status)}</dd></div><div><dt>Destination</dt><dd>{display(submission.destination)}</dd></div><div><dt>ECR ID</dt><dd>{display(submission.ecr_id)}</dd></div><div><dt>Created</dt><dd>{display(submission.created_at)}</dd></div></dl>
+          <dl className="submission-result-grid"><div><dt>Submission ID</dt><dd>{display(submission.submission_id)}</dd></div><div><dt>Status</dt><dd>{display(submission.status)}</dd></div><div><dt>Channel</dt><dd>{display(submission.channel)}</dd></div><div><dt>Destination</dt><dd>{display(submission.destination)}</dd></div><div><dt>ECR ID</dt><dd>{display(submission.ecr_id)}</dd></div><div><dt>Submitted At</dt><dd>{display(submission.created_at)}</dd></div><div><dt>Acknowledgement</dt><dd>{display(ackStatus)}</dd></div></dl>
           <ResponseItems title="Warnings" items={submission.warnings} /><ResponseItems title="Errors" items={submission.errors} />
           <div className="submission-controls"><button disabled={working} onClick={track}>{working ? "Working…" : "Track Submission"}</button><button disabled={working} onClick={acknowledge}>{working ? "Working…" : "Process Acknowledgement"}</button></div>
         </article>}
@@ -200,7 +192,7 @@ export default function SubmissionWorkspace() {
         <article className="side-card"><span>REPORTING ROUTE</span><div className="route-info"><strong>Immediate notification</strong><p>Phone notification to the appropriate public-health authority. This remains separate from eCR.</p></div><div className="route-info"><strong>Electronic reporting</strong><p>eCR / eICR → {display(destination)}</p></div><div className="route-info"><strong>Manual / fallback</strong><p>Use when required by jurisdiction or onboarding status. Follow local procedure.</p></div></article>
         <article className="side-card"><span>CASE SUMMARY</span><div className="side-row"><label>Patient</label><strong>{patientName}</strong></div><div className="side-row"><label>Reportability</label><strong>{display(caseData.final_decision || caseData.reportability_decision)}</strong></div><div className="side-row"><label>Case status</label><strong>{display(caseData.status)}</strong></div><div className="side-row"><label>Rule</label><strong>{display(caseData.rule_id)}</strong></div><div className="side-row"><label>Case ID</label><strong>{caseData.case_id || caseId}</strong></div></article>
         <article className="side-card next-card"><span>WHAT HAPPENS NEXT</span><strong>{submission ? accepted ? "Continue to public-health follow-up" : rejected ? "Review the returned rejection and retry if appropriate" : "Track delivery and process the acknowledgement" : canSubmit ? "Confirm the patient and destination, then submit the eCR" : "Complete review, attestation, and report preparation"}</strong><p>Only backend-confirmed workflow information is shown here.</p>{submission?.submission_id && <button className="next-action" disabled={working} onClick={accepted ? () => navigate(`${caseWorkspacePath}/follow-up`) : rejected ? () => document.getElementById("retry-submission")?.scrollIntoView({ behavior: "smooth", block: "center" }) : tracking ? acknowledge : track}>{accepted ? "Continue to Follow-up" : rejected ? "Go to Retry Submission" : tracking ? "Process Acknowledgement" : "Track Submission"}</button>}</article>
-        <button className="return-button" onClick={() => navigate(caseWorkspacePath)}>← Back to Case Workspace</button>
+        <button className="return-button" onClick={() => navigate(patientPath)}>← Back to Patient</button>
       </aside>
     </main>
   </section>;

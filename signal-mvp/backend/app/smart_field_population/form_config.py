@@ -1,3 +1,15 @@
+REPORTING_MISSING_INFO_FIELDS = [
+    "reporting.investigated_by",
+    "reporting.investigating_agency",
+    "reporting.investigating_agency_email",
+    "reporting.investigating_agency_phone",
+    "reporting.investigation_start_date",
+]
+
+# Kept as a compatibility alias for the demo preview path.
+DEMO_FORM_INPUT_FIELDS = REPORTING_MISSING_INFO_FIELDS
+
+
 TEXAS_MEASLES_FORM = {
     "form_id": "TX_MEASLES_OUTBREAK_CRF_2025",
     "form_version": "2025-05-07",
@@ -96,6 +108,31 @@ TEXAS_MEASLES_FORM = {
             "field": "reporting.earliest_date_reported",
             "source": "reporting.earliest_date_reported",
             "required": True,
+        },
+        {
+            "field": "reporting.investigated_by",
+            "source": "reporting.investigated_by",
+            "required": False,
+        },
+        {
+            "field": "reporting.investigating_agency",
+            "source": "reporting.investigating_agency",
+            "required": False,
+        },
+        {
+            "field": "reporting.investigating_agency_email",
+            "source": "reporting.investigating_agency_email",
+            "required": False,
+        },
+        {
+            "field": "reporting.investigating_agency_phone",
+            "source": "reporting.investigating_agency_phone",
+            "required": False,
+        },
+        {
+            "field": "reporting.investigation_start_date",
+            "source": "reporting.investigation_start_date",
+            "required": False,
         },
 
         # Page 1 — Clinical / Hospitalization
