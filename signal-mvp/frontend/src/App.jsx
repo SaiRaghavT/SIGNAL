@@ -15,6 +15,16 @@ import SubmissionWorkspace from "./pages/SubmissionWorkspace.jsx";
 import FollowUpWorkspace from "./pages/FollowUpWorkspace.jsx";
 import CaseCompletion from "./pages/CaseCompletion.jsx";
 import QueueAcknowledgementPage from "./pages/QueueAcknowledgementPage.jsx";
+import {
+  AgentDetailPage,
+  AgentGovernancePage,
+  EvaluationPage,
+  ExplainabilityPage,
+  GovernanceOverview,
+  LearningSignalDetail,
+  MonitoringPage,
+  OutcomeLearningPage,
+} from "./pages/AiGovernance.jsx";
 
 export default function App() {
   return (
@@ -43,6 +53,14 @@ export default function App() {
         <Route path="/follow-ups" element={<FollowupsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/audit" element={<AuditPage />} />
+        <Route path="/governance" element={<GovernanceOverview />} />
+        <Route path="/governance/monitoring" element={<MonitoringPage />} />
+        <Route path="/governance/evaluation" element={<EvaluationPage />} />
+        <Route path="/governance/explainability" element={<ExplainabilityPage />} />
+        <Route path="/governance/agents" element={<AgentGovernancePage />} />
+        <Route path="/governance/agents/:agentId" element={<AgentDetailPage />} />
+        <Route path="/governance/outcome-learning" element={<OutcomeLearningPage />} />
+        <Route path="/governance/outcome-learning/:signalId" element={<LearningSignalDetail />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
