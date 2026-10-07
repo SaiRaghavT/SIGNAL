@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import "@google/model-viewer";
+
 
 
 import { Link, useParams } from "react-router-dom";
@@ -1253,7 +1255,74 @@ function DetectionProgress({ activeStage }) {
 
 
 
+function MeaslesAnatomyCard({ patientName = "Patient", conditions = [], documents = [] }) {
+  if (!conditions.some(isMeaslesCondition)) return null;
+
+  const documentedText = documents
+    .map((document) => [document?.title, document?.extracted_text, document?.text, document?.content].filter(Boolean).join(" "))
+    .join(" ")
+    .toLowerCase();
+  const findings = [
+    { id: "skin", label: "Face and upper trunk rash", terms: /rash|maculopapular/ },
+    { id: "eyes", label: "Bilateral eye redness", terms: /conjunctiv|red eyes|eye redness/ },
+    { id: "respiratory", label: "Cough and coryza", terms: /cough|coryza|nasal congestion|runny nose/ },
+  ].filter((finding) => finding.terms.test(documentedText));
+
+  return (
+    <section className="anatomy-card" aria-labelledby="anatomy-card-title">
+      <div className="anatomy-card-copy">
+        <span className="anatomy-card-kicker">PATIENT CASE · CLINICAL FINDINGS</span>
+        <h2 id="anatomy-card-title">{patientName} · Measles</h2>
+        <p className="anatomy-card-note">Case-linked findings documented for {patientName}. Red highlights show the affected areas</p>
+        <div className="anatomy-findings" aria-label="Documented findings shown">
+          {findings.length ? findings.map((finding) => (
+            <div className="anatomy-finding" key={finding.id}>
+              <span className="anatomy-finding-dot" aria-hidden="true" />
+              <span>{finding.label}</span>
+              <span className="anatomy-finding-status">Documented</span>
+            </div>
+          )) : <p className="anatomy-no-findings">No matching findings were found in the available clinical documents.</p>}
+        </div>
+      </div>
+      <div className="anatomy-figure-wrap" aria-label="3D patient model">
+        <span className="anatomy-visual-badge">GENERIC PATIENT MODEL</span>
+        <model-viewer
+          class="anatomy-figure"
+          src="/models/neutral-mannequin.glb"
+          alt="Smooth blue, gender-neutral mannequin shown in a fixed front view"
+          shadow-intensity="0.65"
+          exposure="1.4"
+          environment-image="neutral"
+          aria-label="Fixed front view of the gender-neutral patient model"
+        >
+          {findings.some(({ id }) => id === "skin") && <>
+            <span slot="hotspot-rash-face" className="anatomy-callout anatomy-callout-left" data-position="-0.055m 1.49m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented facial rash">
+              <span className="anatomy-callout-label" aria-hidden="true">Face rash</span>
+            </span>
+            <span slot="hotspot-rash-trunk" className="anatomy-callout anatomy-callout-left" data-position="0m 1.27m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented upper trunk rash">
+              <span className="anatomy-callout-label" aria-hidden="true">Trunk rash</span>
+            </span>
+          </>}
+          {findings.some(({ id }) => id === "eyes") && <>
+            <span slot="hotspot-eye-left" className="anatomy-callout anatomy-callout-point" data-position="-0.035m 1.53m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented redness in left eye" />
+            <span slot="hotspot-eye-right" className="anatomy-callout anatomy-callout-right anatomy-callout-face" data-position="0.035m 1.53m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented bilateral eye redness">
+              <span className="anatomy-callout-label" aria-hidden="true">Eye redness</span>
+            </span>
+          </>}
+          {findings.some(({ id }) => id === "respiratory") && (
+            <span slot="hotspot-respiratory" className="anatomy-callout anatomy-callout-right" data-position="0m 1.16m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented cough and coryza, indicated on the chest">
+              <span className="anatomy-callout-label" aria-hidden="true">Cough</span>
+            </span>
+          )}
+        </model-viewer>
+        <a className="anatomy-view-label" href="https://www.innerscene.com/tools/library/3d-parts/human-base-mesh-with-editable-53-bone-rig-8e7c8ab1" target="_blank" rel="noreferrer">FIXED FRONT VIEW <i aria-hidden="true" /> CC0 MODEL SOURCE</a>
+      </div>
+    </section>
+  );
+}
+
 function RecordSummary({
+  patient,
   conditions = [],
   labs = [],
   encounters = [],
@@ -1283,6 +1352,12 @@ function RecordSummary({
   };
 
   return (
+    <>
+    <MeaslesAnatomyCard
+      patientName={getPatientName(patient?.patient || patient?.data || patient)}
+      conditions={conditions}
+      documents={documents}
+    />
     <section className="patient-records-section">
       <div className="patient-records-heading">
         <span className="patient-records-kicker">
@@ -1508,6 +1583,7 @@ function RecordSummary({
 
       </div>
     </section>
+    </>
   );
 }
 
@@ -5467,6 +5543,10 @@ export default function PatientWorkspace() {
 
             {detectionState !== "completed" && (
               <RecordSummary
+
+
+
+              patient={context}
 
 
 

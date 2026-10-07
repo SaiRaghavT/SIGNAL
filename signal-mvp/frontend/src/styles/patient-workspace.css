@@ -4100,3 +4100,275 @@ section h2,
   }
 }
 
+.anatomy-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, .82fr);
+  align-items: center;
+  gap: 28px;
+  min-height: 340px;
+  margin-bottom: 18px;
+  padding: 30px 34px;
+  overflow: hidden;
+  border: 1px solid #d9e3e9;
+  border-radius: var(--pw-radius, 16px);
+  background:
+    radial-gradient(ellipse at 82% 45%, rgba(67, 135, 151, .13), transparent 39%),
+    linear-gradient(112deg, #fff 0%, #fbfdfe 55%, #f1f7f8 100%);
+  box-shadow: 0 14px 34px rgba(19, 49, 73, .08), 0 2px 6px rgba(19, 49, 73, .035);
+  isolation: isolate;
+}
+
+.anatomy-card::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, #65a7b0, #d86b4d 52%, #e6b47b);
+}
+
+.anatomy-card-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #b85f33;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.anatomy-card-kicker::before {
+  content: "";
+  width: 17px;
+  height: 1px;
+  background: currentColor;
+  opacity: .65;
+}
+
+.anatomy-card-copy h2 {
+  margin: 10px 0 5px;
+  color: #17354e;
+  font-size: 25px;
+  font-weight: 680;
+  letter-spacing: -.035em;
+}
+
+.anatomy-card-note {
+  margin: 0 0 24px;
+  color: #718391;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.anatomy-findings {
+  display: grid;
+  gap: 0;
+  max-width: 520px;
+}
+
+.anatomy-finding {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 43px;
+  border-bottom: 1px solid #e8eef1;
+  color: #334e61;
+  font-size: 12px;
+}
+
+.anatomy-finding:last-child { border-bottom: 0; }
+
+.anatomy-finding-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e57951;
+  box-shadow: 0 0 0 4px rgba(229, 121, 81, .12), 0 0 12px rgba(229, 121, 81, .24);
+}
+
+.anatomy-finding-status {
+  padding: 4px 8px;
+  border: 1px solid #dfe9e8;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .72);
+  color: #678078;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.anatomy-no-findings {
+  margin: 0;
+  color: #718391;
+  font-size: 12px;
+}
+
+.anatomy-figure-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 285px;
+  border: 1px solid rgba(197, 216, 221, .68);
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse at 50% 52%, rgba(255,255,255,.95) 0 20%, rgba(225,239,240,.76) 49%, rgba(214,232,235,.35) 74%, transparent 75%),
+    linear-gradient(145deg, rgba(246,251,251,.82), rgba(230,241,242,.62));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -18px 40px rgba(129,171,179,.08);
+  perspective: 900px;
+}
+
+.anatomy-figure-wrap::after {
+  content: "";
+  position: absolute;
+  bottom: 19px;
+  width: 112px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(43, 85, 96, .12);
+  filter: blur(8px);
+  transform: rotateX(65deg);
+}
+
+.anatomy-visual-badge {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  padding: 5px 8px;
+  border: 1px solid rgba(205, 221, 224, .8);
+  border-radius: 5px;
+  background: rgba(255,255,255,.76);
+  color: #718995;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.anatomy-figure {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: min(100%, 300px);
+  height: 300px;
+  background: transparent;
+  --poster-color: transparent;
+  --progress-bar-color: #d97758;
+  --progress-bar-height: 2px;
+}
+
+.anatomy-callout {
+  position: relative;
+  display: block;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: #c82323;
+  box-shadow: 0 0 0 1px rgba(160, 26, 26, .28), 0 1px 4px rgba(88, 25, 25, .3);
+  pointer-events: none;
+}
+
+.anatomy-callout::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  border-top: 1px solid rgba(176, 39, 37, .85);
+}
+
+.anatomy-callout::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+}
+
+.anatomy-callout-point::before,
+.anatomy-callout-point::after {
+  display: none;
+}
+
+.anatomy-callout-left::before { left: -14px; }
+.anatomy-callout-left::after {
+  left: -2px;
+  border-left: 4px solid #b02725;
+}
+
+.anatomy-callout-right::before { right: -14px; }
+.anatomy-callout-right::after {
+  right: -2px;
+  border-right: 4px solid #b02725;
+}
+
+.anatomy-callout-label {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  padding: 2px 4px;
+  border: 1px solid rgba(181, 49, 46, .2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 1px 4px rgba(47, 73, 83, .12);
+  color: #8e2826;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.anatomy-callout-left .anatomy-callout-label {
+  right: 19px;
+  transform: translateY(-50%);
+  text-align: right;
+}
+
+.anatomy-callout-right .anatomy-callout-label {
+  left: 19px;
+  transform: translateY(-50%);
+  text-align: left;
+}
+
+.anatomy-callout-face .anatomy-callout-label {
+  font-size: 7px;
+}
+
+.anatomy-view-label {
+  position: absolute;
+  right: 0;
+  bottom: 8px;
+  z-index: 2;
+  color: #718995;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-decoration: none;
+}
+
+.anatomy-view-label:hover { color: #b85f33; }
+
+.anatomy-view-label i {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin: 0 5px 2px;
+  border-radius: 50%;
+  background: #c1ced2;
+}
+
+@media (max-width: 640px) {
+  .anatomy-card {
+    grid-template-columns: minmax(0, 1fr) 120px;
+    gap: 8px;
+    padding: 18px 16px;
+  }
+
+  .anatomy-card-copy h2 { font-size: 18px; }
+  .anatomy-figure-wrap { min-height: 210px; }
+  .anatomy-figure { width: 140px; height: 210px; }
+  .anatomy-finding { grid-template-columns: 8px 1fr; font-size: 11px; }
+  .anatomy-finding-status { grid-column: 2; }
+}
