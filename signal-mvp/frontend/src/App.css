@@ -32,6 +32,7 @@
 .agent-event-list .source-row{grid-template-columns:minmax(170px,1fr) minmax(180px,1fr) minmax(200px,2fr);gap:10px}
 .agent-event-list>p{color:#71849a;font-size:10px}
 @media(max-width:700px){.gov-filters{gap:8px}.gov-filters label{flex-basis:125px}.agent-event-list .source-row{grid-template-columns:1fr}}
+.gov-metrics{margin:0 0 12px}.gov-metrics .metric-card{min-height:78px;padding:12px}.gov-tabs{margin-bottom:12px}.page:has(.gov-tabs)>.panel{margin-bottom:12px}.page:has(.gov-tabs)>.panel .panel-header{padding-top:12px;padding-bottom:10px}.page:has(.gov-tabs)>.panel .note{margin:0;padding:12px}.page:has(.gov-tabs)>.note{font-size:9px}
 .queue-heading-action{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin:-7px 0 12px;color:#8090a0;font-size:9px}
 .queue-refresh{display:inline-flex;align-items:center;gap:6px;background:#fff}
 .queue-summary{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
