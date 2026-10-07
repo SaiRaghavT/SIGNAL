@@ -181,3 +181,49 @@
   .submissions-search { width: 100%; }
   .submissions-pagination { align-items: flex-start; flex-direction: column; padding: 11px 14px; }
 }
+
+/* Refined reporting operations layout */
+.submissions-page { gap: 22px; padding: 26px 28px 42px; background: linear-gradient(180deg, #f4f8fb 0%, #f7f9fa 260px); }
+.submissions-page .page-header { align-items: flex-start; padding: 4px 0 2px; }
+.submissions-page .page-header h2 { color: #12395a; font-size: clamp(25px, 3vw, 32px); letter-spacing: -.035em; }
+.submissions-page .page-header p { max-width: 680px; color: #6e8295; font-size: 13px; line-height: 1.6; }
+.submissions-kpis { gap: 16px; }
+.submissions-kpi { position: relative; min-height: 136px; gap: 9px; padding: 20px; border-color: #e1e9ef; border-radius: 15px; box-shadow: 0 8px 22px rgb(20 57 87 / 5%); transition: transform .18s ease, box-shadow .18s ease; }
+.submissions-kpi:hover { transform: translateY(-2px); box-shadow: 0 13px 27px rgb(20 57 87 / 9%); }
+.submissions-kpi::after { position: absolute; top: 0; right: 18px; left: 18px; height: 3px; border-radius: 0 0 5px 5px; background: #8aa9be; content: ""; }
+.submissions-kpi.pending::after { background: #e4a044; }
+.submissions-kpi.acknowledged::after { background: #39a982; }
+.submissions-kpi.failed::after { background: #db6a68; }
+.submissions-kpi > span { margin-top: 3px; color: #73879a; font-size: 10px; letter-spacing: .1em; }
+.submissions-kpi strong { font-size: 32px; letter-spacing: -.04em; }
+.submissions-kpi small { color: #8293a3; font-size: 11px; line-height: 1.5; }
+.submissions-operations { border-color: #e0e8ee; border-radius: 16px; box-shadow: 0 10px 28px rgb(20 57 87 / 6%); }
+.submissions-operations-header { padding: 22px 24px 17px; }
+.submissions-operations-header h2 { font-size: 19px; letter-spacing: -.02em; }
+.submissions-operations-header p { font-size: 12px; }
+.submissions-record-count { padding: 7px 11px; border: 1px solid #e3ebf0; border-radius: 999px; background: #f7fafc; color: #527087; font-size: 11px; }
+.submissions-toolbar { padding: 0 24px 16px; }
+.submissions-filters { gap: 8px; }
+.submissions-filters button { padding: 9px 13px; border-color: #e1e8ee; background: #f8fafb; font-size: 11px; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.submissions-filters button.active { border-color: #173f5d; background: #173f5d; box-shadow: 0 3px 9px rgb(23 63 93 / 17%); }
+.submissions-search { width: min(360px, 42%); gap: 6px; font-size: 10px; font-weight: 700; }
+.submissions-search input { min-height: 40px; padding: 9px 12px; border-color: #dce5eb; border-radius: 9px; font-size: 12px; }
+.submissions-table-wrap { border-color: #e7edf1; }
+.submissions-table { min-width: 920px; }
+.submissions-table th { padding: 13px 16px; background: #f5f8fa; font-size: 10px; letter-spacing: .09em; }
+.submissions-table td { padding: 15px 16px; font-size: 12px; }
+.submissions-table tbody tr:hover { background: #f6fafc; }
+.submissions-status { padding: 5px 10px; font-size: 10px; }
+.submissions-view { display: inline-flex; padding: 7px 11px; border: 1px solid #dae5ed; border-radius: 8px; font-size: 11px; }
+.submissions-view:hover { border-color: #ffb49d; background: #fff7f3; text-decoration: none; }
+.submissions-empty, .submissions-error { padding: 46px 22px; }
+.submissions-empty strong, .submissions-error strong { font-size: 15px; }
+.submissions-empty p, .submissions-error p { font-size: 12px; }
+.submissions-pagination { padding: 15px 24px; font-size: 11px; }
+.submissions-pagination button { padding: 8px 12px; border-radius: 8px; font-size: 11px; }
+@media (max-width: 650px) {
+  .submissions-page { gap: 16px; padding: 18px 12px 30px; }
+  .submissions-kpi { min-height: 118px; padding: 15px; }
+  .submissions-kpi strong { font-size: 26px; }
+  .submissions-operations-header, .submissions-toolbar { padding-left: 16px; padding-right: 16px; }
+}

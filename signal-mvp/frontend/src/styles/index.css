@@ -77,7 +77,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .eyebrow { color: var(--signal-text-secondary); font-size: 10px; letter-spacing: .14em; }
 .topbar h1 { margin: 3px 0 0; color: var(--signal-text); font-size: 17px; font-weight: 650; }
 .role-chip { padding: 7px 12px; border: 1px solid var(--signal-border); border-radius: 20px; color: var(--signal-text-secondary); font-size: 12px; }
-.main > section:not(.reporting-form-page):not(.review-validation-page):not(.case-workspace-page):not(.queue-ack-page):not(.submission-page):not(.follow-up-page):not(.case-completion-page) { width: 100%; max-width: 1500px; min-height: calc(100vh - 82px); margin: 0 auto; padding: 28px 30px 40px; background: var(--signal-bg); color: var(--signal-text); }
+.main > section:not(.reporting-form-page):not(.review-validation-page):not(.case-workspace-page):not(.queue-ack-page):not(.submission-page):not(.case-completion-page) { width: 100%; max-width: 1500px; min-height: calc(100vh - 82px); margin: 0 auto; padding: 28px 30px 40px; background: var(--signal-bg); color: var(--signal-text); }
 
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
 .page-header h2 { margin: 0; color: var(--signal-text); font-size: 29px; font-weight: 700; line-height: 1.2; }
@@ -169,7 +169,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--signal-orange); 
 @media (max-width: 650px) {
   .topbar { height: 72px; padding: 15px; }
   .topbar h1 { font-size: 14px; }
-  .main > section:not(.reporting-form-page):not(.review-validation-page):not(.case-workspace-page):not(.queue-ack-page):not(.submission-page):not(.follow-up-page):not(.case-completion-page) { min-height: calc(100vh - 72px); padding: 20px 15px; }
+  .main > section:not(.reporting-form-page):not(.review-validation-page):not(.case-workspace-page):not(.queue-ack-page):not(.submission-page):not(.case-completion-page) { min-height: calc(100vh - 72px); padding: 20px 15px; }
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

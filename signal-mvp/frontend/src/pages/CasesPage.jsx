@@ -1,109 +1,337 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { listCases } from "../api/cases.js";
-import { listCandidates } from "../api/candidates.js";
+import { getCase, listCases } from "../api/cases.js";
 import { PageHeader } from "../components/ui/PageHeader.jsx";
-import { ErrorState } from "../components/ui/Loading.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
-import { StatusBadge } from "../components/ui/StatusBadge.jsx";
+import "../styles/cases.css";
 
-function Pagination({ page, pages, total, onPageChange }) {
-  if (pages > 1) return (
-    <div className="cases-pagination" aria-label="Cases pages">
-      <span>Showing {(page - 1) * 10 + 1}–{Math.min(page * 10, total)} of {total}</span>
-      <div>
-        <button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Previous</button>
-        {Array.from({ length: pages }, (_, index) => index + 1).map((number) => (
-          <button type="button" key={number} aria-current={number === page ? "page" : undefined} className={number === page ? "current" : ""} onClick={() => onPageChange(number)}>{number}</button>
-        ))}
-        <button type="button" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Next</button>
-      </div>
-    </div>
-  );
-  return total > 0 ? <div className="cases-pagination"><span>Showing {total} of {total}</span></div> : null;
+const API_PAGE_SIZE = 100;
+const ROWS_PER_PAGE = 10;
+const EMPTY_VALUE = "—";
+
+const FILTERS = [
+  { id: "all", label: "All Cases" },
+  { id: "review", label: "Needs Review", tone: "review" },
+  { id: "deadline", label: "Deadline Risk", tone: "deadline" },
+  { id: "ready", label: "Report-Ready", tone: "ready" },
+];
+
+function text(value) {
+  if (typeof value === "string" || typeof value === "number") {
+    const cleaned = String(value).replace(/\s+/g, " ").trim();
+    return cleaned || "";
+  }
+  return "";
+}
+
+function formatDate(value) {
+  if (!value) return EMPTY_VALUE;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return EMPTY_VALUE;
+  return new Intl.DateTimeFormat(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function patientName(patient = {}) {
+  const direct = text(patient.name || patient.full_name || patient.patient_name);
+  if (direct) return direct;
+  const first = text(patient.first_name || patient.given_name || patient.given);
+  const last = text(patient.last_name || patient.family_name || patient.family);
+  if (first || last) return [first, last].filter(Boolean).join(" ");
+  const name = Array.isArray(patient.name) ? patient.name[0] : null;
+  if (name && typeof name === "object") {
+    return [
+      ...(Array.isArray(name.given) ? name.given : [name.given]),
+      name.family,
+    ].map(text).filter(Boolean).join(" ");
+  }
+  return EMPTY_VALUE;
+}
+
+function firstText(record, keys) {
+  for (const key of keys) {
+    const value = text(record?.[key]);
+    if (value) return value;
+  }
+  return "";
+}
+
+function caseEvidence(detail) {
+  const labs = Array.isArray(detail?.laboratory_evidence) ? detail.laboratory_evidence : [];
+  const lab = labs.find((entry) => entry && typeof entry === "object");
+  if (lab) {
+    const nested = lab.evidence && typeof lab.evidence === "object" ? lab.evidence : {};
+    const name = firstText(lab, ["test_name", "test", "display", "analyte", "component", "name"])
+      || firstText(nested, ["test_name", "test", "display", "analyte", "name"]);
+    const result = firstText(lab, ["result", "result_value", "interpretation", "value", "report_status"])
+      || firstText(nested, ["result", "result_value", "interpretation", "value"]);
+    const source = firstText(lab, ["source_system", "source", "laboratory_name", "performing_lab"])
+      || firstText(nested, ["source_system", "source", "laboratory_name"]);
+    return {
+      title: [name, result].filter(Boolean).join(" · ") || firstText(lab, ["code", "lab_result_id"]) || "Laboratory evidence",
+      secondary: source,
+    };
+  }
+
+  const clinical = detail?.clinical_evidence;
+  if (clinical && typeof clinical === "object") {
+    const ignored = ["encounter_id", "patient_id", "source_id", "source_system"];
+    const meaningful = Object.entries(clinical).find(([key, value]) => !ignored.includes(key) && text(value));
+    if (meaningful) {
+      return {
+        title: `${meaningful[0].replaceAll("_", " ")}: ${text(meaningful[1])}`,
+        secondary: firstText(clinical, ["source_system", "source"]),
+      };
+    }
+  }
+
+  const ai = detail?.ai_evidence;
+  return {
+    title: firstText(ai, ["trigger_reason", "reason", "evidence_summary", "summary"]) || "No trigger evidence recorded",
+    secondary: "",
+  };
+}
+
+function statusTone(value) {
+  const normalized = String(value || "").toUpperCase();
+  if (/SUBMITTED|ACKNOWLEDGED|COMPLETE|APPROV|READY|REPORT$/.test(normalized)) return "success";
+  if (/OVERDUE|CRITICAL|REJECT|FAILED/.test(normalized)) return "danger";
+  if (/NEEDS_REVIEW|UNDER_REVIEW|INVESTIGATION|PENDING|HOLD/.test(normalized)) return "warning";
+  if (/POTENTIAL|WITHIN_WINDOW/.test(normalized)) return "info";
+  return "";
+}
+
+function titleCase(value) {
+  return String(value || EMPTY_VALUE)
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+async function getAllCases() {
+  const firstPage = await listCases({ page: 1, page_size: API_PAGE_SIZE });
+  const items = [...(firstPage.items || [])];
+  const pages = Math.ceil((firstPage.total || 0) / API_PAGE_SIZE);
+  for (let page = 2; page <= pages; page += 1) {
+    const result = await listCases({ page, page_size: API_PAGE_SIZE });
+    items.push(...(result.items || []));
+  }
+  return { items, total: firstPage.total || 0, metrics: firstPage.metrics || {} };
+}
+
+async function withConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
 }
 
 export function CasesPage() {
-  const [data, setData] = useState(null);
-  const [candidateData, setCandidateData] = useState(null);
-  const [casePage, setCasePage] = useState(1);
-  const [candidatePage, setCandidatePage] = useState(1);
+  const [cases, setCases] = useState([]);
+  const [metrics, setMetrics] = useState({});
+  const [detailErrors, setDetailErrors] = useState(0);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      listCases({ page: casePage, page_size: 10 }),
-      listCandidates({ page: candidatePage, page_size: 10 }),
-    ]).then(([caseResult, candidateResult]) => {
-      if (!active) return;
-      setData(caseResult);
-      setCandidateData(candidateResult);
-    }).catch((err) => {
-      if (active) setError(err?.message || "Unable to load cases and detected candidates.");
-    });
+    async function loadCases() {
+      setLoading(true);
+      setError("");
+      try {
+        const caseResult = await getAllCases();
+        let failedDetails = 0;
+        const enriched = await withConcurrency(caseResult.items, 8, async (item) => {
+          try {
+            const detail = await getCase(item.case_id);
+            return { ...item, detail };
+          } catch (detailError) {
+            failedDetails += 1;
+            return { ...item, detail: null, detailError: detailError?.message || "Case details could not be loaded." };
+          }
+        });
+        if (active) {
+          setCases(enriched);
+          setDetailErrors(failedDetails);
+          setMetrics({ ...caseResult.metrics, candidate_cases: caseResult.total });
+          setPage(1);
+        }
+      } catch (loadError) {
+        if (active) setError(loadError?.message || "Unable to load case records.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    loadCases();
     return () => { active = false; };
-  }, [casePage, candidatePage]);
+  }, []);
 
-  const cases = data?.items || [];
-  const candidates = candidateData?.items || [];
+  const counts = useMemo(() => ({
+    all: metrics.candidate_cases ?? 0,
+    review: metrics.needs_review ?? 0,
+    deadline: metrics.at_risk_deadlines ?? 0,
+    ready: metrics.report_ready ?? 0,
+  }), [metrics]);
+
+  const filteredCases = useMemo(() => {
+    if (activeFilter === "review") return cases.filter((item) => item.needs_review);
+    if (activeFilter === "deadline") return cases.filter((item) => item.deadline_risk);
+    if (activeFilter === "ready") return cases.filter((item) => item.report_ready);
+    return cases;
+  }, [activeFilter, cases]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredCases.length / ROWS_PER_PAGE));
+  const visibleCases = filteredCases.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+  const firstVisible = filteredCases.length ? (page - 1) * ROWS_PER_PAGE + 1 : 0;
+  const lastVisible = Math.min(page * ROWS_PER_PAGE, filteredCases.length);
+
+  function selectFilter(filterId) {
+    setActiveFilter(filterId);
+    setPage(1);
+  }
+
   return (
     <section className="cases-page">
-      <PageHeader title="Cases" subtitle="Persisted reporting cases and FHIR-backed candidates awaiting case review." />
-      {error ? <div className="panel"><ErrorState message={error} /></div> : !data || !candidateData ? (
-        <div className="panel"><SignalLoading title="Loading Cases" message="Retrieving case records and FHIR-backed candidates." /></div>
-      ) : <>
-        <div className="cases-summary">
-          <div className="panel"><strong>{data.total || 0}</strong><span>Persisted reporting cases</span></div>
-          <div className="panel"><strong>{candidateData.total || 0}</strong><span>FHIR candidates available for review</span></div>
-        </div>
-        <section className="panel cases-list-panel">
-          <div className="cases-section-heading"><div><h2>Reporting Cases</h2><p>Cases assembled through the clinical review workflow.</p></div></div>
-          {cases.length ? <div className="patients-table-scroll">
-            <table>
-              <thead><tr><th>Case</th><th>Disease</th><th>Jurisdiction</th><th>Status</th><th>Reportability</th><th>Updated</th></tr></thead>
-              <tbody>{cases.map((item) => (
-                <tr key={item.case_id}>
-                  <td><Link to={`/cases/${encodeURIComponent(item.case_id)}`}>{item.case_id}</Link></td>
-                  <td>{item.disease || "—"}</td>
-                  <td>{item.jurisdiction || "Not resolved"}</td>
-                  <td><StatusBadge value={item.status} /></td>
-                  <td><StatusBadge value={item.reportability_decision} /></td>
-                  <td>{item.updated_at ? new Date(item.updated_at).toLocaleString() : "—"}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div> : <div className="cases-empty">No reporting cases have been assembled yet. Review a candidate to create a case.</div>}
-          <Pagination page={casePage} pages={data.pages || Math.ceil((data.total || 0) / 10)} total={data.total || 0} onPageChange={setCasePage}/>
-        </section>
-        <section className="panel cases-list-panel">
-          <div className="cases-section-heading">
-            <div><h2>FHIR Candidates for Review</h2><p>Candidate records detected from seeded clinical data. These are not reporting cases until reviewed.</p></div>
-            <span>{candidateData.total || 0} records</span>
+      <PageHeader
+        title="Cases"
+        subtitle="Manage the complete lifecycle of reportable-condition cases from patient detection through disposition and audit."
+      />
+
+      {loading ? (
+        <SignalLoading title="Loading Cases" message="Retrieving persisted case records and backend workflow states." />
+      ) : error ? (
+        <div className="cases-management"><div className="cases-error" role="alert">Unable to load cases. {error}</div></div>
+      ) : (
+        <>
+          {detailErrors > 0 && <div className="cases-load-note" role="status">
+            The case list loaded, but details could not be retrieved for {detailErrors} {detailErrors === 1 ? "case" : "cases"}. You can still open those case records.
+          </div>}
+          <div className="cases-kpi-grid" aria-label="Case metrics">
+            <article className="cases-kpi candidate">
+              <span className="cases-kpi-label">PATIENT CASES</span>
+              <strong className="cases-kpi-value">{counts.all}</strong>
+              <span className="cases-kpi-description">Patients with linked evidence</span>
+            </article>
+            <article className="cases-kpi deadline">
+              <span className="cases-kpi-label">AT-RISK DEADLINES</span>
+              <strong className="cases-kpi-value">{counts.deadline}</strong>
+              <span className="cases-kpi-description">Configured reporting windows</span>
+            </article>
+            <article className="cases-kpi review">
+              <span className="cases-kpi-label">NEEDS REVIEW</span>
+              <strong className="cases-kpi-value">{counts.review}</strong>
+              <span className="cases-kpi-description">Evidence or missing-data exceptions</span>
+            </article>
+            <article className="cases-kpi ready">
+              <span className="cases-kpi-label">REPORT-READY</span>
+              <strong className="cases-kpi-value">{counts.ready}</strong>
+              <span className="cases-kpi-description">Validated for authorized submission</span>
+            </article>
           </div>
-          {candidates.length ? <div className="patients-table-scroll">
-            <table>
-              <thead><tr><th>Patient</th><th>Candidate ID</th><th>Condition</th><th>Evidence</th><th>Jurisdiction</th><th>Status</th><th>Updated</th><th>Action</th></tr></thead>
-              <tbody>{candidates.map((candidate) => {
-                const patient = candidate.patient || {};
-                const patientName = [patient.first_name, patient.last_name].filter(Boolean).join(" ") || candidate.patient_id;
-                const evidence = (candidate.evidence || []).map((item) => item.display || item.source_type).filter(Boolean).join(", ");
-                return <tr key={candidate.candidate_id}>
-                  <td>{patientName}</td>
-                  <td>{candidate.candidate_id}</td>
-                  <td>{candidate.disease || "Not specified"}</td>
-                  <td>{evidence || "Source evidence available"}</td>
-                  <td>{candidate.jurisdiction || "Not resolved"}</td>
-                  <td><StatusBadge value={candidate.status || "Detected"} /></td>
-                  <td>{candidate.updated_at ? new Date(candidate.updated_at).toLocaleString() : "—"}</td>
-                  <td><Link to={`/candidates/${encodeURIComponent(candidate.candidate_id)}`}>Review</Link></td>
-                </tr>;
-              })}</tbody>
-            </table>
-          </div> : <div className="cases-empty">No candidates are currently available from the database.</div>}
-          <Pagination page={candidatePage} pages={candidateData.pages || Math.ceil((candidateData.total || 0) / 10)} total={candidateData.total || 0} onPageChange={setCandidatePage}/>
-        </section>
-      </>}
+
+          <section className="cases-management" aria-labelledby="cases-management-title">
+            <header className="cases-management-header">
+              <div>
+                <h3 id="cases-management-title">Case Management</h3>
+                <p>Longitudinal case record: detection trigger, evidence, jurisdiction decision, reporting rule, deadline, and disposition.</p>
+              </div>
+              <span className="cases-record-count">{counts.all} {counts.all === 1 ? "record" : "records"}</span>
+            </header>
+
+            <nav className="cases-filters" aria-label="Filter cases">
+              {FILTERS.map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  className={`cases-filter${filter.tone ? ` ${filter.tone}` : ""}${activeFilter === filter.id ? " active" : ""}`}
+                  aria-pressed={activeFilter === filter.id}
+                  onClick={() => selectFilter(filter.id)}
+                >
+                  {filter.label} ({counts[filter.id]})
+                </button>
+              ))}
+            </nav>
+
+            {visibleCases.length === 0 ? (
+              <div className="cases-empty">
+                <strong>{counts.all ? "No cases in this view" : "No case records"}</strong>
+                <p>{counts.all ? "No persisted case records match the selected filter." : "The backend has not returned any case records."}</p>
+              </div>
+            ) : (
+              <div className="cases-table-scroll">
+                <table className="cases-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">PATIENT / CONDITION</th>
+                      <th scope="col">TRIGGER / EVIDENCE</th>
+                      <th scope="col">JURISDICTION / RULE</th>
+                      <th scope="col">DEADLINE</th>
+                      <th scope="col">DISPOSITION</th>
+                      <th scope="col">PRIORITY</th>
+                      <th scope="col">ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleCases.map((item) => {
+                      const detail = item.detail || {};
+                      const evidence = caseEvidence(detail);
+                      const disposition = item.status || item.final_decision || item.reportability_decision;
+                      const priority = text(item.severity) || EMPTY_VALUE;
+                      const priorityTone = ["HIGH", "CRITICAL"].includes(priority.toUpperCase())
+                        ? "danger"
+                        : priority.toUpperCase() === "MEDIUM" ? "warning" : "";
+                      return (
+                        <tr key={item.case_id}>
+                          <td>
+                            <span className="cases-cell-primary">{patientName(detail.patient)}</span>
+                            <span className="cases-cell-secondary">{text(item.disease) || EMPTY_VALUE}</span>
+                          </td>
+                          <td>
+                            <span className="cases-cell-primary">{evidence.title}</span>
+                            {evidence.secondary && <span className="cases-cell-secondary">{evidence.secondary}</span>}
+                          </td>
+                          <td>
+                            <span className="cases-cell-primary">{text(item.jurisdiction) || EMPTY_VALUE}</span>
+                            <span className="cases-rule">{text(item.rule_id) || EMPTY_VALUE}</span>
+                          </td>
+                          <td>{formatDate(item.deadline)}</td>
+                          <td><span className={`cases-pill ${statusTone(disposition)}`}>{titleCase(disposition)}</span></td>
+                          <td><span className={`cases-pill ${priorityTone}`}>{titleCase(priority)}</span></td>
+                          <td><Link className="cases-action" to={`/cases/${encodeURIComponent(item.case_id)}`}>Open case</Link></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {filteredCases.length > ROWS_PER_PAGE && (
+              <footer className="cases-pagination">
+                <span>Showing {firstVisible}–{lastVisible} of {filteredCases.length} cases</span>
+                <div>
+                  <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1}>Previous</button>
+                  <button type="button" onClick={() => setPage((current) => Math.min(pageCount, current + 1))} disabled={page >= pageCount}>Next</button>
+                </div>
+              </footer>
+            )}
+          </section>
+        </>
+      )}
     </section>
   );
 }

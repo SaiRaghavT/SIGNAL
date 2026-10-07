@@ -124,7 +124,7 @@ export function SubmissionsPage() {
     <section className="submissions-page">
       <PageHeader
         title="Submissions"
-        subtitle="Track report packages dispatched to public-health authorities, their acknowledgement status, and any required follow-up."
+        subtitle="Track report packages dispatched to public-health authorities and monitor their acknowledgement status."
       />
 
       {loading ? (

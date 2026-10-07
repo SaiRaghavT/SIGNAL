@@ -1,0 +1,17 @@
+SYNTHETIC DEMO CLINICAL NOTE — NOT A REAL PATIENT RECORD
+
+Patient: Riley Chen
+Encounter: Outpatient evaluation
+Document date: 2026-10-07
+
+Reason for visit:
+Persistent coughing spells with occasional post-tussive vomiting. The patient reports a known recent exposure to Bordetella pertussis.
+
+Assessment:
+Suspected pertussis (Bordetella pertussis infection). The cough and exposure history are consistent with pertussis. This is an active, current assessment, not a past medical history item.
+
+Diagnostic evidence:
+Bordetella pertussis PCR: POSITIVE; Bordetella pertussis nucleic acid detected in the submitted respiratory specimen.
+
+Plan:
+Follow current infection-control guidance, notify the appropriate public-health team, and arrange follow-up. Review close-contact management with the patient.

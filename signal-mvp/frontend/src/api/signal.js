@@ -22,7 +22,6 @@ import {
   attestCase,
   calculateDeadline,
   evaluateDeadline,
-  followUp,
 } from "./workflow.js";
 
 const getJourney = getCaseJourney;
@@ -44,12 +43,6 @@ const renderSeedPatientForm = (patientId, body) => request(`/api/forms/seed-pati
 });
 const renderUrl = (renderId) => `${apiBaseUrl}/api/agents/form-rendering/${encodeURIComponent(renderId)}`;
 const downloadRenderUrl = (renderId) => `${apiBaseUrl}/api/forms/${encodeURIComponent(renderId)}/download`;
-const processFollowup = (caseId, action, notes = "", submissionId) => followUp({
-  case_id: caseId,
-  action,
-  ...(notes.trim() ? { notes: notes.trim() } : {}),
-  ...(submissionId ? { submission_id: submissionId } : {}),
-});
 
 export {
   attestation,
@@ -64,7 +57,6 @@ export {
   getFormDefinition,
   getImmediateNotification,
   getJourney,
-  processFollowup,
   manualReporting,
   markSubmissionReady,
   processAcknowledgement,

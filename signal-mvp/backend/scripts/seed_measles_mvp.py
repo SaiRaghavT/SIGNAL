@@ -12,7 +12,6 @@ from backend.app.models.case import Case
 from backend.app.models.clinical_document import ClinicalDocument
 from backend.app.models.condition import Condition
 from backend.app.models.encounter import Encounter
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.lab_result import LabResult
 from backend.app.models.observation import Observation
 from backend.app.models.patient import Patient
@@ -53,7 +52,6 @@ def remove_legacy_demo_patient(db: Session) -> bool:
             for item in db.query(Case).all()
             if str((item.patient or {}).get("patient_id") or "") == patient_id
         ]
-    follow_ups = db.query(FollowUp).filter(FollowUp.patient_id == patient_id).all()
     audit_events = []
     if inspect(db.get_bind()).has_table(AuditEvent.__tablename__):
         audit_events = (
@@ -64,7 +62,6 @@ def remove_legacy_demo_patient(db: Session) -> bool:
     references = {
         "candidates": candidates,
         "cases": cases,
-        "follow-ups": follow_ups,
         "audit events": audit_events,
     }
     referenced_by = [name for name, rows in references.items() if rows]

@@ -1,4 +1,4 @@
-import { Activity, BarChart3, ClipboardCheck, FolderKanban, LayoutDashboard, ScrollText, Send, ShieldCheck, Users } from "lucide-react";
+import { Activity, BarChart3, FolderKanban, LayoutDashboard, ScrollText, Send, ShieldCheck, Users } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const nav = [
@@ -6,7 +6,6 @@ const nav = [
   ["/patients", "Patients", Users],
   ["/cases", "Cases", FolderKanban],
   ["/submissions", "Submissions", Send],
-  ["/follow-ups", "Follow-ups", ClipboardCheck],
   ["/analytics", "Analytics", BarChart3],
   ["/audit", "Technical / Audit", ScrollText],
   ["/governance", "AI Governance", ShieldCheck],

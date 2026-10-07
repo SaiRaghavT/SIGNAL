@@ -9,7 +9,6 @@ export const DEMO_WORKFLOW_STAGES = [
   "reporting",
   "submission",
   "acknowledgement",
-  "followUp",
 ];
 
 const storageKey = (caseId) => `signal_demo_workflow_${encodeURIComponent(caseId)}`;

@@ -7,7 +7,6 @@ from backend.app.models.audit_event import AuditEvent
 from backend.app.models.candidate import Candidate
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.ecr.builder import build_ecr
@@ -28,7 +27,6 @@ STAGE_ORDER = (
     "ATTESTATION",
     "REPORTING",
     "SUBMISSION",
-    "PHA_FOLLOW_UP",
 )
 
 
@@ -60,17 +58,6 @@ def _submission_data(submission: Submission) -> dict[str, Any]:
         "warnings": submission.warnings or [],
         "created_at": submission.created_at,
         "updated_at": submission.updated_at,
-    }
-
-
-def _follow_up_data(follow_up: FollowUp) -> dict[str, Any]:
-    return {
-        "followup_id": follow_up.followup_id,
-        "action": follow_up.action,
-        "status": follow_up.status,
-        "notes": follow_up.notes,
-        "created_at": follow_up.created_at,
-        "updated_at": follow_up.updated_at,
     }
 
 
@@ -123,12 +110,6 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         db.query(Submission)
         .filter(Submission.case_id == case_id_text)
         .order_by(Submission.created_at.asc())
-        .all()
-    )
-    follow_ups = (
-        db.query(FollowUp)
-        .filter(FollowUp.case_id == case_id_text)
-        .order_by(FollowUp.created_at.asc())
         .all()
     )
     reports = (
@@ -337,39 +318,11 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
                 else []
             ),
         ),
-        JourneyStage(
-            stage="PHA_FOLLOW_UP",
-            available=bool(follow_ups),
-            status="COMPLETED" if follow_ups and follow_ups[-1].status == "CLOSED" else "CURRENT" if follow_ups else "PENDING",
-            occurred_at=follow_ups[-1].created_at if follow_ups else None,
-            entity_reference=follow_ups[-1].followup_id if follow_ups else None,
-            data={
-                "follow_ups": [_follow_up_data(item) for item in follow_ups],
-                "submission_statuses": [
-                    {
-                        "submission_id": item.submission_id,
-                        "status": item.status,
-                        "acknowledgement_warnings": [
-                            warning
-                            for warning in (item.warnings or [])
-                            if "acknowledgement" in warning.casefold()
-                        ],
-                    }
-                    for item in submissions
-                ],
-            },
-            limitations=[
-                "Acknowledgement IDs and PHA case IDs are not persisted.",
-                "Acknowledgement and public-health follow-up integrations are simulated.",
-            ],
-        ),
     ]
 
-    # Conservative current-stage rule: use only persisted follow-up/submission
-    # records; otherwise the known case is the furthest established stage.
-    current_stage = (
-        "PHA_FOLLOW_UP" if follow_ups else "SUBMISSION" if submissions else "CASE"
-    )
+    # Use only persisted submission records; otherwise the known case is the
+    # furthest established workflow stage.
+    current_stage = "SUBMISSION" if submissions else "CASE"
 
     return CaseJourneyResponse(
         case_id=case_id_text,

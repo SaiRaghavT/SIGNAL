@@ -159,7 +159,6 @@ export default function Dashboard() {
     { label: "Cases in registry", value: summary?.cases ?? EMPTY_VALUE, tone: "green" },
     { label: "Cases needing review", value: quality.cases_needing_review ?? summary?.needs_review ?? EMPTY_VALUE, tone: "orange" },
     { label: "Reportable cases", value: summary?.reportable_cases ?? EMPTY_VALUE, tone: "blue" },
-    { label: "Follow-ups recorded", value: summary?.follow_up_cases ?? EMPTY_VALUE, tone: "purple" },
     { label: "Cases with submission", value: summary?.submitted_cases ?? EMPTY_VALUE, tone: "green" },
   ];
   const maxCondition = Math.max(1, ...conditionRows.map((row) => Number(row.value) || 0));
