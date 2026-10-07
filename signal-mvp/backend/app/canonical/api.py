@@ -25,6 +25,7 @@ def get_canonical_patients(
     page_size: int = Query(default=10, ge=1, le=100),
     search: str | None = Query(default=None, max_length=200),
     facility: str | None = Query(default=None, max_length=255),
+    condition: str | None = Query(default=None, max_length=100),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     try:
@@ -34,6 +35,7 @@ def get_canonical_patients(
             page_size=page_size,
             search=search,
             facility=facility,
+            condition=condition,
         )
     except Exception as exc:
         raise HTTPException(
