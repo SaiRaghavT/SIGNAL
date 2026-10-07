@@ -9,6 +9,7 @@ import { SubmissionsPage } from "./pages/SubmissionsPage.jsx";
 import { FollowupsPage } from "./pages/FollowupsPage.jsx";
 import { AnalyticsPage } from "./pages/AnalyticsPage.jsx";
 import { AuditPage } from "./pages/AuditPage.jsx";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import Login from "./pages/Login.jsx";
 import ReportingFormPage from "./pages/ReportingFormPage.jsx";
 import SubmissionWorkspace from "./pages/SubmissionWorkspace.jsx";
@@ -83,6 +84,7 @@ export default function App() {
         <Route path="/governance/outcome-learning" element={<OutcomeLearningPage />} />
         <Route path="/governance/outcome-learning/:signalId" element={<LearningSignalDetail />} />
       </Route>
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
