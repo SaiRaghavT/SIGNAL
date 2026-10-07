@@ -69,7 +69,7 @@ def detect_candidates(
     condition_signal_count = sum(
         1
         for signal in signals
-        if signal.get("trigger_type") == "CONDITION_CODE"
+        if signal.get("trigger_type") == "SUSPECTED_DISORDER"
     )
 
     lab_signal_count = sum(

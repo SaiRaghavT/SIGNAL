@@ -127,6 +127,7 @@ def list_cases(
         pattern = f"%{search.strip()}%"
         query = query.filter(
             or_(
+                cast(Case.case_id, String).ilike(pattern),
                 Case.candidate_id.ilike(pattern),
                 Case.disease.ilike(pattern),
                 cast(Case.patient, String).ilike(pattern),

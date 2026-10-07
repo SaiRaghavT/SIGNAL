@@ -1,113 +1,32 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from backend.app.detection.disease_concepts import canonical_disease_id
+
+from .trigger_loader import (
+    build_trigger_code_index,
+    find_value_sets_containing_code,
+    get_value_sets,
+    match_trigger_code,
+)
 
 
-# ---------------------------------------------------------
-# Structured Trigger Configuration
-# ---------------------------------------------------------
-#
-# These are detection configurations, NOT reportability rules.
-#
-# A trigger only says:
-# "This structured clinical evidence may represent a
-# potential public-health reporting candidate."
-#
-# Jurisdiction and reportability decisions happen downstream.
-# ---------------------------------------------------------
+# =========================================================
+# Backward compatibility
+# =========================================================
 
-STRUCTURED_TRIGGERS: List[Dict[str, Any]] = [
-    {
-        "trigger_id": "measles-snomed-condition",
-        "trigger_type": "CONDITION_CODE",
-        "resource_type": "Condition",
-        "code_system": "http://snomed.info/sct",
-        "codes": ["14168008", "14189004"],
-        "disease_id": "measles",
-    },
-    {
-        "trigger_id": "measles-icd10cm-condition",
-        "trigger_type": "CONDITION_CODE",
-        "resource_type": "Condition",
-        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
-        "codes": [
-            "B05",
-            "B05.0",
-            "B05.1",
-            "B05.2",
-            "B05.3",
-            "B05.4",
-            "B05.81",
-            "B05.89",
-            "B05.9",
-        ],
-        "disease_id": "measles",
-    },
-    {
-        "trigger_id": "measles-pcr-positive-lab",
-        "trigger_type": "LAB_RESULT",
-        "resource_type": "DiagnosticReport",
-        "disease_id": "measles",
-        "test_terms": [
-            "measles pcr",
-            "measles polymerase chain reaction",
-            "rubeola pcr",
-        ],
-        "positive_terms": [
-            "positive",
-            "detected",
-        ],
-    },
-    {
-        "trigger_id": "measles-igm-positive-lab",
-        "trigger_type": "LAB_RESULT",
-        "resource_type": "DiagnosticReport",
-        "disease_id": "measles",
-        "test_terms": [
-            "measles igm",
-            "measles immunoglobulin m",
-            "rubeola igm",
-        ],
-        "positive_terms": [
-            "positive",
-            "reactive",
-        ],
-    },
-]
+STRUCTURED_TRIGGERS = {}
 
 
-# ---------------------------------------------------------
-# Utility Functions
-# ---------------------------------------------------------
+# =========================================================
+# Utility
+# =========================================================
+
 
 def _utc_now() -> str:
-    """Return the current UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
-
-
-def _matches_code(
-    resource: Dict[str, Any],
-    trigger: Dict[str, Any],
-) -> bool:
-    """
-    Determine whether a normalized clinical resource matches
-    a configured structured code trigger.
-    """
-
-    expected_system = trigger.get("code_system")
-    expected_codes = trigger.get("codes", [])
-
-    resource_system = resource.get("system")
-    resource_code = resource.get("code")
-
-    if expected_system and resource_system != expected_system:
-        return False
-
-    if expected_codes and resource_code not in expected_codes:
-        return False
-
-    return True
 
 
 def _get_resource_list(
@@ -115,308 +34,864 @@ def _get_resource_list(
     resource_type: str,
 ) -> List[Dict[str, Any]]:
     """
-    Map resource types to the normalized SIGNAL structure.
+    Resolve canonical SIGNAL resources.
+
+    Supports both:
+
+        diagnostic_reports
+
+    and:
+
+        lab_results
+
+    for laboratory data.
     """
 
-    resource_mapping = {
+    mapping = {
         "Condition": "conditions",
         "Observation": "observations",
-        "DiagnosticReport": "diagnostic_reports",
+
+        # Support both canonical lab field names.
+        "DiagnosticReport": "lab_results",
+
         "MedicationRequest": "medications",
         "Procedure": "procedures",
         "Encounter": "encounters",
+
+        # Clinical documents are handled separately.
+        "ClinicalDocument": "clinical_documents",
     }
 
-    field = resource_mapping.get(resource_type)
+    field = mapping.get(resource_type)
 
     if not field:
         return []
 
     resources = normalized_patient.get(field, [])
 
-    return resources if isinstance(resources, list) else []
-
-
-def _normalize_text(value: Any) -> str:
-    """Convert a value to normalized lowercase text."""
-
-    if value is None:
-        return ""
-
-    return str(value).strip().lower()
-
-
-# ---------------------------------------------------------
-# Lab Trigger Helpers
-# ---------------------------------------------------------
-
-def _lab_test_matches(
-    resource: Dict[str, Any],
-    trigger: Dict[str, Any],
-) -> bool:
-    """
-    Determine whether the diagnostic report represents
-    the configured measles laboratory test.
-    """
-
-    test_terms = trigger.get("test_terms", [])
-
-    test_code = _normalize_text(resource.get("code"))
-    test_display = _normalize_text(resource.get("display"))
-    conclusion = _normalize_text(resource.get("conclusion"))
-
-    searchable_text = " ".join(
-        value
-        for value in [
-            test_code,
-            test_display,
-            conclusion,
-        ]
-        if value
-    )
-
-    return any(
-        term.lower() in searchable_text
-        for term in test_terms
-    )
-
-
-def _get_lab_observations(
-    resource: Dict[str, Any],
-) -> List[Dict[str, Any]]:
-    """
-    Return linked observations from a diagnostic report.
-    """
-
-    observations = resource.get("observations", [])
-
     return (
-        observations
-        if isinstance(observations, list)
+        resources
+        if isinstance(resources, list)
         else []
     )
 
 
-def _lab_result_is_positive(
+def _extract_code(
     resource: Dict[str, Any],
-    trigger: Dict[str, Any],
-) -> bool:
+) -> tuple[
+    Optional[str],
+    Optional[str],
+    Optional[str],
+]:
     """
-    Determine whether a measles laboratory result is positive.
+    Extract system, code and display.
 
-    Positive evidence can come from:
-    - linked observation value_text
-    - linked observation value_code
-    - diagnostic report conclusion
-
-    Negative results such as "negative" or "not detected"
-    do not trigger a candidate signal.
+    Supports nested and flattened coding.
     """
 
-    positive_terms = [
-        term.lower()
-        for term in trigger.get("positive_terms", [])
-    ]
+    code = resource.get("code")
 
-    evidence_values: List[str] = []
-
-    conclusion = resource.get("conclusion")
-
-    if conclusion:
-        evidence_values.append(
-            _normalize_text(conclusion)
+    if isinstance(code, dict):
+        return (
+            code.get("system"),
+            code.get("code"),
+            code.get("display"),
         )
 
-    for observation in _get_lab_observations(resource):
-        if not isinstance(observation, dict):
-            continue
-
-        value = observation.get("value")
-
-        if isinstance(value, dict):
-            for key in (
-                "text",
-                "code",
-            ):
-                value_part = value.get(key)
-
-                if value_part is not None:
-                    evidence_values.append(
-                        _normalize_text(value_part)
-                    )
-
-        elif value is not None:
-            evidence_values.append(
-                _normalize_text(value)
-            )
-
-    return any(
-        any(
-            positive_term in evidence
-            for positive_term in positive_terms
-        )
-        for evidence in evidence_values
+    return (
+        resource.get("system"),
+        code,
+        resource.get("display"),
     )
 
 
-def _matches_lab_trigger(
+def _resource_id(
     resource: Dict[str, Any],
-    trigger: Dict[str, Any],
-) -> bool:
+) -> Optional[str]:
     """
-    Determine whether a diagnostic report represents
-    a positive configured measles laboratory result.
+    Resolve the source resource identifier.
     """
 
-    if not _lab_test_matches(resource, trigger):
-        return False
+    return (
+        resource.get("id")
+        or resource.get("resource_id")
+        or resource.get("condition_id")
+        or resource.get("observation_id")
+        or resource.get("lab_result_id")
+        or resource.get("diagnostic_report_id")
+        or resource.get("document_id")
+        or resource.get("source_document_id")
+        or resource.get("medication_id")
+        or resource.get("procedure_id")
+        or resource.get("encounter_id")
+    )
 
-    if not _lab_result_is_positive(resource, trigger):
-        return False
 
-    return True
-
-
-# ---------------------------------------------------------
-# Candidate Signal Creation
-# ---------------------------------------------------------
-
-def _create_candidate_signal(
-    resource: Dict[str, Any],
-    trigger: Dict[str, Any],
-) -> Dict[str, Any]:
+def _build_trigger_key(
+    system: Optional[str],
+    code: Optional[str],
+) -> Optional[str]:
     """
-    Create a candidate signal from matched structured evidence.
-
-    This does NOT confirm a reportable case.
-    """
-
-    resource_type = trigger.get("resource_type")
-
-    patient_id = resource.get("patient_id")
-
-    signal: Dict[str, Any] = {
-        "patient_id": patient_id,
-        "encounter_id": resource.get("encounter_id"),
-        "trigger_id": trigger.get("trigger_id"),
-        "trigger_type": trigger.get("trigger_type"),
-        "disease_id": trigger.get("disease_id"),
-        "evidence": {
-            "source_type": resource_type,
-            "source_id": resource.get("id"),
-            "code_system": resource.get("system"),
-            "code": resource.get("code"),
-            "display": resource.get("display"),
-        },
-        "confidence": 1.0,
-        "detected_at": _utc_now(),
-    }
-
-    return signal
-
-
-def _create_lab_candidate_signal(
-    resource: Dict[str, Any],
-    trigger: Dict[str, Any],
-) -> Dict[str, Any]:
-    """
-    Create a candidate signal from a positive laboratory result.
+    Stable identity for the actual coded clinical trigger.
     """
 
-    observations = _get_lab_observations(resource)
+    if not system or code is None:
+        return None
 
-    observation_evidence = []
+    return f"{system}|{code}"
 
-    for observation in observations:
-        if not isinstance(observation, dict):
+
+def _resolve_trigger_concept_key(
+    match: Dict[str, Any],
+) -> Optional[str]:
+    """
+    Resolve the stable clinical concept identity from the
+    authoritative eRSD ValueSet metadata.
+    """
+
+    if not isinstance(match, dict):
+        return None
+
+    value_set_ids = match.get("value_set_ids") or []
+
+    if not isinstance(value_set_ids, list):
+        return None
+
+    value_sets = get_value_sets()
+
+    for value_set_id in value_set_ids:
+        value_set = value_sets.get(value_set_id)
+
+        if not isinstance(value_set, dict):
             continue
 
-        observation_evidence.append(
-            {
-                "id": observation.get("observation_id"),
-                "code": observation.get("code"),
-                "display": observation.get("display"),
-                "value": observation.get("value"),
-                "status": observation.get("status"),
-            }
+        use_context = (
+            value_set.get("useContext")
+            or value_set.get("use_context")
+            or []
         )
 
+        if isinstance(use_context, dict):
+            use_context = [use_context]
+
+        for context in use_context:
+            if not isinstance(context, dict):
+                continue
+
+            context_code = context.get("code") or {}
+
+            if not isinstance(context_code, dict):
+                continue
+
+            if context_code.get("code") != "focus":
+                continue
+
+            concept = (
+                context.get("valueCodeableConcept")
+                or context.get("value_codeable_concept")
+                or {}
+            )
+
+            if not isinstance(concept, dict):
+                continue
+
+            codings = concept.get("coding") or []
+
+            if not isinstance(codings, list):
+                continue
+
+            for coding in codings:
+                if not isinstance(coding, dict):
+                    continue
+
+                system = coding.get("system")
+                code = coding.get("code")
+
+                if system and code:
+                    return f"{system}|{code}"
+
+    return None
+# =========================================================
+# RCTC Matching
+# =========================================================
+
+
+def _match_resource_against_rctc(
+    resource: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """
+    Match a structured clinical code against the
+    official eRSD/RCTC bundle.
+    """
+
+    system, code, display = _extract_code(
+        resource
+    )
+
+    if not system or code is None:
+        return []
+
+    matches = match_trigger_code(
+        system=system,
+        code=str(code),
+    )
+
+    return [
+        {
+            **match,
+            "resource_system": system,
+            "resource_code": str(code),
+            "resource_display": display,
+        }
+        for match in matches
+    ]
+
+
+# =========================================================
+# Structured Evidence
+# =========================================================
+
+
+def _create_structured_signal(
+    resource: Dict[str, Any],
+    match: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Create a normalized structured candidate signal.
+
+    No disease-specific or jurisdiction-specific logic
+    is applied here.
+    """
+
+    system, code, display = _extract_code(
+        resource
+    )
+
+    trigger_key = _build_trigger_key(
+        system,
+        str(code) if code is not None else None,
+    )
+
     return {
-        "patient_id": resource.get("patient_id"),
-        "encounter_id": resource.get("encounter_id"),
-        "trigger_id": trigger.get("trigger_id"),
-        "trigger_type": "LAB_RESULT",
-        "disease_id": trigger.get("disease_id"),
+        "patient_id": resource.get(
+            "patient_id"
+        ),
+
+        "encounter_id": resource.get(
+            "encounter_id"
+        ),
+
+        "trigger_key": trigger_key,
+
+        "trigger_id": match.get(
+            "group_id"
+        ),
+
+        "trigger_type": match.get(
+            "group"
+        ),
+
+        "trigger_concept_key": _resolve_trigger_concept_key(match),
+        "disease_id": canonical_disease_id(_resolve_trigger_concept_key(match)),
         "evidence": {
-            "source_type": "DiagnosticReport",
-            "source_id": resource.get("id"),
-            "code_system": resource.get("system"),
-            "code": resource.get("code"),
-            "display": resource.get("display"),
-            "conclusion": resource.get("conclusion"),
-            "observations": observation_evidence,
+            "source_type": resource.get(
+                "resource_type",
+                resource.get(
+                    "resourceType",
+                    "structured",
+                ),
+            ),
+
+            "source_id": _resource_id(
+                resource
+            ),
+
+            "code_system": system,
+
+            "code": (
+                str(code)
+                if code is not None
+                else None
+            ),
+
+            "display": display,
+
+            "rctc_group_id": match.get(
+                "group_id"
+            ),
+
+            "rctc_group": match.get(
+                "group"
+            ),
+
+            "value_sets": match.get(
+                "value_sets",
+                [],
+            ),
+
+            "value_set_ids": match.get(
+                "value_set_ids",
+                [],
+            ),
+
+            "value_set_urls": match.get(
+                "value_set_urls",
+                [],
+            ),
         },
+
         "confidence": 1.0,
+
         "detected_at": _utc_now(),
     }
 
 
-# ---------------------------------------------------------
-# Structured Trigger Detection
-# ---------------------------------------------------------
+# =========================================================
+# Laboratory Evidence
+# =========================================================
+
+
+def _get_lab_code_candidates(
+    resource: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """
+    Extract laboratory test and linked observations.
+
+    SIGNAL canonical lab records use:
+
+        test
+        observations
+        conclusion
+        report_status
+    """
+
+    candidates: List[
+        Dict[str, Any]
+    ] = []
+
+    test = resource.get("test")
+
+    if isinstance(test, dict):
+
+        system = test.get(
+            "system"
+        )
+
+        code = test.get(
+            "code"
+        )
+
+        display = test.get(
+            "display"
+        )
+
+        if system and code is not None:
+
+            candidates.append(
+                {
+                    **resource,
+
+                    "code": {
+                        "system": system,
+                        "code": code,
+                        "display": display,
+                    },
+
+                    "resource_type":
+                        "DiagnosticReport",
+                }
+            )
+
+    else:
+
+        system, code, display = (
+            _extract_code(
+                resource
+            )
+        )
+
+        if system and code is not None:
+
+            candidates.append(
+                {
+                    **resource,
+
+                    "system": system,
+
+                    "code": code,
+
+                    "display": display,
+
+                    "resource_type":
+                        "DiagnosticReport",
+                }
+            )
+
+    observations = resource.get(
+        "observations",
+        [],
+    )
+
+    if isinstance(
+        observations,
+        list,
+    ):
+
+        for observation in observations:
+
+            if not isinstance(
+                observation,
+                dict,
+            ):
+                continue
+
+            system, code, display = (
+                _extract_code(
+                    observation
+                )
+            )
+
+            if not system or code is None:
+                continue
+
+            candidates.append(
+                {
+                    **observation,
+
+                    "patient_id":
+                        resource.get(
+                            "patient_id",
+                            observation.get(
+                                "patient_id"
+                            ),
+                        ),
+
+                    "encounter_id":
+                        resource.get(
+                            "encounter_id",
+                            observation.get(
+                                "encounter_id"
+                            ),
+                        ),
+
+                    "resource_type":
+                        "Observation",
+
+                    "code": {
+                        "system": system,
+                        "code": code,
+                        "display": display,
+                    },
+
+                    "parent_lab_result_id":
+                        resource.get(
+                            "lab_result_id"
+                        )
+                        or resource.get(
+                            "diagnostic_report_id"
+                        )
+                        or resource.get("id"),
+                }
+            )
+
+    return candidates
+
+
+def _create_lab_signal(
+    resource: Dict[str, Any],
+    coded_resource: Dict[str, Any],
+    match: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Create laboratory evidence.
+
+    Result interpretation is preserved as evidence.
+    No result value is hardcoded as a detection rule.
+    """
+
+    system, code, display = (
+        _extract_code(
+            coded_resource
+        )
+    )
+
+    trigger_key = _build_trigger_key(
+        system,
+        str(code) if code is not None else None,
+    )
+
+    return {
+        "patient_id": resource.get(
+            "patient_id"
+        ),
+
+        "encounter_id": resource.get(
+            "encounter_id"
+        ),
+
+        "trigger_key": trigger_key,
+
+        "trigger_id": match.get(
+            "group_id"
+        ),
+
+        "trigger_type": match.get(
+            "group"
+        ),
+
+        "trigger_concept_key": _resolve_trigger_concept_key(match),
+        "disease_id": canonical_disease_id(_resolve_trigger_concept_key(match)),
+
+        "evidence": {
+            "source_type": coded_resource.get(
+                "resource_type",
+                "DiagnosticReport",
+            ),
+
+            "source_id": (
+                resource.get(
+                    "lab_result_id"
+                )
+                or resource.get(
+                    "diagnostic_report_id"
+                )
+                or resource.get("id")
+            ),
+
+            "code_system": system,
+
+            "code": (
+                str(code)
+                if code is not None
+                else None
+            ),
+
+            "display": display,
+
+            "rctc_group_id": match.get(
+                "group_id"
+            ),
+
+            "rctc_group": match.get(
+                "group"
+            ),
+
+            "value_sets": match.get(
+                "value_sets",
+                [],
+            ),
+
+            "value_set_ids": match.get(
+                "value_set_ids",
+                [],
+            ),
+
+            "value_set_urls": match.get(
+                "value_set_urls",
+                [],
+            ),
+
+            "result": resource.get(
+                "conclusion"
+            ),
+
+            "report_status": resource.get(
+                "report_status"
+            ),
+
+            "observation_id":
+                coded_resource.get(
+                    "observation_id"
+                ),
+
+            "observation_value":
+                coded_resource.get(
+                    "value"
+                ),
+        },
+
+        "confidence": 1.0,
+
+        "detected_at": _utc_now(),
+    }
+
+
+# =========================================================
+# Clinical Document Evidence
+# =========================================================
+
+
+def _extract_document_text(
+    document: Dict[str, Any],
+) -> Optional[str]:
+    """
+    Extract available clinical document text.
+
+    This function does not diagnose the patient.
+
+    It only exposes document content so the document
+    intelligence layer can generate supporting evidence.
+    """
+
+    text = (
+        document.get("extracted_text")
+        or document.get("text")
+        or document.get("content")
+    )
+
+    if isinstance(text, str):
+        return text.strip() or None
+
+    return None
+
+
+def _create_document_signal(
+    document: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """
+    Create a document evidence signal when clinical
+    document text is available.
+
+    Document intelligence is deliberately represented as
+    supporting evidence rather than a confirmed diagnosis.
+
+    The current implementation does NOT invent an RCTC
+    code from free text.
+    """
+
+    text = _extract_document_text(
+        document
+    )
+
+    if not text:
+        return None
+
+    return {
+        "patient_id": document.get(
+            "patient_id"
+        ),
+
+        "encounter_id": document.get(
+            "encounter_id"
+        ),
+
+        "trigger_key": None,
+
+        "trigger_id": None,
+
+        "trigger_type":
+            "DOCUMENT_EVIDENCE",
+
+        "disease_id": None,
+
+        "evidence": {
+            "source_type": "document",
+
+            "source_id": _resource_id(
+                document
+            ),
+
+            "document_type":
+                document.get(
+                    "document_type"
+                ),
+
+            "document_status":
+                document.get(
+                    "document_status"
+                ),
+
+            "title":
+                document.get(
+                    "title"
+                ),
+
+            "document_date":
+                document.get(
+                    "document_date"
+                ),
+
+            "text": text,
+
+            "evidence_role":
+                "supporting_clinical_evidence",
+        },
+
+        "confidence": 0.5,
+
+        "detected_at": _utc_now(),
+    }
+
+
+# =========================================================
+# Resource Detection
+# =========================================================
+
+
+def _detect_resource(
+    resource: Dict[str, Any],
+    resource_type: str,
+) -> List[Dict[str, Any]]:
+    """
+    Detect RCTC matches for one resource.
+    """
+
+    if not isinstance(
+        resource,
+        dict,
+    ):
+        return []
+
+    # -----------------------------------------------------
+    # Laboratory resources
+    # -----------------------------------------------------
+
+    if resource_type == "DiagnosticReport":
+
+        signals: List[Dict[str, Any]] = []
+
+        for coded_resource in _get_lab_code_candidates(
+            resource
+        ):
+            matches = _match_resource_against_rctc(
+                coded_resource
+            )
+
+            # A single laboratory result may appear in multiple
+            # eRSD/RCTC groups. For candidate detection, emit
+            # one primary signal for the actual lab result.
+            #
+            # Priority:
+            #   LAB_RESULT
+            #   LAB_ORDER
+            #   ALL_RESULTS
+            #   EXTENDED_TIMING
+            #
+            # This preserves the authoritative eRSD match while
+            # preventing duplicate evidence for the same resource.
+
+            priority = {
+                "LAB_RESULT": 0,
+                "LAB_ORDER": 1,
+                "ALL_RESULTS": 2,
+                "EXTENDED_TIMING": 3,
+            }
+
+            if matches:
+                primary_match = min(
+                    matches,
+                    key=lambda match: priority.get(
+                        match.get("group"),
+                        99,
+                    ),
+                )
+
+                signals.append(
+                    _create_lab_signal(
+                        resource,
+                        coded_resource,
+                        primary_match,
+                    )
+                )
+
+        return signals
+
+    # -----------------------------------------------------
+    # Clinical documents
+    # -----------------------------------------------------
+
+    if resource_type == "ClinicalDocument":
+
+        signal = _create_document_signal(
+            resource
+        )
+
+        return (
+            [signal]
+            if signal is not None
+            else []
+        )
+
+    # -----------------------------------------------------
+    # Other structured resources
+    # -----------------------------------------------------
+
+    matches = (
+        _match_resource_against_rctc(
+            resource
+        )
+    )
+
+    return [
+        _create_structured_signal(
+            resource,
+            match,
+        )
+        for match in matches
+    ]
+
+
+# =========================================================
+# Main Entry Point
+# =========================================================
+
 
 def detect_structured_triggers(
     normalized_patient: Dict[str, Any],
-    triggers: List[Dict[str, Any]] | None = None,
+    triggers: Optional[
+        List[Dict[str, Any]]
+    ] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Detect potential candidate signals from structured
-    clinical information.
+    Generic structured candidate detection.
 
-    This includes:
-    - Condition-based triggers
-    - Laboratory-result triggers
+    Source of truth:
 
-    Parameters
-    ----------
-    normalized_patient:
-        SIGNAL normalized patient object.
+        eRSD v3.2.0 / RCTC
 
-    triggers:
-        Optional trigger configuration. If omitted,
-        STRUCTURED_TRIGGERS is used.
+    Supported inputs:
 
-    Returns
-    -------
-    List of candidate signals.
+        - Condition
+        - Observation
+        - Lab Result / DiagnosticReport
+        - MedicationRequest
+        - Procedure
+        - Encounter
+        - Clinical Document
 
-    Important:
-        Detection does not determine jurisdiction,
-        reportability, or case confirmation.
+    This layer does NOT determine:
+
+        - diagnosis
+        - legal reportability
+        - jurisdiction
+        - reporting deadline
+        - case creation
+        - submission
     """
 
-    if not isinstance(normalized_patient, dict):
+    if not isinstance(
+        normalized_patient,
+        dict,
+    ):
         raise ValueError(
             "normalized_patient must be a dictionary."
         )
 
-    configured_triggers = (
-        STRUCTURED_TRIGGERS
-        if triggers is None
-        else triggers
+    signals: List[
+        Dict[str, Any]
+    ] = []
+
+    resource_types = (
+        "Condition",
+        "Observation",
+        "DiagnosticReport",
+        "MedicationRequest",
+        "Procedure",
+        "Encounter",
+        "ClinicalDocument",
     )
 
-    candidate_signals: List[Dict[str, Any]] = []
-
-    for trigger in configured_triggers:
-
-        if not isinstance(trigger, dict):
-            continue
-
-        resource_type = trigger.get("resource_type")
-
-        if not resource_type:
-            continue
+    for resource_type in resource_types:
 
         resources = _get_resource_list(
             normalized_patient,
@@ -425,45 +900,65 @@ def detect_structured_triggers(
 
         for resource in resources:
 
-            if not isinstance(resource, dict):
-                continue
-
-            # ---------------------------------------------
-            # Laboratory trigger
-            # ---------------------------------------------
-            if trigger.get("trigger_type") == "LAB_RESULT":
-                if resource_type == "Observation" and trigger.get("codes"):
-                    if _matches_code(resource, trigger):
-                        candidate_signals.append(
-                            _create_candidate_signal(resource, trigger)
-                        )
-                    continue
-
-                if not _matches_lab_trigger(
+            signals.extend(
+                _detect_resource(
                     resource,
-                    trigger,
-                ):
-                    continue
-
-                signal = _create_lab_candidate_signal(
-                    resource,
-                    trigger,
+                    resource_type,
                 )
-
-                candidate_signals.append(signal)
-                continue
-
-            # ---------------------------------------------
-            # Existing structured code trigger
-            # ---------------------------------------------
-            if not _matches_code(resource, trigger):
-                continue
-
-            signal = _create_candidate_signal(
-                resource,
-                trigger,
             )
 
-            candidate_signals.append(signal)
+    return signals
 
-    return candidate_signals
+
+# =========================================================
+# Explainability
+# =========================================================
+
+
+def explain_trigger_match(
+    system: str,
+    code: str,
+) -> Dict[str, Any]:
+    """
+    Return complete eRSD/RCTC provenance for a code.
+    """
+
+    matches = match_trigger_code(
+        system=system,
+        code=code,
+    )
+
+    value_sets = (
+        find_value_sets_containing_code(
+            system=system,
+            code=code,
+        )
+    )
+
+    return {
+        "matched": bool(matches),
+
+        "trigger_key": _build_trigger_key(
+            system,
+            code,
+        ),
+
+        "code_system": system,
+
+        "code": code,
+
+        "rctc_matches": matches,
+
+        "source_value_sets": value_sets,
+    }
+
+
+def get_trigger_index_size() -> int:
+    """
+    Return the number of indexed clinical
+    system|code combinations.
+    """
+
+    return len(
+        build_trigger_code_index()
+    )

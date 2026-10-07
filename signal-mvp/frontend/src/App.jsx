@@ -25,6 +25,7 @@ import {
   MonitoringPage,
   OutcomeLearningPage,
 } from "./pages/AiGovernance.jsx";
+import "./styles/ai-governance.css";
 
 export default function App() {
   return (

@@ -9,7 +9,7 @@ from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
-from backend.app.models.workflow_records import Report
+from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.ecr.builder import build_ecr
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
@@ -24,6 +24,8 @@ STAGE_ORDER = (
     "REPORTABILITY",
     "CASE",
     "VALIDATION",
+    "REVIEW",
+    "ATTESTATION",
     "REPORTING",
     "SUBMISSION",
     "PHA_FOLLOW_UP",
@@ -152,6 +154,26 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
     )
     candidate = db.query(Candidate).filter(Candidate.candidate_id == case.candidate_id).first()
 
+    def workflow_record(record_type: str) -> CaseWorkflowRecord | None:
+        return (
+            db.query(CaseWorkflowRecord)
+            .filter(
+                CaseWorkflowRecord.case_id == case_id_text,
+                CaseWorkflowRecord.record_type == record_type,
+            )
+            .order_by(CaseWorkflowRecord.created_at.desc())
+            .first()
+        )
+
+    ingestion_events = [
+        event for event in audit_events
+        if (event.metadata_json or {}).get("workflow_stage") == "DATA_INGESTION"
+    ]
+    detection_events = [
+        event for event in audit_events
+        if (event.metadata_json or {}).get("workflow_stage") == "DETECTION"
+    ]
+
     candidate_available = bool(case.candidate_id)
     reportability_available = any(
         value not in (None, "")
@@ -168,12 +190,18 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
     if validation_stage.status == "READY":
         validation_stage.status = "COMPLETED"
     validation_stage.entity_reference = case_id_text
+    review_record = workflow_record("REVIEW")
+    attestation_record = workflow_record("ATTESTATION")
     stages = [
         JourneyStage(
             stage="DATA_INGESTION",
-            available=False,
-            status="NOT_STARTED",
-            limitations=[
+            available=bool(ingestion_events),
+            status="COMPLETED" if ingestion_events else "NOT_STARTED",
+            occurred_at=ingestion_events[-1].event_timestamp if ingestion_events else None,
+            entity_reference=case_id_text if ingestion_events else None,
+            source=ingestion_events[-1].source_agent if ingestion_events else None,
+            data={"events": [_audit_data(event) for event in ingestion_events]},
+            limitations=[] if ingestion_events else [
                 "Ingestion history is not persisted as a run and is not reliably linked to this case."
             ],
         ),
@@ -256,6 +284,24 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
             ],
         ),
         validation_stage,
+        JourneyStage(
+            stage="REVIEW",
+            available=review_record is not None,
+            status=review_record.status if review_record else "PENDING",
+            occurred_at=review_record.created_at if review_record else None,
+            entity_reference=review_record.record_id if review_record else None,
+            source="Persisted human review" if review_record else None,
+            data=review_record.payload if review_record else {},
+        ),
+        JourneyStage(
+            stage="ATTESTATION",
+            available=attestation_record is not None,
+            status=attestation_record.status if attestation_record else "PENDING",
+            occurred_at=attestation_record.created_at if attestation_record else None,
+            entity_reference=attestation_record.record_id if attestation_record else None,
+            source="Persisted human attestation" if attestation_record else None,
+            data=attestation_record.payload if attestation_record else {},
+        ),
         JourneyStage(
             stage="REPORTING",
             available=bool(reports),

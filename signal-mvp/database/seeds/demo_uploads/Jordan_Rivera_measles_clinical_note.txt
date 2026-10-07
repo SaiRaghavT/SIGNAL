@@ -1,0 +1,29 @@
+﻿SYNTHETIC CLINICAL NOTE — FOR SIGNAL DETECTION TESTING ONLY
+Not a real patient record. Do not use for clinical care or public health reporting.
+
+Patient: Jordan Rivera
+Patient ID: SIGNAL-DEMO-MEASLES-001
+Date of birth: April 12, 2018
+Encounter date: October 6, 2026
+Encounter type: Outpatient evaluation
+
+Chief concern:
+Fever, cough, runny nose, red eyes, and a spreading rash.
+
+History of present illness:
+Caregiver reports fever beginning September 28, 2026. Cough and nasal congestion followed. A red rash appeared on the face on September 30 and spread to the upper trunk. Bilateral eye redness was noted. Immunization and exposure history are not available in this synthetic test record.
+
+Examination:
+Temperature 39.4 °C. Patient is alert and drinking fluids. Maculopapular rash is visible on the face and upper trunk. Bilateral conjunctival redness is present. Cough and coryza are reported. No respiratory distress is documented.
+
+Assessment:
+Measles (rubeola), laboratory confirmed.
+
+Laboratory result:
+Measles virus RNA detected by nucleic acid amplification (PCR) on respiratory specimen.
+Result: POSITIVE.
+
+Plan:
+Airborne isolation precautions were initiated at the facility. Caregiver was advised to follow instructions from the local public health department. This synthetic note records that public health notification was recommended; no actual notification or submission occurred.
+
+End of synthetic note.

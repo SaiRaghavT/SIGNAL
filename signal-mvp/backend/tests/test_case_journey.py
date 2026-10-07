@@ -76,11 +76,11 @@ def stage(response, name):
     return next(item for item in response.journey if item.stage == name)
 
 
-def test_case_without_submission_or_followup_has_nine_ordered_stages():
+def test_case_without_submission_or_followup_has_eleven_ordered_stages():
     case = make_case()
     result = journey_for(case)
 
-    assert len(result.journey) == 9
+    assert len(result.journey) == 11
     assert [item.stage for item in result.journey] == list(STAGE_ORDER)
     assert result.current_stage == "CASE"
     assert stage(result, "DATA_INGESTION").available is False
