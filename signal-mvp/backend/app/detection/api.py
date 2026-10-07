@@ -59,6 +59,7 @@ def detect_patient_candidates(
     ]
 
     document_evidence: list[dict[str, Any]] = []
+    document_evidence_error: str | None = None
 
     if not documents_with_text:
         document_evidence_status = "no_document_text"
@@ -75,6 +76,7 @@ def detect_patient_candidates(
                 f"{type(exc).__name__}: {exc}"
             )
             document_evidence_status = "failed"
+            document_evidence_error = _document_ai_error_message(exc)
 
         except Exception as exc:
             print(
@@ -82,6 +84,7 @@ def detect_patient_candidates(
                 f"{type(exc).__name__}: {exc}"
             )
             document_evidence_status = "failed"
+            document_evidence_error = _document_ai_error_message(exc)
 
     try:
         result = detect_candidates(
@@ -91,6 +94,8 @@ def detect_patient_candidates(
 
         result["document_evidence_status"] = document_evidence_status
         result["document_evidence_count"] = len(document_evidence)
+        if document_evidence_error:
+            result["document_evidence_error"] = document_evidence_error
         result["candidates"] = [
             {
                 **candidate,
@@ -111,6 +116,34 @@ def detect_patient_candidates(
             status_code=422,
             detail=str(exc),
         ) from exc
+
+
+def _document_ai_error_message(exc: Exception) -> str:
+    message = str(exc).casefold()
+    busy_markers = (
+        "429",
+        "529",
+        "rate limit",
+        "rate_limit",
+        "too many requests",
+        "overloaded",
+        "model is busy",
+        "temporarily unavailable",
+        "server overloaded",
+        "capacity",
+        "503",
+    )
+    if any(marker in message for marker in busy_markers):
+        return (
+            "The AI model is busy or rate limited, so document analysis did not "
+            "finish. Your uploaded document is saved. Try detection again shortly; "
+            "structured record detection may still have completed."
+        )
+    return (
+        "AI document analysis failed, so uploaded documents were not included in "
+        "this detection run. Your documents are saved. Try again or check the "
+        "backend error log. Structured record detection may still have completed."
+    )
 
 
 @router.post("/evidence")

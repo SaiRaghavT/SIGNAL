@@ -1,8 +1,9 @@
 import { request } from "./client";
 const listCases = (params = {}) => {
+  const { signal, ...queryParams } = params;
   const q = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => v !== void 0 && q.set(k, String(v)));
-  return request(`/api/cases${q.toString() ? `?${q}` : ""}`);
+  Object.entries(queryParams).forEach(([k, v]) => v !== void 0 && q.set(k, String(v)));
+  return request(`/api/cases${q.toString() ? `?${q}` : ""}`, { signal });
 };
 const getCase = (id) => request(`/api/cases/${encodeURIComponent(id)}`);
 const updateCaseReportFields = (id, body) => request(`/api/cases/${encodeURIComponent(id)}/report-fields`, { method: "PATCH", body: JSON.stringify(body) });

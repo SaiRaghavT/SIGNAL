@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import "@google/model-viewer";
+
 
 
 import { Link, useParams } from "react-router-dom";
@@ -35,7 +37,7 @@ import {
 
 
 
-import { uploadPatientDocument } from "../api/documents.js";
+import { deletePatientDocument, uploadPatientDocument } from "../api/documents.js";
 
 
 
@@ -312,6 +314,20 @@ function getPatientName(patient) {
 
 
 
+function removePatientNameNumbers(value) {
+  const rawName =
+    value && typeof value === "object"
+      ? getPatientName({ name: value })
+      : String(value || "");
+
+  return rawName
+    .replace(/\d+/g, " ")
+    .replace(/[|#,:;]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s_-]+|[\s_-]+$/g, "")
+    .trim();
+}
+
 function getDocuments(context) {
 
 
@@ -344,6 +360,38 @@ function getDocuments(context) {
 
 
 
+
+
+function isMeaslesCondition(condition) {
+  if (!condition || typeof condition !== "object") return false;
+
+  const code = condition.code;
+  const codings = [
+    ...(Array.isArray(code?.coding) ? code.coding : []),
+    code,
+  ];
+  const displays = [
+    condition.display,
+    condition.condition_name,
+    condition.name,
+    code?.display,
+    ...codings.map((coding) => coding?.display),
+  ];
+  const codes = [
+    condition.code_value,
+    typeof code === "string" || typeof code === "number" ? code : code?.code,
+    ...codings.map((coding) => coding?.code),
+  ];
+
+  return (
+    displays.some((value) => /measles/i.test(String(value || ""))) ||
+    codes.some((value) =>
+      /^(?:B05(?:\.|$)|14168008$|14189004$|772152006$)/i.test(
+        String(value || "").trim()
+      )
+    )
+  );
+}
 
 
 function getConditions(context) {
@@ -474,7 +522,7 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
 
 
-  const name =
+  const name = removePatientNameNumbers(
 
     patientData.name ||
 
@@ -486,7 +534,8 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
       .join(" ") ||
 
-    "Patient";
+    "Patient"
+  ) || "Patient";
 
 
 
@@ -526,7 +575,7 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
 
 
-    const facility =
+  const facility =
 
     patientData.facility_name ||
 
@@ -1206,7 +1255,74 @@ function DetectionProgress({ activeStage }) {
 
 
 
+function MeaslesAnatomyCard({ patientName = "Patient", conditions = [], documents = [] }) {
+  if (!conditions.some(isMeaslesCondition)) return null;
+
+  const documentedText = documents
+    .map((document) => [document?.title, document?.extracted_text, document?.text, document?.content].filter(Boolean).join(" "))
+    .join(" ")
+    .toLowerCase();
+  const findings = [
+    { id: "skin", label: "Face and upper trunk rash", terms: /rash|maculopapular/ },
+    { id: "eyes", label: "Bilateral eye redness", terms: /conjunctiv|red eyes|eye redness/ },
+    { id: "respiratory", label: "Cough and coryza", terms: /cough|coryza|nasal congestion|runny nose/ },
+  ].filter((finding) => finding.terms.test(documentedText));
+
+  return (
+    <section className="anatomy-card" aria-labelledby="anatomy-card-title">
+      <div className="anatomy-card-copy">
+        <span className="anatomy-card-kicker">PATIENT CASE · CLINICAL FINDINGS</span>
+        <h2 id="anatomy-card-title">{patientName} · Measles</h2>
+        <p className="anatomy-card-note">Case-linked findings documented for {patientName}. Red highlights show the affected areas</p>
+        <div className="anatomy-findings" aria-label="Documented findings shown">
+          {findings.length ? findings.map((finding) => (
+            <div className="anatomy-finding" key={finding.id}>
+              <span className="anatomy-finding-dot" aria-hidden="true" />
+              <span>{finding.label}</span>
+              <span className="anatomy-finding-status">Documented</span>
+            </div>
+          )) : <p className="anatomy-no-findings">No matching findings were found in the available clinical documents.</p>}
+        </div>
+      </div>
+      <div className="anatomy-figure-wrap" aria-label="3D patient model">
+        <span className="anatomy-visual-badge">GENERIC PATIENT MODEL</span>
+        <model-viewer
+          class="anatomy-figure"
+          src="/models/neutral-mannequin.glb"
+          alt="Smooth blue, gender-neutral mannequin shown in a fixed front view"
+          shadow-intensity="0.65"
+          exposure="1.4"
+          environment-image="neutral"
+          aria-label="Fixed front view of the gender-neutral patient model"
+        >
+          {findings.some(({ id }) => id === "skin") && <>
+            <span slot="hotspot-rash-face" className="anatomy-callout anatomy-callout-left" data-position="-0.055m 1.49m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented facial rash">
+              <span className="anatomy-callout-label" aria-hidden="true">Face rash</span>
+            </span>
+            <span slot="hotspot-rash-trunk" className="anatomy-callout anatomy-callout-left" data-position="0m 1.27m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented upper trunk rash">
+              <span className="anatomy-callout-label" aria-hidden="true">Trunk rash</span>
+            </span>
+          </>}
+          {findings.some(({ id }) => id === "eyes") && <>
+            <span slot="hotspot-eye-left" className="anatomy-callout anatomy-callout-point" data-position="-0.035m 1.53m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented redness in left eye" />
+            <span slot="hotspot-eye-right" className="anatomy-callout anatomy-callout-right anatomy-callout-face" data-position="0.035m 1.53m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented bilateral eye redness">
+              <span className="anatomy-callout-label" aria-hidden="true">Eye redness</span>
+            </span>
+          </>}
+          {findings.some(({ id }) => id === "respiratory") && (
+            <span slot="hotspot-respiratory" className="anatomy-callout anatomy-callout-right" data-position="0m 1.16m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented cough and coryza, indicated on the chest">
+              <span className="anatomy-callout-label" aria-hidden="true">Cough</span>
+            </span>
+          )}
+        </model-viewer>
+        <a className="anatomy-view-label" href="https://www.innerscene.com/tools/library/3d-parts/human-base-mesh-with-editable-53-bone-rig-8e7c8ab1" target="_blank" rel="noreferrer">FIXED FRONT VIEW <i aria-hidden="true" /> CC0 MODEL SOURCE</a>
+      </div>
+    </section>
+  );
+}
+
 function RecordSummary({
+  patient,
   conditions = [],
   labs = [],
   encounters = [],
@@ -1236,6 +1352,12 @@ function RecordSummary({
   };
 
   return (
+    <>
+    <MeaslesAnatomyCard
+      patientName={getPatientName(patient?.patient || patient?.data || patient)}
+      conditions={conditions}
+      documents={documents}
+    />
     <section className="patient-records-section">
       <div className="patient-records-heading">
         <span className="patient-records-kicker">
@@ -1461,6 +1583,7 @@ function RecordSummary({
 
       </div>
     </section>
+    </>
   );
 }
 
@@ -1774,6 +1897,71 @@ function DocumentsSection({
 
 }
 
+function AiDocumentUploadCard({
+  documents = [],
+  onUpload,
+  onRemove,
+  removingDocumentId,
+  actionError,
+  disabled = false,
+}) {
+  const uploadedDocuments = (Array.isArray(documents) ? documents : []).filter(
+    (document) =>
+      document?.provenance?.source === "document_upload" ||
+      document?.source === "document_upload"
+  );
+
+  return (
+    <section className="ai-document-upload-card">
+      <div className="ai-document-upload-icon" aria-hidden="true">↑</div>
+      <div className="ai-document-upload-copy">
+        <div className="section-label">AI DETECTION INPUT</div>
+        <h2>Upload clinical documents</h2>
+        <p>
+          Add a clinical note, lab report, or discharge summary. SIGNAL will
+          include it the next time you run detection.
+        </p>
+        <span className="ai-document-upload-meta">
+          {uploadedDocuments.length} uploaded document{uploadedDocuments.length === 1 ? "" : "s"}
+          <span aria-hidden="true"> · </span>PDF, DOCX, or TXT up to 10 MB
+        </span>
+        {actionError && <p className="ai-document-action-error" role="alert">{actionError}</p>}
+        {uploadedDocuments.length > 0 && (
+          <ul className="ai-uploaded-document-list" aria-label="Uploaded documents">
+            {uploadedDocuments.map((document) => {
+              const id = document.document_id ?? document.id;
+              return (
+                <li key={id}>
+                  <span className="ai-uploaded-document-name" title={document.title || "Uploaded clinical document"}>
+                    {document.title || "Uploaded clinical document"}
+                  </span>
+                  <button
+                    type="button"
+                    className="ai-uploaded-document-remove"
+                    onClick={() => onRemove(document)}
+                    disabled={disabled || !id || removingDocumentId === id}
+                    aria-label={`Remove ${document.title || "uploaded document"}`}
+                  >
+                    {removingDocumentId === id ? "Removing…" : "Remove"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+      <button
+        className="secondary-button ai-document-upload-button"
+        type="button"
+        onClick={onUpload}
+        disabled={disabled}
+      >
+        Upload documents
+      </button>
+    </section>
+  );
+}
+
 
 
 
@@ -1874,9 +2062,51 @@ function getEvidenceCategory(signal, categoryHint = "") {
   if (!signal || typeof signal !== "object") return "";
 
   const nested =
-    signal.evidence && typeof signal.evidence === "object"
+    signal.evidence &&
+      typeof signal.evidence === "object" &&
+      !Array.isArray(signal.evidence)
       ? signal.evidence
       : {};
+
+  // ---------------------------------------------------------
+  // Candidate Detection trigger types are authoritative
+  // for categorizing detection evidence.
+  // ---------------------------------------------------------
+
+  const triggerType = normalizeText(
+    signal.trigger_type || nested.trigger_type
+  )
+    .replace(/[\s-]+/g, "_")
+    .toUpperCase();
+
+  if (
+    triggerType === "SUSPECTED_DISORDER" ||
+    triggerType === "CONDITION_CODE" ||
+    triggerType === "DIAGNOSIS_PROBLEM"
+  ) {
+    return "condition";
+  }
+
+  if (
+    triggerType === "LAB_RESULT" ||
+    triggerType === "LAB_ORDER" ||
+    triggerType === "ALL_RESULTS" ||
+    triggerType === "DOCUMENT_LABORATORY"
+  ) {
+    return "laboratory";
+  }
+
+  if (
+    triggerType === "DOCUMENT_EVIDENCE" ||
+    triggerType === "DOCUMENT_DIAGNOSIS"
+  ) {
+    return "document";
+  }
+
+  // ---------------------------------------------------------
+  // Fallback classification for older / non-trigger evidence.
+  // ---------------------------------------------------------
+
   const markers = [
     signal.source,
     signal.source_type,
@@ -1890,12 +2120,12 @@ function getEvidenceCategory(signal, categoryHint = "") {
     nested.resource_type,
     nested.type,
     nested.category,
-    signal.trigger_type,
-    nested.trigger_type,
     categoryHint,
   ]
     .filter(Boolean)
-    .map((value) => normalizeText(value).replace(/[\s-]+/g, "_"));
+    .map((value) =>
+      normalizeText(value).replace(/[\s-]+/g, "_")
+    );
 
   if (
     markers.some((value) =>
@@ -1904,13 +2134,17 @@ function getEvidenceCategory(signal, categoryHint = "") {
   ) {
     return "document";
   }
+
   if (
     markers.some((value) =>
-      /laboratory|lab_result|(^|_)lab($|_)|diagnostic|diagnostic_report/.test(value)
+      /laboratory|lab_result|(^|_)lab($|_)|diagnostic|diagnostic_report/.test(
+        value
+      )
     )
   ) {
     return "laboratory";
   }
+
   if (
     markers.some((value) =>
       /condition|clinical|diagnosis|diagnostic_condition/.test(value)
@@ -1918,7 +2152,41 @@ function getEvidenceCategory(signal, categoryHint = "") {
   ) {
     return "condition";
   }
+
   return "";
+}
+
+function getDetectionSignalCounts(result) {
+  const signals = Array.isArray(result?.signals)
+    ? result.signals.filter(
+      (signal) => signal && typeof signal === "object"
+    )
+    : [];
+
+  if (signals.length > 0) {
+    const counts = {
+      total: result?.signal_count ?? signals.length,
+      clinical: 0,
+      laboratory: 0,
+      document: 0,
+    };
+
+    for (const signal of signals) {
+      const category = getEvidenceCategory(signal);
+      if (category === "condition") counts.clinical += 1;
+      if (category === "laboratory") counts.laboratory += 1;
+      if (category === "document") counts.document += 1;
+    }
+
+    return counts;
+  }
+
+  return {
+    total: result?.signal_count ?? 0,
+    clinical: result?.condition_signal_count ?? 0,
+    laboratory: result?.lab_signal_count ?? 0,
+    document: result?.document_signal_count ?? 0,
+  };
 }
 
 function getCategoryHint(key) {
@@ -1931,51 +2199,37 @@ function getCategoryHint(key) {
 
 function collectCandidateEvidence(candidate) {
   const found = [];
-  const roots = [
+
+  // Candidate Detection is the only source of evidence shown inside
+  // CandidateCard. Prefer the primary `signals` array when it exists.
+  // `supporting_signals` and `evidence` can contain the same detection
+  // signals in alternate/summary form, which would otherwise render the
+  // same evidence more than once.
+  const sources = [
     candidate?.signals,
     candidate?.supporting_signals,
     candidate?.evidence,
   ];
 
-  function visit(value, hint = "", depth = 0) {
-    if (!value || depth > 8) return;
-    if (Array.isArray(value)) {
-      value.forEach((item) => visit(item, hint, depth + 1));
-      return;
-    }
-    if (typeof value !== "object") return;
+  const source = sources.find(
+    (value) => Array.isArray(value) && value.length > 0
+  );
 
-    const hasEvidenceFields = [
-      "source",
-      "source_type",
-      "evidence_type",
-      "resource_type",
-      "type",
-      "category",
-      "trigger_type",
-      "description",
-      "display",
-      "test",
-      "test_name",
-      "condition_name",
-      "document_title",
-      "source_id",
-      "result",
-      "conclusion",
-      "observations",
-    ].some((key) => Object.prototype.hasOwnProperty.call(value, key));
+  if (!source) {
+    return found;
+  }
 
-    if (hasEvidenceFields) {
-      found.push({ item: value, categoryHint: hint });
-      return;
+  for (const signal of source) {
+    if (!signal || typeof signal !== "object") {
+      continue;
     }
 
-    Object.entries(value).forEach(([key, child]) => {
-      visit(child, getCategoryHint(key) || hint, depth + 1);
+    found.push({
+      item: signal,
+      categoryHint: "",
     });
   }
 
-  roots.forEach((root) => visit(root));
   return found;
 }
 
@@ -2210,550 +2464,780 @@ function getDocumentExcerpt(document, representedEvidence = []) {
 function normalizeCandidateEvidence(candidate, context) {
   const entries = collectCandidateEvidence(candidate);
   const normalized = [];
-  const seenKeys = new Set();
-  const seenDocumentIds = new Set();
+  const seen = new Set();
 
-  for (const { item: raw, categoryHint } of entries) {
+  for (const entry of entries) {
+    const raw = entry?.item;
+    const categoryHint = entry?.categoryHint || "";
+
+    if (!raw || typeof raw !== "object") {
+      continue;
+    }
+
+    const nested =
+      raw.evidence &&
+        typeof raw.evidence === "object" &&
+        !Array.isArray(raw.evidence)
+        ? raw.evidence
+        : {};
+
     const category = getEvidenceCategory(raw, categoryHint);
-    if (!category) continue;
 
-    const data = getEvidenceData(raw);
-    const sourceId = getEvidenceSourceId(raw);
-    const canonicalRecords = getCanonicalEvidenceRecords(context, category);
-    const name = getEvidenceName(raw, data, category);
-    const sourceIdKey = normalizeText(sourceId);
-    const match = canonicalRecords.find((record) => {
-      const recordId = normalizeText(getCanonicalSourceId(record, category));
-      if (sourceIdKey && recordId) return sourceIdKey === recordId;
+    if (!category) {
+      continue;
+    }
 
-      const recordName = normalizeText(getEvidenceName(record, record, category));
-      return Boolean(name && recordName && normalizeText(name) === recordName);
-    });
-    const canonical = match || {};
-    const canonicalId = getCanonicalSourceId(canonical, category);
-    const identity = normalizeText(sourceId || canonicalId);
-    const enrichedName =
-      getEvidenceName(canonical, canonical, category) || name;
+    /*
+     * The candidate detection response is the source of truth.
+     *
+     * Do NOT pull additional evidence from canonical patient
+     * records here. Canonical documents belong in Source Documents.
+     */
 
-    const categoryTitle =
-      category === "condition"
-        ? "Condition evidence"
-        : category === "laboratory"
-          ? "Laboratory evidence"
-          : "Document evidence";
+    const sourceId =
+      raw.source_id ||
+      raw.evidence_id ||
+      raw.signal_id ||
+      nested.source_id ||
+      nested.evidence_id ||
+      raw.trigger_key ||
+      `${category}-${normalized.length}`;
+
+    const identity = normalizeText(sourceId);
+
+    if (seen.has(identity)) {
+      continue;
+    }
+
+    seen.add(identity);
 
     if (category === "condition") {
+      const name = firstEvidenceValue(
+        nested.display,
+        nested.name,
+        nested.code_display,
+        raw.display,
+        raw.name,
+        raw.condition_name,
+        raw.description,
+        raw.trigger_type,
+        "Condition evidence"
+      );
+
       const description = firstEvidenceValue(
-        data?.description,
-        raw?.description,
-        enrichedName
+        nested.description,
+        raw.description,
+        nested.display,
+        raw.display
       );
+
       const status = firstEvidenceValue(
-        data?.clinical_status,
-        data?.status,
-        raw?.clinical_status,
-        raw?.status,
-        canonical?.clinical_status
+        nested.clinical_status,
+        nested.status,
+        raw.clinical_status,
+        raw.status
       );
+
       const verification = firstEvidenceValue(
-        data?.verification_status,
-        data?.verification,
-        raw?.verification_status,
-        raw?.verification,
-        canonical?.verification_status
+        nested.verification_status,
+        nested.verification,
+        raw.verification_status,
+        raw.verification
       );
-      const key = [
-        "condition",
-        identity,
-        normalizeText(enrichedName),
-        normalizeText(description),
-        normalizeText(status),
-        normalizeText(verification),
-      ].join("|");
-      if (seenKeys.has(key) || (identity && seenKeys.has("condition|id|" + identity))) continue;
-      seenKeys.add(key);
-      if (identity) seenKeys.add("condition|id|" + identity);
+
       normalized.push({
-        category,
-        title: categoryTitle,
-        name: enrichedName,
+        category: "condition",
+        title: "Condition evidence",
+        name,
         description,
         status,
         verification,
-        sourceId: identity,
+        sourceId,
       });
+
       continue;
     }
 
     if (category === "laboratory") {
-      const result = getLabResult(canonical, data, raw);
-      const status = firstEvidenceValue(
-        data?.report_status,
-        data?.result_status,
-        data?.status,
-        raw?.report_status,
-        raw?.result_status,
-        raw?.status,
-        canonical?.report_status,
-        canonical?.result_status,
-        canonical?.status
+      const name = firstEvidenceValue(
+        nested.display,
+        nested.test_name,
+        nested.name,
+        nested.code_display,
+        raw.test_name,
+        raw.name,
+        raw.code_display,
+        raw.display,
+        raw.description,
+        "Laboratory result"
       );
-      const key = [
-        "laboratory",
-        identity,
-        normalizeText(enrichedName),
-        normalizeText(result),
-        normalizeText(status),
-      ].join("|");
-      if (seenKeys.has(key) || (identity && seenKeys.has("laboratory|id|" + identity))) continue;
-      seenKeys.add(key);
-      if (identity) seenKeys.add("laboratory|id|" + identity);
+
+      const result = firstEvidenceValue(
+        nested.result,
+        nested.value,
+        nested.interpretation,
+        nested.result_text,
+        raw.result,
+        raw.value,
+        raw.interpretation,
+        raw.result_text
+      );
+
+      const status = firstEvidenceValue(
+        nested.status,
+        nested.result_status,
+        nested.report_status,
+        raw.status,
+        raw.result_status,
+        raw.report_status
+      );
+
       normalized.push({
-        category,
-        title: categoryTitle,
-        name: enrichedName,
+        category: "laboratory",
+        title: "Laboratory evidence",
+        name,
         description: firstEvidenceValue(
-          data?.description,
-          raw?.description,
-          enrichedName
+          nested.description,
+          raw.description,
+          name
         ),
         result,
         status,
-        sourceId: identity,
+        sourceId,
       });
+
       continue;
     }
 
-    const documentId = identity;
-    if (documentId && seenDocumentIds.has(documentId)) continue;
-    const documentSource = {
-      ...canonical,
-      ...data,
-      title:
-        canonical?.title ||
-        data?.title ||
-        data?.document_title ||
-        raw?.document_title ||
-        data?.source_title ||
-        raw?.source_title,
-      extracted_text:
-        canonical?.extracted_text ||
-        data?.extracted_text ||
-        data?.extractedText ||
-        data?.text ||
-        data?.evidence_text ||
-        raw?.evidence_text,
-    };
-    const representedBeforeDocument = normalized.filter(
-      (entry) => entry.category !== "document"
-    );
-    const description = getDocumentExcerpt(
-      documentSource,
-      representedBeforeDocument
-    );
-    const evidenceType = normalizeText(
-      data?.evidence_type || raw?.evidence_type
-    );
-    if (
-      !description &&
-      /laboratory|lab_result/.test(evidenceType) &&
-      representedBeforeDocument.some(
-        (entry) => entry.category === "laboratory"
-      )
-    ) {
-      continue;
-    }
+    if (category === "document") {
+      const name = firstEvidenceValue(
+        nested.title,
+        nested.document_title,
+        nested.name,
+        raw.document_title,
+        raw.title,
+        raw.name,
+        raw.description,
+        "Clinical document"
+      );
 
-    const documentName =
-      getEvidenceName(documentSource, documentSource, category) ||
-      enrichedName;
-    const key = [
-      "document",
-      documentId,
-      normalizeText(documentName),
-      normalizeText(description),
-    ].join("|");
-    if (seenKeys.has(key)) continue;
-    seenKeys.add(key);
-    if (documentId) seenDocumentIds.add(documentId);
-    normalized.push({
-      category,
-      title: categoryTitle,
-      name: documentName,
-      description,
-      sourceId: documentId,
-    });
+      const description = firstEvidenceValue(
+        nested.excerpt,
+        nested.evidence_text,
+        nested.text,
+        nested.description,
+        raw.evidence_text,
+        raw.excerpt,
+        raw.description
+      );
+
+      normalized.push({
+        category: "document",
+        title: "Document evidence",
+        name,
+        description,
+        sourceId,
+      });
+    }
   }
 
-  return normalized.filter((item) => item.name || item.description);
+  return normalized.filter(
+    (item) =>
+      item &&
+      (
+        item.name ||
+        item.description ||
+        item.result
+      )
+  );
 }
 
-function CandidateCard({ candidate, evidence = [] }) {
+function getCandidateSignalEntries(candidate) {
+  const sources = [candidate?.signals, candidate?.supporting_signals, candidate?.evidence];
+  const source = sources.find((value) => Array.isArray(value) && value.length > 0);
+  return Array.isArray(source) ? source.filter((signal) => signal && typeof signal === "object") : [];
+}
 
-  const name = displayClinicalValue(getCandidateName(candidate), "Potential condition").replaceAll("_", " ");
+function getCandidateDisplaySignals(candidate) {
+  const entries = getCandidateSignalEntries(candidate);
+  const seen = new Set();
 
+  return entries.filter((signal) => {
+    const category = getEvidenceCategory(signal);
+    if (category !== "laboratory") return true;
 
+    const code = getSignalValue(signal, "evidence.code", "test_code", "code");
+    const title = getSignalTitle(signal, category).toLowerCase();
+    const evidenceText = getSignalValue(signal, "evidence.evidence_text", "evidence_text").toLowerCase();
+    const text = `${title} ${evidenceText}`;
+    // A coded lab result and an NLP mention of the same result are one
+    // clinical finding for the summary. Keep unrelated assays separate.
+    const identity = /measles/.test(text) && /\b(rna|pcr|nucleic acid|naa)\b/.test(text)
+      ? "measles-rna-pcr"
+      : code
+        ? `code:${String(code).toLowerCase()}`
+        : `text:${title.replace(/\b(positive|detected|result|test|laboratory)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim()}`;
+    const key = `${category}:${identity}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
+function getSignalValue(signal, ...keys) {
+  const evidence = signal?.evidence && typeof signal.evidence === "object" && !Array.isArray(signal.evidence)
+    ? signal.evidence
+    : {};
 
+  for (const key of keys) {
+    const value = key.includes(".")
+      ? key.split(".").reduce((current, part) => current?.[part], signal)
+      : signal?.[key] ?? evidence?.[key];
+    if (value !== null && value !== undefined && value !== "") {
+      if (typeof value === "object") {
+        return value.display ?? value.text ?? value.code ?? value.value ?? value.name ?? "";
+      }
+      return value;
+    }
+  }
+  return "";
+}
 
+function getSignalTitle(signal, category) {
+  if (category === "condition") {
+    return getSignalValue(
+      signal,
+      "evidence.display",
+      "evidence.name",
+      "evidence.code_display",
+      "evidence.concept",
+      "condition_name",
+      "display",
+      "name",
+      "trigger_concept_key",
+      "trigger_key"
+    ) || "Condition signal";
+  }
 
+  if (category === "laboratory") {
+    return getSignalValue(
+      signal,
+      "evidence.display",
+      "evidence.test_name",
+      "evidence.name",
+      "evidence.concept",
+      "test_name",
+      "display",
+      "name",
+      "observation_code_display"
+    ) || "Laboratory signal";
+  }
 
+  return getSignalValue(
+    signal,
+    "title",
+    "document_title",
+    "evidence.title",
+    "evidence.document_title",
+    "evidence.source_title",
+    "source_title",
+    "evidence.file_name",
+    "file_name",
+    "name",
+    "document_type"
+  ) || "Clinical document";
+}
 
+function getSignalCategoryLabel(category) {
+  if (category === "condition") return "Clinical Signal";
+  if (category === "laboratory") return "Laboratory Signal";
+  return "Document Signal";
+}
 
-  const confidence =
+function getSignalPrimaryValue(signal, category) {
+  if (category === "laboratory") {
+    const result = getSignalValue(
+      signal,
+      "result",
+      "observation_value",
+      "value",
+      "interpretation",
+      "report_status",
+      "evidence.result",
+      "evidence.value",
+      "evidence.evidence_text"
+    );
 
+    const evidenceText = getSignalValue(signal, "evidence.evidence_text", "evidence_text");
+    const textualResult = String(evidenceText).match(
+      /\b(?:not detected|non[- ]?reactive|positive|detected|reactive|negative)\b/i
+    )?.[0];
 
+    if (textualResult && result === evidenceText) {
+      return textualResult.toUpperCase();
+    }
 
-    candidate?.confidence ??
+    return result;
+  }
 
+  if (category === "document") {
+    return getSignalValue(
+      signal,
+      "text",
+      "evidence_text",
+      "evidence.text",
+      "evidence.excerpt",
+      "description"
+    );
+  }
 
+  return getSignalValue(
+    signal,
+    "evidence.display",
+    "evidence.description",
+      "evidence.concept",
+      "evidence.evidence_text",
+    "description",
+    "display",
+    "name"
+  );
+}
 
-    candidate?.score;
+function getSignalDetails(signal, category) {
+  const evidence = signal?.evidence && typeof signal.evidence === "object" && !Array.isArray(signal.evidence)
+    ? signal.evidence
+    : {};
 
+  const rows = [
+    ["Source ID", signal?.source_id ?? evidence?.source_id],
+    ["Trigger", signal?.trigger_type ?? signal?.trigger_key],
+    ["Trigger Concept", signal?.trigger_concept_key ?? signal?.trigger_concept],
+    ["Encounter", signal?.encounter_id],
+    ["Code", evidence?.code ?? signal?.code],
+    ["Code System", evidence?.code_system ?? signal?.code_system],
+    ["Observation ID", signal?.observation_id],
+    ["Observation Value", signal?.observation_value],
+    ["Document ID", signal?.document_id ?? evidence?.document_id],
+    ["Document name", signal?.source_title ?? evidence?.source_title ?? signal?.document_title ?? evidence?.document_title],
+    ["Document Type", signal?.document_type ?? evidence?.document_type],
+    ["Document Date", signal?.document_date ?? evidence?.document_date],
+    ["Document Status", signal?.document_status ?? evidence?.document_status],
+    ["Evidence Role", signal?.evidence_role ?? evidence?.evidence_role],
+    ["Confidence", getConfidenceLabel(signal?.confidence)],
+    ["Detected At", signal?.detected_at],
+  ];
 
+  return rows.filter(([, value]) => value !== null && value !== undefined && value !== "");
+}
 
+function getSignalMoreDetails(signal) {
+  const evidence = signal?.evidence && typeof signal.evidence === "object" && !Array.isArray(signal.evidence)
+    ? signal.evidence
+    : {};
 
+  const rows = [
+    ["Trigger ID", signal?.trigger_id],
+    ["Trigger Concept Keys", signal?.trigger_concept_keys],
+    ["Trigger Keys", signal?.trigger_keys],
+    ["Trigger Types", signal?.trigger_types],
+    ["Disease ID", signal?.disease_id],
+    ["Source Type", signal?.source_type ?? evidence?.source_type],
+    ["RCTC Group", evidence?.rctc_group],
+    ["RCTC Group ID", evidence?.rctc_group_id],
+    ["Value Sets", evidence?.value_sets],
+    ["Value Set IDs", evidence?.value_set_ids],
+    ["Value Set URLs", evidence?.value_set_urls],
+  ];
 
-  const encounter =
+  return rows.filter(([, value]) => value !== null && value !== undefined && value !== "");
+}
 
+function getReadableConditionName(value) {
+  if (value === null || value === undefined || value === "") return "";
 
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const readable = getReadableConditionName(item);
+      if (readable) return readable;
+    }
+    return "";
+  }
 
-    candidate?.encounter_id ||
+  if (typeof value === "object") {
+    for (const key of [
+      "display",
+      "condition_name",
+      "disease_name",
+      "name",
+      "text",
+      "title",
+      "description",
+      "coding",
+    ]) {
+      const readable = getReadableConditionName(value[key]);
+      if (readable) return readable;
+    }
+    return "";
+  }
 
+  const text = String(value).trim();
+  if (
+    !text ||
+    /https?:\/\//i.test(text) ||
+    text.includes("|") ||
+    /^\d{5,}$/.test(text) ||
+    /^[A-Z]\d{2}(?:\.\d+)?$/i.test(text)
+  ) {
+    return "";
+  }
 
+  return text;
+}
 
-    candidate?.encounter?.id;
+function getCandidateConditionName(candidate) {
+  const candidateFields = [
+    candidate?.condition_name,
+    candidate?.disease_name,
+    candidate?.condition_display,
+    candidate?.disease_display,
+    candidate?.condition,
+    candidate?.disease,
+    candidate?.name,
+    candidate?.display,
+    candidate?.disease_id,
+  ];
 
+  for (const field of candidateFields) {
+    const readable = getReadableConditionName(field);
+    if (readable) return readable;
+  }
 
+  const signals = getCandidateSignalEntries(candidate).sort((a, b) => {
+    const diagnosisPattern = /diagnos|suspected_disorder|condition/i;
+    return Number(diagnosisPattern.test(b?.trigger_type || "")) -
+      Number(diagnosisPattern.test(a?.trigger_type || ""));
+  });
+  for (const signal of signals) {
+    const evidence = signal?.evidence;
+    const signalFields = [
+      signal?.condition_name,
+      signal?.disease_name,
+      signal?.display,
+      signal?.name,
+      evidence?.condition_name,
+      evidence?.disease_name,
+      evidence?.display,
+      evidence?.name,
+      evidence?.concept?.display,
+      evidence?.description,
+      signal?.description,
+    ];
 
+    for (const field of signalFields) {
+      const readable = getReadableConditionName(field);
+      if (readable) return readable;
+    }
+  }
 
+  return "Potential condition";
+}
+
+function formatSignalDetail(value) {
+  if (Array.isArray(value)) return value.join(", ");
+  if (typeof value === "object") {
+    return value?.display ?? value?.text ?? value?.code ?? JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function getConfidenceLabel(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string" && /^(high|medium|low)$/i.test(value.trim())) {
+    return value.trim()[0].toUpperCase() + value.trim().slice(1).toLowerCase();
+  }
+
+  const text = String(value).trim();
+  const parsed = Number.parseFloat(text);
+  if (!Number.isFinite(parsed)) return safeText(value);
+
+  const normalized = text.includes("%") || parsed > 1 ? parsed / 100 : parsed;
+  if (normalized >= 0.8) return "High";
+  if (normalized >= 0.5) return "Medium";
+  return "Low";
+}
+
+function DetectionSignal({ signal, category }) {
+  const [expanded, setExpanded] = useState(false);
+  const title = getSignalTitle(signal, category);
+  const primaryValue = getSignalPrimaryValue(signal, category);
+  const details = getSignalDetails(signal, category);
+  const moreDetails = getSignalMoreDetails(signal);
+
+  const icon =
+    category === "condition" ? "✦" : category === "laboratory" ? "⌁" : "▤";
 
   return (
-
-
-
-    <section className="candidate-section">
-
-
-
-      <div className="section-label">
-
-
-
-        SIGNAL DETECTION
-
-
-
-      </div>
-
-
-
-
-
-      <div className="candidate-heading">
-
-
-
-        <div>
-
-
-
-          <h2>Potential condition identified</h2>
-
-
-
-
-
-          <p className="section-description">{"SIGNAL identified a potential " + safeText(name, "condition") + " candidate based on supporting clinical evidence."}</p>
-
-
-
-        </div>
-
-
-
-
-
-        <span className="potential-badge">
-
-
-
-          Potential &middot; Requires Review
-
-
-
+    <article className={`signal-accordion signal-accordion-${category}`}>
+      <button
+        type="button"
+        className="signal-accordion-trigger"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        <span className="signal-accordion-icon" aria-hidden="true">
+          {icon}
         </span>
-
-
-
-      </div>
-
-
-
-
-
-      <div className="candidate-card">
-
-
-
-        <div className="candidate-card-header">
-
-
-
-          <div>
-
-
-
-            <div className="candidate-disease">
-
-
-
-              {safeText(name).toUpperCase()}
-
-
-
-            </div>
-
-
-
-
-
-            <div className="candidate-status">
-
-
-
-              Potential &middot; Requires Review
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-
-
-          <span className="potential-badge">
-
-
-
-            {safeText(
-
-
-
-              candidate?.status,
-
-
-
-              "POTENTIAL"
-
-
-
-            ).toUpperCase()}
-
-
-
+        <span className="signal-accordion-heading">
+          <span className="signal-accordion-type">
+            {getSignalCategoryLabel(category)}
           </span>
-
-
-
-        </div>
-
-
-
-
-
-        <div className="candidate-details">
-
-
-
-          <div>
-
-
-
-            <span>Evidence items</span>
-
-
-
-            <strong>{evidence.length}</strong>
-
-
-
-          </div>
-
-
-
-
-
-          <div>
-
-
-
-            <span>Encounter</span>
-
-
-
-            <strong>
-
-
-
-              {safeText(encounter)}
-
-
-
-            </strong>
-
-
-
-          </div>
-
-
-
-
-
-          {confidence !== undefined && (
-
-
-
-            <div>
-
-
-
-              <span>Confidence</span>
-
-
-
-              <strong>
-
-
-
-                {typeof confidence === "number"
-
-
-
-                  ? `${Math.round(
-
-
-
-                    confidence <= 1
-
-
-
-                      ? confidence * 100
-
-
-
-                      : confidence
-
-
-
-                  )}%`
-
-
-
-                  : safeText(confidence)}
-
-
-
-              </strong>
-
-
-
+          <strong>{title}</strong>
+        </span>
+        <span className={`signal-accordion-chevron ${expanded ? "open" : ""}`} aria-hidden="true">
+          ↓
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="signal-accordion-body">
+          {primaryValue && (
+            <div className="signal-evidence-callout">
+              <span>
+                {category === "laboratory"
+                  ? "Result"
+                  : category === "document"
+                    ? "Evidence"
+                    : "Evidence"}
+              </span>
+              <strong>{formatSignalDetail(primaryValue)}</strong>
             </div>
-
-
-
           )}
 
-
-
-        </div>
-
-
-
-
-        <div className="candidate-evidence-section">
-          <h4>Supporting evidence</h4>
-
-          {evidence.length > 0 ? (
-            <div className="candidate-evidence-list">
-              {evidence.map((item, index) => (
-                <div
-                  className="candidate-evidence-item"
-                  key={item.sourceId || [item.category, item.name, index].join("-")}
-                >
-                  <div className="candidate-evidence-icon">
-                    {String.fromCharCode(0x2713)}
-                  </div>
-
-                  <div className="candidate-evidence-content">
-                    <div className="candidate-evidence-title">{item.title}</div>
-                    {item.name && (
-                      <div className="candidate-evidence-description">
-                        {item.name}
-                      </div>
-                    )}
-                    {item.description && item.description !== item.name && (
-                      <div className="candidate-evidence-meta">
-                        {item.description}
-                      </div>
-                    )}
-                    {item.result && (
-                      <div className="candidate-evidence-meta">
-                        Result: <strong>{item.result}</strong>
-                      </div>
-                    )}
-                    {(item.status || item.verification) && (
-                      <div className="candidate-evidence-meta">
-                        {item.status && (
-                          <>
-                            Status: <strong>{displayClinicalValue(item.status)}</strong>
-                          </>
-                        )}
-                        {item.status && item.verification && String.fromCharCode(0x00b7)}
-                        {item.verification && (
-                          <>
-                            Verification:{" "}
-                            <strong>{displayClinicalValue(item.verification)}</strong>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+          {details.length > 0 && (
+            <div className="signal-detail-grid">
+              {details.map(([label, value]) => (
+                <div className="signal-detail" key={label}>
+                  <span>{label}</span>
+                  <strong
+                    className={label === "Confidence" ? `detection-confidence-${String(value).toLowerCase()}` : undefined}
+                  >
+                    {formatSignalDetail(value)}
+                  </strong>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="candidate-evidence-empty">
-              No supporting evidence available.
+          )}
+
+          {moreDetails.length > 0 && (
+            <details className="signal-more-details">
+              <summary>More detection details</summary>
+              <div className="signal-detail-grid signal-detail-grid-secondary">
+                {moreDetails.map(([label, value]) => (
+                  <div className="signal-detail" key={label}>
+                    <span>{label}</span>
+                    <strong>{formatSignalDetail(value)}</strong>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function CandidateDetails({ candidate, signalCount }) {
+  const signalSources = [...new Set(
+    getCandidateSignalEntries(candidate)
+      .map((signal) => {
+        const category = getEvidenceCategory(signal);
+        if (category === "condition") return "Clinical record";
+        if (category === "laboratory") return "Laboratory result";
+        if (category === "document") return "Clinical document";
+        return "";
+      })
+      .filter(Boolean)
+  )];
+  const detectedAt = candidate?.detected_at
+    ? new Date(candidate.detected_at)
+    : null;
+  const detectedLabel = detectedAt && !Number.isNaN(detectedAt.getTime())
+    ? detectedAt.toLocaleString(undefined, {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "numeric", minute: "2-digit",
+      })
+    : "Not available";
+  const statusLabel = String(candidate?.status || "POTENTIAL").toUpperCase() === "POTENTIAL"
+    ? "Potential · review needed"
+    : displayClinicalValue(candidate?.status);
+  const readableDetails = [
+    ["Review status", statusLabel],
+    ["Disease", getCandidateConditionName(candidate)],
+    ["Evidence found", signalSources.length ? signalSources.join(" · ") : "Clinical evidence"],
+    ["Distinct supporting findings", signalCount],
+    ["Confidence", getConfidenceLabel(candidate?.confidence ?? candidate?.score)],
+    ["Detected", detectedLabel],
+  ];
+  const technicalDetails = [
+    ["Candidate ID", candidate?.candidate_id ?? candidate?.id],
+    ["Disease ID", candidate?.disease_id],
+    ["Encounter", candidate?.encounter_id ?? candidate?.encounter?.id],
+    ["Trigger Type", candidate?.trigger_type ?? candidate?.trigger_types],
+    ["Trigger Concept", candidate?.trigger_concept_key ?? candidate?.trigger_concept_keys],
+    ["Detected At", candidate?.detected_at],
+    ["Evidence Sources", candidate?.evidence_source_types],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== "");
+
+  return (
+    <section className="detection-candidate-details">
+      <div className="detection-section-heading">
+        <div>
+          <span className="detection-eyebrow">CANDIDATE DETAILS</span>
+          <h3>{getCandidateConditionName(candidate)} review</h3>
+        </div>
+        <span className="detection-section-note">AI detection summary</span>
+      </div>
+
+      <div className="detection-details-table">
+        {readableDetails.map(([label, value]) => (
+          <div className="detection-details-row" key={label}>
+            <span>{label}</span>
+            <strong
+              className={label === "Confidence" ? `detection-confidence-${String(value).toLowerCase()}` : undefined}
+            >
+              {formatSignalDetail(value)}
+            </strong>
+          </div>
+        ))}
+      </div>
+      {technicalDetails.length > 0 && (
+        <details className="candidate-technical-details">
+          <summary>Technical identifiers and source metadata</summary>
+          <div className="detection-details-table detection-details-table-technical">
+            {technicalDetails.map(([label, value]) => (
+              <div className="detection-details-row" key={label}>
+                <span>{label}</span>
+                <strong>{formatSignalDetail(value)}</strong>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function DetectionCandidate({ candidate, onContinue, onRunAgain }) {
+  const rawSignals = getCandidateDisplaySignals(candidate);
+  const grouped = { condition: [], laboratory: [], document: [] };
+
+  rawSignals.forEach((signal) => {
+    const category = getEvidenceCategory(signal);
+    if (grouped[category]) grouped[category].push(signal);
+  });
+
+  const signalCount = rawSignals.length;
+  const confidence = candidate?.confidence ?? candidate?.score;
+  const name = getCandidateConditionName(candidate).replaceAll("_", " ");
+  const confidenceValue = getConfidenceLabel(confidence);
+
+  return (
+    <div className="enterprise-detection-result">
+      <section className="detection-result-hero">
+        <div className="detection-result-hero-topline">
+          <div className="detection-result-kicker">
+            <span className="detection-live-dot" />
+            SIGNAL DETECTION · COMPLETED
+          </div>
+          <button
+            type="button"
+            className="detection-run-again"
+            onClick={onRunAgain}
+          >
+            Run again
+          </button>
+        </div>
+
+        <div className="detection-result-hero-main">
+          <div>
+            <span className="detection-result-overline">Potential reportable condition</span>
+            <h2>{safeText(name).toUpperCase()}</h2>
+            <div className="detection-status-pill">
+              <span className="detection-status-dot" />
+              Potential · Review Required
             </div>
+          </div>
+
+          <div className="detection-hero-metrics">
+            <div>
+              <span>Confidence</span>
+              <strong className={`detection-confidence-${confidenceValue.toLowerCase()}`}>
+                {confidenceValue}
+              </strong>
+            </div>
+            <div>
+              <span>Supporting signals</span>
+              <strong>{signalCount}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="detection-support-section">
+        <div className="detection-section-heading">
+          <div>
+            <span className="detection-eyebrow">SUPPORTING SIGNALS</span>
+            <h3>What SIGNAL found</h3>
+          </div>
+          <span className="detection-section-note">{signalCount} signal{signalCount === 1 ? "" : "s"}</span>
+        </div>
+
+        <div className="signal-accordion-list">
+          {["condition", "laboratory", "document"].map((category) =>
+            grouped[category].length > 0 ? (
+              grouped[category].map((signal, index) => (
+                <DetectionSignal
+                  key={
+                    signal?.signal_id ||
+                    signal?.source_id ||
+                    `${category}-${index}`
+                  }
+                  signal={signal}
+                  category={category}
+                />
+              ))
+            ) : null
           )}
         </div>
 
+        {signalCount === 0 && (
+          <div className="detection-empty-signals">
+            No supporting signals were returned for this candidate.
+          </div>
+        )}
+      </section>
 
+      <CandidateDetails candidate={candidate} signalCount={signalCount} />
 
-
-
+      <div className="detection-action-bar">
+        <div>
+          <span className="detection-eyebrow">NEXT STEP</span>
+          <strong>Candidate review is ready</strong>
+          <span>Continue when you are ready to begin reporting.</span>
+        </div>
+        <button
+          type="button"
+          className="detection-primary-action"
+          onClick={() => onContinue(candidate)}
+        >
+          Continue to Reporting
+          <span aria-hidden="true">→</span>
+        </button>
       </div>
-
-
-
-    </section>
-
-
-
+    </div>
   );
-
-
-
 }
-
-
-
-
 
 /* =========================================================
 
@@ -2765,195 +3249,6 @@ function CandidateCard({ candidate, evidence = [] }) {
 
 \========================================================= */
 
-
-
-
-
-function DetectionExplanation({ evidence = [] }) {
-  const categories = ["condition", "laboratory", "document"];
-  const categoryTitles = {
-    condition: "CONDITION",
-    laboratory: "LABORATORY",
-    document: "DOCUMENT",
-  };
-  const cards = categories.map((category) => {
-    const categoryEvidence = evidence.filter(
-      (item) => item.category === category
-    );
-    const value = categoryEvidence
-      .map((item) => [item.name, item.result, item.description]
-        .filter(Boolean)
-        .filter((text, index, all) => all.indexOf(text) === index)
-        .join(" | "))
-      .filter(Boolean)
-      .join(" | ");
-
-    return {
-      key: category,
-      title: categoryTitles[category],
-      value: value || "No " + category + " evidence",
-    };
-  });
-
-  return (
-
-
-
-    <section className="explanation-section">
-
-
-
-      <div className="section-label">
-
-
-
-        WHY WAS THIS FLAGGED?
-
-
-
-      </div>
-
-
-
-
-
-      <h2>Supporting clinical evidence</h2>
-
-
-
-
-
-      <p className="section-description">
-
-
-
-        SIGNAL found supporting evidence from the
-
-
-
-        patient's available records.
-
-
-
-      </p>
-
-
-
-
-
-      <div className="explanation-grid">
-
-
-
-        {cards.map((card) => (
-
-
-
-          <div
-
-
-
-            className="explanation-card"
-
-
-
-            key={card.key}
-
-
-
-          >
-
-
-
-            <div className="explanation-card-label">
-
-
-
-              {card.title}
-
-
-
-            </div>
-
-
-
-
-
-            <div className="explanation-card-value">
-
-
-
-              {card.value}
-
-
-
-            </div>
-
-
-
-
-
-            {card.value !==
-
-
-
-              "No condition evidence" &&
-
-
-
-              card.value !==
-
-
-
-              "No laboratory evidence" &&
-
-
-
-              card.value !==
-
-
-
-              "No document evidence" && (
-
-
-
-                <div className="evidence-supported">
-
-
-
-                  ✓ Supporting signal
-
-
-
-                </div>
-
-
-
-              )}
-
-
-
-          </div>
-
-
-
-        ))}
-
-
-
-      </div>
-
-
-
-    </section>
-
-
-
-  );
-
-
-
-}
 
 
 
@@ -2973,321 +3268,96 @@ function DetectionExplanation({ evidence = [] }) {
 
 
 
-function EncountersTab({ encounters }) {
+function EncountersTab({ encounters = [] }) {
+  const encounterTypeLabels = {
+    I: "Inpatient",
+    IMP: "Inpatient",
+    INPATIENT: "Inpatient",
+    O: "Outpatient",
+    AMB: "Ambulatory",
+    AMBULATORY: "Ambulatory",
+    OUTPATIENT: "Outpatient",
+    E: "Emergency",
+    EMER: "Emergency",
+    EMERGENCY: "Emergency",
+    OBS: "Observation",
+    OBSENC: "Observation",
+    OBSERVATION: "Observation",
+    PRENC: "Pre-admission",
+    SS: "Short stay",
+    V: "Virtual",
+    VR: "Virtual",
+  };
 
-
-
-  if (!encounters.length) {
-
-
-
-    return (
-
-
-
-      <div className="empty-state">
-
-
-
-        No encounter records are available.
-
-
-
-      </div>
-
-
-
-    );
-
-
-
+  if (!Array.isArray(encounters) || encounters.length === 0) {
+    return <div className="empty-state">No encounter records are available.</div>;
   }
 
-
-
-
-
   return (
-
-
-
-    <section className="tab-section">
-
-
-
-      <div className="section-label">
-
-
-
-        ENCOUNTERS
-
-
-
-      </div>
-
-
-
-
-
-      <h2>Patient encounters</h2>
-
-
-
-
+    <section className="tab-section encounters-tab">
+      <header className="encounters-heading">
+        <div>
+          <div className="section-label">ENCOUNTERS</div>
+          <h2>Patient encounters</h2>
+          <p>Visit dates, type, location, and status from the patient record.</p>
+        </div>
+        <span className="encounters-count">
+          {encounters.length} {encounters.length === 1 ? "encounter" : "encounters"}
+        </span>
+      </header>
 
       <div className="encounter-list">
-
-
-
         {encounters.map((encounter, index) => {
-
-
-
-          const facility =
-
-
-
+          const rawType = encounter?.type || encounter?.encounter_type;
+          const normalizedType = String(rawType || "").trim().toUpperCase();
+          const typeLabel = encounterTypeLabels[normalizedType] ||
+            String(rawType || "Encounter")
+              .replace(/[_-]+/g, " ")
+              .replace(/\b\w/g, (letter) => letter.toUpperCase());
+          const facilityName =
             encounter?.facility_name ||
-
-
-
             encounter?.facility?.name ||
-
-
-
-            encounter?.facility;
-
-
-
-
-
-          const date =
-
-
-
+            (typeof encounter?.facility === "string" ? encounter.facility : "");
+          const facilityId = encounter?.facility_id;
+          const providerName =
+            encounter?.provider_name || encounter?.provider?.name;
+          const startTime =
+            encounter?.start_time ||
             encounter?.date ||
-
-
-
             encounter?.start ||
-
-
-
             encounter?.period?.start ||
-
-
-
             encounter?.encounter_date;
-
-
-
-
+          const status = encounter?.status;
+          const id = encounter?.encounter_id || encounter?.id || index;
 
           return (
-
-
-
-            <div
-
-
-
-              className="encounter-card"
-
-
-
-              key={
-
-
-
-                encounter?.id ||
-
-
-
-                encounter?.encounter_id ||
-
-
-
-                index
-
-
-
-              }
-
-
-
-            >
-
-
-
-              <div className="encounter-date">
-
-
-
-                {formatDateTime(date)}
-
-
-
-              </div>
-
-
-
-
+            <article className="encounter-card" key={id}>
+              <time className="encounter-date" dateTime={startTime || undefined}>
+                {startTime ? formatDateTime(startTime) : "Date not recorded"}
+              </time>
 
               <div className="encounter-main">
-
-
-
-                <strong>
-
-
-
-                  {safeText(
-
-
-
-                    encounter?.type ||
-
-
-
-                    encounter?.encounter_type,
-
-
-
-                    "Encounter"
-
-
-
-                  )}
-
-
-
-                </strong>
-
-
-
-
-
-                <span>
-
-
-
-                  Facility:{" "}
-
-
-
-                  {safeText(
-
-
-
-                    facility,
-
-
-
-                    "Not available"
-
-
-
-                  )}
-
-
-
-                </span>
-
-
-
-
-
-                <span>
-
-
-
-                  Provider:{" "}
-
-
-
-                  {safeText(
-
-
-
-                    encounter?.provider_name ||
-
-
-
-                    encounter?.provider?.name,
-
-
-
-                    "Not available"
-
-
-
-                  )}
-
-
-
-                </span>
-
-
-
+                <strong>{typeLabel}</strong>
+                {facilityName ? (
+                  <span>Facility: {safeText(facilityName)}</span>
+                ) : facilityId ? (
+                  <span>Facility ID: {safeText(facilityId)}</span>
+                ) : null}
+                {providerName && <span>Provider: {safeText(providerName)}</span>}
               </div>
 
-
-
-
-
               <span className="status-badge">
-
-
-
-                {safeText(
-
-
-
-                  encounter?.status,
-
-
-
-                  "unknown"
-
-
-
-                )}
-
-
-
+                {status
+                  ? String(status).replace(/[_-]+/g, " ").toUpperCase()
+                  : "STATUS UNAVAILABLE"}
               </span>
-
-
-
-            </div>
-
-
-
+            </article>
           );
-
-
-
         })}
-
-
-
       </div>
-
-
-
     </section>
-
-
-
   );
-
-
-
 }
-
-
-
-
 
 /* =========================================================
 
@@ -3303,747 +3373,144 @@ function EncountersTab({ encounters }) {
 
 
 
-function EvidenceTab({
-
-
-
-  conditions,
-
-
-
-  labs,
-
-
-
-  observations,
-
-
-
-  documents,
-
-
-
-  onAddDocument,
-
-
-
-}) {
-
-
-
-  return (
-
-
-
-    <section className="tab-section">
-
-
-
-      <div className="section-heading-row">
-
-
-
-        <div>
-
-
-
-          <div className="section-label">
-
-
-
-            EVIDENCE
-
-
-
-          </div>
-
-
-
-
-
-          <h2>Source records</h2>
-
-
-
-
-
-          <p className="section-description">
-
-
-
-            Source-record evidence available for this
-
-
-
-            patient.
-
-
-
-          </p>
-
-
-
-        </div>
-
-
-
-
-
-        <button
-
-
-
-          className="secondary-button"
-
-
-
-          onClick={onAddDocument}
-
-
-
-        >
-
-
-
-          + Add Document
-
-
-
-        </button>
-
-
-
-      </div>
-
-
-
-
-
-      <EvidenceGroup
-
-
-
-        title="Conditions"
-
-
-
-        items={conditions}
-
-
-
-        renderItem={(item) =>
-
-
-
-          item?.display ||
-
-
-
-          item?.name ||
-
-
-
-          item?.condition ||
-
-
-
-          item?.code?.text ||
-
-
-
-          "Condition"
-
-
-
-        }
-
-
-
-      />
-
-
-
-
-
-      <EvidenceGroup
-
-
-
-        title="Laboratory Results"
-
-
-
-        items={labs}
-
-
-
-        renderItem={(item) =>
-
-
-
-          item?.test_name ||
-
-
-
-          item?.name ||
-
-
-
-          item?.display ||
-
-
-
-          item?.code?.text ||
-
-
-
-          "Laboratory result"
-
-
-
-        }
-
-
-
-        renderMeta={(item) => {
-
-
-
-          const value =
-
-
-
-            item?.value ??
-
-
-
-            item?.result ??
-
-
-
-            item?.interpretation;
-
-
-
-
-
-          if (
-
-
-
-            value &&
-
-
-
-            typeof value === "object"
-
-
-
-          ) {
-
-
-
-            return (
-
-
-
-              value.text ||
-
-
-
-              value.display ||
-
-
-
-              value.value ||
-
-
-
-              value.code ||
-
-
-
-              "Available"
-
-
-
-            );
-
-
-
-          }
-
-
-
-
-
-          return safeText(value, "");
-
-
-
-        }}
-
-
-
-      />
-
-
-
-
-
-      <EvidenceGroup
-
-
-
-        title="Observations"
-
-
-
-        items={observations}
-
-
-
-        renderItem={(item) =>
-
-
-
-          item?.name ||
-
-
-
-          item?.display ||
-
-
-
-          item?.code?.text ||
-
-
-
-          "Observation"
-
-
-
-        }
-
-
-
-      />
-
-
-
-
-
-      <div className="evidence-group">
-
-
-
-        <div className="evidence-group-heading">
-
-
-
-          <h3>Documents</h3>
-
-
-
-
-
-          <button
-
-
-
-            className="text-button"
-
-
-
-            onClick={onAddDocument}
-
-
-
-          >
-
-
-
-            + Add Document
-
-
-
-          </button>
-
-
-
-        </div>
-
-
-
-
-
-        {!documents.length ? (
-
-
-
-          <div className="empty-state compact">
-
-
-
-            No clinical documents uploaded.
-
-
-
-          </div>
-
-
-
-        ) : (
-
-
-
-          documents.map((document, index) => (
-
-
-
-            <div
-
-
-
-              className="source-record"
-
-
-
-              key={
-
-
-
-                document?.id ||
-
-
-
-                document?.document_id ||
-
-
-
-                index
-
-
-
-              }
-
-
-
-            >
-
-
-
-              <strong>
-
-
-
-                {safeText(
-
-
-
-                  document?.title ||
-
-
-
-                  document?.file_name ||
-
-
-
-                  document?.name,
-
-
-
-                  "Clinical Document"
-
-
-
-                )}
-
-
-
-              </strong>
-
-
-
-
-
-              <span>
-
-
-
-                {safeText(
-
-
-
-                  document?.document_type ||
-
-
-
-                  document?.type,
-
-
-
-                  "Clinical document"
-
-
-
-                )}
-
-
-
-              </span>
-
-
-
-
-
-              <small>
-
-
-
-                {document?.created_at
-
-
-
-                  ? `Uploaded ${formatDate(
-
-
-
-                    document.created_at
-
-
-
-                  )}`
-
-
-
-                  : "Available for detection"}
-
-
-
-              </small>
-
-
-
-            </div>
-
-
-
-          ))
-
-
-
-        )}
-
-
-
-      </div>
-
-
-
-    </section>
-
-
-
-  );
-
-
-
+function formatEvidenceMeta(...values) {
+  return values
+    .map((value) => (value === null || value === undefined ? "" : String(value).trim()))
+    .filter(Boolean)
+    .join(" · ");
 }
 
+function EvidenceTab({
+  conditions = [],
+  labs = [],
+  observations = [],
+  documents = [],
+  onAddDocument,
+}) {
+  const groups = [
+    {
+      key: "conditions",
+      title: "Conditions",
+      items: conditions,
+      getKey: (item) => item?.condition_id || item?.source_condition_id,
+      getDate: (item) => item?.onset_time || item?.recorded_time,
+      renderItem: (item) =>
+        item?.code?.display || item?.display || item?.name || item?.code?.text || "Condition",
+      renderMeta: (item) =>
+        formatEvidenceMeta(
+          item?.clinical_status && `Status: ${displayClinicalValue(item.clinical_status)}`,
+          item?.verification_status && `Verification: ${displayClinicalValue(item.verification_status)}`
+        ),
+    },
+    {
+      key: "laboratory",
+      title: "Laboratory results",
+      items: labs,
+      getKey: (item) => item?.lab_result_id || item?.source_lab_result_id,
+      getDate: (item) => item?.effective_time || item?.issued_time,
+      renderItem: (item) =>
+        item?.test?.display || item?.test_name || item?.name || item?.display || "Laboratory result",
+      renderMeta: (item) => {
+        const observationValues = (item?.observations || [])
+          .map((observation) => getDisplayValue(observation?.value))
+          .filter(Boolean);
+        const result = firstEvidenceValue(
+          item?.conclusion,
+          item?.result,
+          item?.value,
+          ...observationValues
+        );
+        return formatEvidenceMeta(
+          result && `Result: ${result}`,
+          (item?.report_status || item?.status) &&
+            `Status: ${displayClinicalValue(item.report_status || item.status)}`
+        );
+      },
+    },
+    {
+      key: "observations",
+      title: "Observations",
+      items: observations,
+      getKey: (item) => item?.observation_id || item?.source_observation_id,
+      getDate: (item) => item?.effective_time,
+      renderItem: (item) =>
+        item?.code?.display || item?.display || item?.name || item?.code?.text || "Observation",
+      renderMeta: (item) =>
+        formatEvidenceMeta(
+          getDisplayValue(item?.value) && `Value: ${getDisplayValue(item.value)}`,
+          item?.status && `Status: ${displayClinicalValue(item.status)}`
+        ),
+    },
+    {
+      key: "documents",
+      title: "Documents",
+      items: documents,
+      getKey: (item) => item?.document_id || item?.source_document_id || item?.id,
+      getDate: (item) => item?.document_date || item?.created_at,
+      renderItem: (item) => item?.title || item?.file_name || item?.name || "Clinical document",
+      renderMeta: (item) =>
+        formatEvidenceMeta(
+          displayClinicalValue(item?.document_type || item?.type, "Clinical document"),
+          item?.document_status && `Status: ${displayClinicalValue(item.document_status)}`
+        ),
+    },
+  ].filter((group) => group.items.length > 0);
 
+  return (
+    <section className="tab-section evidence-tab">
+      <div className="section-heading-row evidence-page-heading">
+        <div>
+          <div className="section-label">EVIDENCE</div>
+          <h2>Patient evidence</h2>
+        </div>
+        <button className="secondary-button" onClick={onAddDocument}>
+          + Add Document
+        </button>
+      </div>
 
-
+      {groups.length ? (
+        groups.map((group) => <EvidenceGroup key={group.title} groupKey={group.key} {...group} />)
+      ) : (
+        <p className="evidence-empty">No patient evidence is available.</p>
+      )}
+    </section>
+  );
+}
 
 function EvidenceGroup({
-
-
-
+  groupKey,
   title,
-
-
-
-  items,
-
-
-
+  items = [],
+  getKey,
+  getDate,
   renderItem,
-
-
-
   renderMeta,
-
-
-
 }) {
-
-
-
   return (
-
-
-
-    <div className="evidence-group">
-
-
-
-      <h3>{title}</h3>
-
-
-
-
-
-      {!items.length ? (
-
-
-
-        <div className="empty-state compact">
-
-
-
-          No {title.toLowerCase()} available.
-
-
-
-        </div>
-
-
-
-      ) : (
-
-
-
-        items.map((item, index) => (
-
-
-
-          <div
-
-
-
-            className="source-record"
-
-
-
-            key={item?.id || index}
-
-
-
-          >
-
-
-
-            <strong>
-
-
-
-              {renderItem(item)}
-
-
-
-            </strong>
-
-
-
-
-
-            {renderMeta && (
-
-
-
-              <span>
-
-
-
-                {renderMeta(item)}
-
-
-
-              </span>
-
-
-
-            )}
-
-
-
-
-
-            <small>
-
-
-
-              {item?.date
-
-
-
-                ? formatDate(item.date)
-
-
-
-                : item?.recorded_date
-
-
-
-                  ? formatDate(
-
-
-
-                    item.recorded_date
-
-
-
-                  )
-
-
-
-                  : ""}
-
-
-
-            </small>
-
-
-
-          </div>
-
-
-
-        ))
-
-
-
-      )}
-
-
-
-    </div>
-
-
-
+    <section className={`evidence-group evidence-group-${groupKey}`}>
+      <header className="evidence-group-heading">
+        <h3>{title}</h3>
+      </header>
+
+      <div className="evidence-record-list">
+          {items.map((item, index) => {
+            const date = getDate?.(item);
+            const meta = renderMeta?.(item);
+            const key = getKey?.(item) || item?.id || index;
+            const source = item?.provenance?.source;
+
+            return (
+              <article className="evidence-record-row" key={key}>
+                <strong>{renderItem(item)}</strong>
+                {meta && <span>{meta}</span>}
+                {(date || source) && <small>{formatEvidenceMeta(date && formatDateTime(date), source && `Source: ${source}`)}</small>}
+              </article>
+            );
+          })}
+      </div>
+    </section>
   );
-
-
-
 }
-
-
-
-
-
-/* =========================================================
-
-
-
-   Document Modal
-
-
-
-\========================================================= */
-
-
-
-
 
 function DocumentUploadModal({
 
@@ -4113,6 +3580,16 @@ function DocumentUploadModal({
 
 
 
+    }
+
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (!["pdf", "docx", "txt"].includes(extension)) {
+      setError("Unsupported file type. Choose a PDF, DOCX, or TXT file.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("The file is larger than the 10 MB upload limit.");
+      return;
     }
 
 
@@ -4371,7 +3848,7 @@ function DocumentUploadModal({
 
 
 
-              accept=".pdf,.doc,.docx,.txt"
+              accept=".pdf,.docx,.txt"
 
 
 
@@ -4431,7 +3908,7 @@ function DocumentUploadModal({
 
 
 
-              PDF · DOC · DOCX · TXT
+              PDF · DOCX · TXT · max 10 MB
 
 
 
@@ -4735,6 +4212,10 @@ export default function PatientWorkspace() {
 
   const { patientId } = useParams();
 
+  const [consentCheckPatientId, setConsentCheckPatientId] = useState(null);
+  const [consentedPatientId, setConsentedPatientId] = useState(null);
+  const [showMeaslesWarning, setShowMeaslesWarning] = useState(false);
+
 
 
 
@@ -4855,6 +4336,9 @@ export default function PatientWorkspace() {
 
     useState(false);
 
+  const [removingDocumentId, setRemovingDocumentId] = useState(null);
+  const [documentActionError, setDocumentActionError] = useState("");
+
 
 
 
@@ -4876,6 +4360,20 @@ export default function PatientWorkspace() {
 
 
 
+
+  const hasMeasles = conditions.some(isMeaslesCondition);
+  const consentChecked = consentCheckPatientId === patientId;
+  const consentAcknowledged = consentedPatientId === patientId;
+
+  useEffect(() => {
+    if (!patientId || !hasMeasles || consentAcknowledged) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setShowMeaslesWarning(true);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [patientId, hasMeasles, consentAcknowledged]);
 
   const labs = useMemo(
 
@@ -5036,11 +4534,23 @@ export default function PatientWorkspace() {
 
   }
 
-useEffect(() => {
+  useEffect(() => {
     if (!patientId) return;
 
     loadWorkspace();
   }, [patientId]);
+
+  useEffect(() => {
+    setShowMeaslesWarning(false);
+
+    if (!patientId || !hasMeasles) return undefined;
+
+    const warningTimer = window.setTimeout(() => {
+      setShowMeaslesWarning(true);
+    }, 5000);
+
+    return () => window.clearTimeout(warningTimer);
+  }, [patientId, hasMeasles]);
 
   useEffect(() => {
     if (detectionState === "running") {
@@ -5222,6 +4732,25 @@ useEffect(() => {
 
 
 
+  }
+
+  async function handleRemoveDocument(document) {
+    const documentId = document?.document_id ?? document?.id;
+    if (!documentId || removingDocumentId) return;
+
+    setRemovingDocumentId(documentId);
+    setDocumentActionError("");
+    try {
+      await deletePatientDocument({ patientId, documentId });
+      setDetectionResult(null);
+      setDetectionState("idle");
+      setDetectionStage(0);
+      await loadWorkspace(false);
+    } catch (err) {
+      setDocumentActionError(err?.message || "Unable to remove the uploaded document.");
+    } finally {
+      setRemovingDocumentId(null);
+    }
   }
 
 
@@ -5526,471 +5055,259 @@ useEffect(() => {
 
 
 
-      <div className="workspace-tabs">
-
-
-
-        <button
-
-
-
-          className={
-
-
-
-            activeTab === "overview"
-
-
-
-              ? "workspace-tab active"
-
-
-
-              : "workspace-tab"
-
-
-
-          }
-
-
-
-          onClick={() =>
-
-
-
-            setActiveTab("overview")
-
-
-
-          }
-
-
-
-        >
-
-
-
-          Overview
-
-
-
-        </button>
-
-
-
-
-
-        <button
-
-
-
-          className={
-
-
-
-            activeTab === "encounters"
-
-
-
-              ? "workspace-tab active"
-
-
-
-              : "workspace-tab"
-
-
-
-          }
-
-
-
-          onClick={() =>
-
-
-
-            setActiveTab("encounters")
-
-
-
-          }
-
-
-
-        >
-
-
-
-          Encounters
-
-
-
-        </button>
-
-
-
-
-
-        <button
-
-
-
-          className={
-
-
-
-            activeTab === "evidence"
-
-
-
-              ? "workspace-tab active"
-
-
-
-              : "workspace-tab"
-
-
-
-          }
-
-
-
-          onClick={() =>
-
-
-
-            setActiveTab("evidence")
-
-
-
-          }
-
-
-
-        >
-
-
-
-          Evidence
-
-
-
-        </button>
-
-
-
-
-
-
-
-
-
-      </div>
-
-
-
-
-
-      {activeTab === "overview" && (
-
-
-
-        <div className="workspace-content">
-
-
-
-          {detectionState === "idle" && (
-
-
-
-            <section className="detection-start-panel">
-
-
-
-              <div className="section-label">
-
-
-
-                SIGNAL DETECTION
-
-
-
+      {hasMeasles && showMeaslesWarning && !consentAcknowledged && (
+        <div className="measles-consent-backdrop">
+          <section
+            className="measles-consent-gate"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="measles-consent-title"
+          >
+            <section className="measles-reporting-warning" role="alert">
+              <div className="measles-warning-heading">
+                <span aria-hidden="true">!</span>
+                <div>
+                  <p className="section-label">TEXAS MEASLES REPORTING</p>
+                  <h2>Suspected measles must be reported immediately</h2>
+                </div>
               </div>
-
-
-
-
-
-              <h2>
-
-
-
-                Identify potential reportable conditions
-
-
-
-              </h2>
-
-
-
-
-
-              <p className="section-description">SIGNAL will review the patient's structured clinical records and available documents to identify potential conditions that may require further review.</p>
-
-
-
-
-
-
-
-
-
-
-
-              <button
-
-
-
-                className="primary-button"
-
-
-
-                onClick={handleDetection}
-
-
-
-              >
-
-
-
-                Run Detection
-
-
-
-              </button>
-
-
-
-            </section>
-
-
-
-          )}
-
-
-
-
-
-          {detectionState === "running" && (
-
-
-
-            <div ref={detectionProgressRef}>
-              <DetectionProgress
-
-
-
-                activeStage={
-
-
-
-                  detectionStage
-
-
-
-                }
-
-
-
-              />
-            </div>
-
-
-
-          )}
-
-
-
-
-
-          {detectionState === "error" && (
-
-
-
-            <section className="detection-error-panel">
-
-
-
-              <div className="section-label">
-
-
-
-                DETECTION ERROR
-
-
-
-              </div>
-
-
-
-
-
-              <h2>
-
-
-
-                Detection could not be completed
-
-
-
-              </h2>
-
-
-
-
-
               <p>
-
-
-
-                {detectionError}
-
-
-
+                Texas requires suspected measles cases to be reported right away.
+                Do not wait for laboratory confirmation. Please call the Texas
+                DSHS reporting line yourself; SIGNAL will not call the patient
+                or place the report for you.
               </p>
-
-
-
-
-
-              <button
-
-
-
-                className="primary-button"
-
-
-
-                onClick={handleDetection}
-
-
-
-              >
-
-
-
-                Run Detection Again
-
-
-
-              </button>
-
-
-
+              <p className="measles-reporting-number">
+                Texas DSHS reporting line: <strong>1-800-705-8868</strong>
+              </p>
             </section>
+            <h2 id="measles-consent-title">Consent is required to continue</h2>
+            <p>
+              Confirm that the patient or their authorized representative has
+              consented to continue in this workspace.
+            </p>
+            <label className="measles-consent-check">
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(event) =>
+                  setConsentCheckPatientId(
+                    event.target.checked ? patientId : null
+                  )
+                }
+              />
+              <span>Patient consent to continue has been provided.</span>
+            </label>
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!consentChecked}
+              onClick={() => setConsentedPatientId(patientId)}
+            >
+              Continue to patient workspace
+            </button>
+          </section>
+        </div>
+      )}
 
+      <div
+        className="workspace-gated-content"
+        inert={hasMeasles && showMeaslesWarning && !consentAcknowledged}
+      >
+        <div className="workspace-tabs">
 
 
-          )}
 
+          <button
 
 
 
+            className={
 
-          {detectionState === "completed" &&
 
 
+              activeTab === "overview"
 
-            detectionResult && (
 
 
+                ? "workspace-tab active"
 
-              <>
 
 
+                : "workspace-tab"
 
-                <div className="detection-completed-strip">
 
 
+            }
 
-                  <div>
 
 
+            onClick={() =>
 
-                    <span className="completed-icon">
 
 
+              setActiveTab("overview")
 
-                      ✓
 
 
+            }
 
-                    </span>
 
 
+          >
 
 
 
-                    <div>
+            Overview
 
 
 
-                      <strong>
+          </button>
 
 
 
-                        Detection completed
 
 
+          <button
 
-                      </strong>
 
 
+            className={
 
 
 
-                      <span>
+              activeTab === "encounters"
 
 
 
-                        Detection results are ready for review.
+                ? "workspace-tab active"
 
 
 
-                      </span>
+                : "workspace-tab"
 
 
 
-                    </div>
+            }
 
 
 
-                  </div>
+            onClick={() =>
 
 
 
+              setActiveTab("encounters")
 
 
-                  <button
 
+            }
 
 
-                    className="secondary-button"
 
+          >
 
 
-                    onClick={handleDetection}
 
+            Encounters
 
 
-                  >
 
+          </button>
 
 
-                    Run Again
 
 
 
-                  </button>
+          <button
+
+
+
+            className={
+
+
+
+              activeTab === "evidence"
+
+
+
+                ? "workspace-tab active"
+
+
+
+                : "workspace-tab"
+
+
+
+            }
+
+
+
+            onClick={() =>
+
+
+
+              setActiveTab("evidence")
+
+
+
+            }
+
+
+
+          >
+
+
+
+            Evidence
+
+
+
+          </button>
+
+
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+
+        {activeTab === "overview" && (
+
+
+
+          <div className="workspace-content">
+
+            {detectionState !== "completed" && !showDocumentModal && (
+              <AiDocumentUploadCard
+                documents={documents}
+                onUpload={() => setShowDocumentModal(true)}
+                onRemove={handleRemoveDocument}
+                removingDocumentId={removingDocumentId}
+                actionError={documentActionError}
+                disabled={detectionState === "running" || Boolean(removingDocumentId)}
+              />
+            )}
+
+            {detectionState === "idle" && (
+
+
+
+              <section className="detection-start-panel">
+
+
+
+                <div className="section-label">
+
+
+
+                  SIGNAL DETECTION
 
 
 
@@ -6000,138 +5317,57 @@ useEffect(() => {
 
 
 
-                {Array.isArray(
+                <h2>
 
 
 
-                  detectionResult?.candidates
+                  Identify potential reportable conditions
 
 
 
-                ) &&
+                </h2>
 
 
 
-                  detectionResult.candidates
 
 
+                <p className="section-description">SIGNAL will review the patient's structured clinical records and available documents to identify potential conditions that may require further review.</p>
 
-                    .length > 0 ? (
 
 
 
-                  <>
 
 
 
-                    {detectionResult.candidates.map((candidate, index) => {
-                      const candidateEvidence = normalizeCandidateEvidence(
-                        candidate,
-                        context
-                      );
-                      return (
-                        <div
-                          key={
-                            candidate?.id ||
-                            candidate?.candidate_id ||
-                            index
-                          }
-                        >
-                          <CandidateCard
-                            candidate={candidate}
-                            evidence={candidateEvidence}
-                            onReview={handleReviewCandidate}
-                          />
-                          <DetectionExplanation evidence={candidateEvidence} />
 
 
 
 
-                        </div>
+                <button
 
 
 
-                      );
+                  className="primary-button"
 
 
 
-                    })}
+                  onClick={handleDetection}
 
 
 
-                  </>
+                >
 
 
 
-                ) : (
+                  Run Detection
 
 
 
-                  <section className="no-candidate-panel">
+                </button>
 
 
 
-                    <div className="section-label">
-
-
-
-                      DETECTION COMPLETE
-
-
-
-                    </div>
-
-
-
-
-
-                    <h2>
-
-
-
-                      No potential candidates
-
-
-
-                      identified
-
-
-
-                    </h2>
-
-
-
-
-
-                    <p>
-
-
-
-                      No candidate was returned
-
-
-
-                      from the available patient
-
-
-
-                      evidence.
-
-
-
-                    </p>
-
-
-
-                  </section>
-
-
-
-                )}
-
-
-
-              </>
+              </section>
 
 
 
@@ -6139,149 +5375,347 @@ useEffect(() => {
 
 
 
-          <RecordSummary
+
+
+            {detectionState === "running" && (
 
 
 
-            conditions={conditions}
+              <div ref={detectionProgressRef}>
+                <DetectionProgress
 
 
 
-            labs={labs}
+                  activeStage={
 
 
 
-            encounters={encounters}
-
-            observations={observations}
-
-            documents={documents}
+                    detectionStage
 
 
 
-          />
+                  }
 
 
 
-
-
-          <DocumentsSection
-
-
-
-            documents={documents}
-
-
-
-            onAddDocument={() =>
-
-
-
-              setShowDocumentModal(true)
-
-
-
-            }
-
-
-
-          />
-
-
-
-
-
-          {detectionState === "completed" &&
-            Array.isArray(detectionResult?.candidates) &&
-            detectionResult.candidates.length > 0 && (
-              <div className="continue-reporting-actions">
-                {detectionResult.candidates.map((candidate, index) => (
-                  <button
-                    key={candidate?.candidate_id || candidate?.id || index}
-                    type="button"
-                    className="primary-button"
-                    aria-label={"Continue reporting for " + getCandidateName(candidate)}
-                    onClick={() => handleReviewCandidate(candidate)}
-                  >
-                    Continue Reporting
-                  </button>
-                ))}
+                />
               </div>
+
+
+
             )}
 
-        </div>
-
-
-
-      )}
 
 
 
 
-
-      {activeTab === "encounters" && (
-
-
-
-        <div className="workspace-content">
+            {detectionState === "error" && (
 
 
 
-          <EncountersTab
+              <section className="detection-error-panel">
 
 
 
-            encounters={encounters}
+                <div className="section-label">
 
 
 
-          />
+                  DETECTION ERROR
 
 
 
-        </div>
-
-
-
-      )}
+                </div>
 
 
 
 
 
-      {activeTab === "evidence" && (
+                <h2>
 
 
 
-        <div className="workspace-content">
+                  Detection could not be completed
 
 
 
-          <EvidenceTab
+                </h2>
 
 
 
-            conditions={conditions}
+
+
+                <p>
 
 
 
-            labs={labs}
+                  {detectionError}
 
 
 
-            observations={observations}
+                </p>
 
 
 
-            documents={documents}
+
+
+                <button
 
 
 
-            onAddDocument={() =>
+                  className="primary-button"
 
 
 
-              setShowDocumentModal(true)
+                  onClick={handleDetection}
+
+
+
+                >
+
+
+
+                  Run Detection Again
+
+
+
+                </button>
+
+
+
+              </section>
+
+
+
+            )}
+
+
+
+
+
+            {detectionState === "completed" && detectionResult && (
+              <>
+                {detectionResult.document_evidence_status === "failed" && (
+                  <section className="document-ai-warning" role="status">
+                    <strong>AI document analysis did not complete</strong>
+                    <p>
+                      {detectionResult.document_evidence_error ||
+                        "Uploaded documents were not included in this detection run. Structured record detection may still have completed."}
+                    </p>
+                  </section>
+                )}
+                {Array.isArray(detectionResult?.candidates) && detectionResult.candidates.length > 0 ? (
+                  detectionResult.candidates.length === 1 ? (
+                    <DetectionCandidate
+                      candidate={detectionResult.candidates[0]}
+                      onContinue={handleReviewCandidate}
+                      onRunAgain={handleDetection}
+                    />
+                  ) : (
+                    <section className="candidate-section">
+                      <div className="section-label">SIGNAL DETECTION</div>
+                      <h2>Multiple candidates identified</h2>
+                      <p className="section-description">
+                        More than one candidate was returned. Review each candidate before continuing.
+                      </p>
+                      {detectionResult.candidates.map((candidate, index) => (
+                        <div key={candidate?.candidate_id || candidate?.id || index}>
+                          <DetectionCandidate
+                            candidate={candidate}
+                            onContinue={handleReviewCandidate}
+                            onRunAgain={handleDetection}
+                          />
+                        </div>
+                      ))}
+                    </section>
+                  )
+                ) : (
+                  <section className="no-candidate-panel">
+                    <div className="section-label">DETECTION COMPLETE</div>
+                    <h2>No potential candidates identified</h2>
+                    <p>
+                      No candidate was returned from the available patient evidence.
+                    </p>
+                  </section>
+                )}
+              </>
+            )}
+
+            {detectionState !== "completed" && (
+              <RecordSummary
+
+
+
+              patient={context}
+
+
+
+              conditions={conditions}
+
+
+
+              labs={labs}
+
+
+
+              encounters={encounters}
+
+              observations={observations}
+
+              documents={documents}
+
+
+
+              />
+            )}
+
+            {detectionState !== "completed" && (
+              <DocumentsSection
+
+
+
+              documents={documents}
+
+
+
+              onAddDocument={() =>
+
+
+
+                setShowDocumentModal(true)
+
+
+
+              }
+
+
+
+              />
+            )}
+
+          </div>
+
+
+
+        )}
+
+
+
+
+
+        {activeTab === "encounters" && (
+
+
+
+          <div className="workspace-content">
+
+
+
+            <EncountersTab
+
+
+
+              encounters={encounters}
+
+
+
+            />
+
+
+
+          </div>
+
+
+
+        )}
+
+
+
+
+
+        {activeTab === "evidence" && (
+
+
+
+          <div className="workspace-content">
+
+
+
+            <EvidenceTab
+
+
+
+              conditions={conditions}
+
+
+
+              labs={labs}
+
+
+
+              observations={observations}
+
+
+
+              documents={documents}
+
+
+
+              onAddDocument={() =>
+
+
+
+                setShowDocumentModal(true)
+
+
+
+              }
+
+
+
+            />
+
+
+
+          </div>
+
+
+
+        )}
+
+
+
+
+
+        {showDocumentModal && (
+
+
+
+          <DocumentUploadModal
+
+
+
+            patientId={patientId}
+
+
+
+            onClose={() =>
+
+
+
+              setShowDocumentModal(false)
+
+
+
+            }
+
+
+
+            onUploaded={
+
+
+
+              handleDocumentUploaded
 
 
 
@@ -6293,57 +5727,9 @@ useEffect(() => {
 
 
 
-        </div>
+        )}
 
-
-
-      )}
-
-
-
-
-
-      {showDocumentModal && (
-
-
-
-        <DocumentUploadModal
-
-
-
-          patientId={patientId}
-
-
-
-          onClose={() =>
-
-
-
-            setShowDocumentModal(false)
-
-
-
-          }
-
-
-
-          onUploaded={
-
-
-
-            handleDocumentUploaded
-
-
-
-          }
-
-
-
-        />
-
-
-
-      )}
+      </div>
 
 
 

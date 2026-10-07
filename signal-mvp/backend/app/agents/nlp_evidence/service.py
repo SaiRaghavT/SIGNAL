@@ -348,6 +348,19 @@ def _extract_with_groq(
             )
 
         except Exception as exc:
+            if "json_validate_failed" in str(exc).casefold():
+                # Some Groq model deployments reject constrained JSON output
+                # before generation. Preserve explicit measles PCR findings
+                # with a narrow, text-grounded fallback so one provider format
+                # error does not silently discard the uploaded document.
+                fallback_evidence = _extract_explicit_measles_pcr(document)
+                print(
+                    "Groq JSON schema validation failed; "
+                    f"using explicit text fallback ({len(fallback_evidence)} findings)."
+                )
+                all_evidence.extend(fallback_evidence)
+                continue
+
             print(
                 f"❌ GROQ ERROR: "
                 f"{type(exc).__name__}: {exc}"
@@ -385,6 +398,52 @@ def _extract_with_groq(
         )
 
     return all_evidence
+
+
+def _extract_explicit_measles_pcr(
+    document: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Extract only an explicit positive/negative measles PCR statement."""
+
+    import re
+
+    text = str(document.get("text") or "")
+    assertion = ""
+    evidence_text = ""
+    disease_matches = list(re.finditer(r"\b(?:measles|rubeola)\b", text, re.IGNORECASE))
+    for disease_match in disease_matches:
+        window_end = min(len(text), disease_match.start() + 400)
+        window = text[disease_match.start():window_end]
+        if not re.search(r"\b(?:rna|pcr|nucleic acid|naa)\b", window, re.IGNORECASE):
+            continue
+        result_match = re.search(
+            r"\b(not detected|negative|non[- ]?reactive|positive|detected|reactive)\b",
+            window,
+            re.IGNORECASE,
+        )
+        if not result_match:
+            continue
+        result = result_match.group(1).casefold()
+        assertion = "absent" if result in {"not detected", "negative", "non-reactive", "nonreactive"} else "present"
+        evidence_text = re.sub(r"\s+", " ", window[:result_match.end()]).strip()
+        break
+
+    if not assertion:
+        return []
+
+    return _normalize_evidence(
+        [
+            {
+                "evidence_type": "laboratory",
+                "concept": "Measles virus RNA PCR",
+                "evidence_text": evidence_text,
+                "assertion": assertion,
+                "temporality": "current",
+                "confidence": 0.9,
+            }
+        ],
+        document,
+    )
 
 
 def _normalize_evidence(
