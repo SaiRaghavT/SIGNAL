@@ -8,7 +8,6 @@ class DashboardSummaryResponse(BaseModel):
     reportable_cases: int
     needs_review: int
     submitted_cases: int
-    follow_up_cases: int
     upcoming_deadlines: int
     total_measles_patients: int
     active_measles_cases: int

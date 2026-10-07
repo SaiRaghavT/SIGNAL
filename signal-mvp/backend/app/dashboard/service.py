@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from backend.app.canonical.query_service import list_patients
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.condition import Condition
@@ -41,7 +40,6 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
     )
 
     submitted_cases = db.query(Submission.case_id).distinct().count()
-    follow_up_cases = db.query(FollowUp.case_id).distinct().count()
     upcoming_deadlines = (
         db.query(DeadlineEscalation.escalation_id)
         .filter(DeadlineEscalation.status == "UPCOMING")
@@ -101,7 +99,6 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         reportable_cases=reportable_cases,
         needs_review=needs_review,
         submitted_cases=submitted_cases,
-        follow_up_cases=follow_up_cases,
         upcoming_deadlines=upcoming_deadlines,
         total_measles_patients=measles_worklist["total"],
         active_measles_cases=active_measles_cases,

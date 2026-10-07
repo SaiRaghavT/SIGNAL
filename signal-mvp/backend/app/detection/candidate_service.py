@@ -54,6 +54,7 @@ def detect_candidates(
         patient_id=str(
             normalized_patient.get("patient", {}).get("id") or ""
         ),
+        structured_signals=signals,
     )
 
     # ---------------------------------------------------------

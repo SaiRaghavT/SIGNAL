@@ -4,11 +4,13 @@
 ========================================================= */
 
 .ai-governance-page {
-  background: #f7f9fa;
+  background: linear-gradient(180deg, #f3f8fb 0%, #f7f9fa 320px);
   color: #17324d;
   min-height: 100%;
   padding-bottom: 40px;
 }
+
+.ai-governance-page { --gov-ink: #143a58; --gov-muted: #708397; --gov-line: #e1e9ef; }
 
 /* =========================================================
    PAGE HEADER
@@ -24,7 +26,7 @@
 .ai-governance-page .page-heading h1 {
   margin: 0;
   color: #153a5b;
-  font-size: 24px;
+  font-size: clamp(25px, 3vw, 32px);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -65,8 +67,11 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: 18px;
-  border-bottom: 1px solid #dde4ea;
+  margin-bottom: 21px;
+  padding: 5px;
+  border: 1px solid #e0e8ee;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 88%);
   overflow-x: auto;
 }
 
@@ -92,8 +97,10 @@
 }
 
 .ai-governance-page .gov-tabs a.selected {
-  color: #ff6b3d;
-  border-bottom-color: #ff6b3d;
+  border-radius: 8px;
+  background: #173f5d;
+  color: #fff;
+  border-bottom-color: transparent;
 }
 
 /* =========================================================
@@ -130,8 +137,8 @@
   padding: 14px;
   background: #ffffff;
   border: 1px solid #dde4ea;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(23, 50, 77, 0.04);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgb(20 57 87 / 5%);
   overflow: hidden;
 }
 
@@ -180,8 +187,8 @@
   margin-bottom: 14px;
   background: #ffffff;
   border: 1px solid #dde4ea;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(23, 50, 77, 0.035);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgb(20 57 87 / 5%);
   overflow: hidden;
 }
 

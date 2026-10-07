@@ -17,7 +17,6 @@ from backend.app.models.candidate import Candidate
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.demo_case_baseline import DemoCaseBaseline
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import (
     Acknowledgement,
@@ -226,7 +225,6 @@ def reset_demo(db: Session, requested_case_id: UUID | None = None) -> dict[str, 
 
         db.query(CaseWorkflowRecord).filter(CaseWorkflowRecord.case_id == case_id).delete(synchronize_session=False)
         db.query(Report).filter(Report.case_id == case_id).delete(synchronize_session=False)
-        db.query(FollowUp).filter(FollowUp.case_id == case_id).delete(synchronize_session=False)
         db.query(Submission).filter(Submission.case_id == case_id).delete(synchronize_session=False)
         db.query(DeadlineEscalation).filter(DeadlineEscalation.case_id == case_id).delete(synchronize_session=False)
 
@@ -281,7 +279,6 @@ def reset_demo(db: Session, requested_case_id: UUID | None = None) -> dict[str, 
             "deadline": True,
             "notification": True,
             "submission": True,
-            "follow_up": True,
             "candidate": candidate is not None,
             "generated_forms": True,
         },

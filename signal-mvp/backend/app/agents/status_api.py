@@ -43,7 +43,6 @@ def get_agent_status() -> dict:
             _status("submission_tracking", True, True, "Reads persisted submission state; destination remains simulated."),
             _status("acknowledgement", True, True, "Generated acknowledgement identifiers are simulated."),
             _status("retry_resubmission", True, True, "Retry records are persisted; transmission is simulated."),
-            _status("public_health_followup", True, True, "Follow-up records are persisted; PHA actions are simulated."),
             _status("audit_ledger", True, False, "Persisted workflow audit events."),
         ]
     }

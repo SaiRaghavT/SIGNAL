@@ -1,13 +1,18 @@
 from datetime import datetime, timezone
+import time
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.app.ai_detection_logging import get_ai_detection_logger
 from backend.app.agents.document_intelligence.service import process_documents
-from backend.app.agents.nlp_evidence.service import extract_evidence
+from backend.app.agents.nlp_evidence.service import (
+    DocumentAIUnavailableError,
+    extract_evidence,
+)
 from backend.app.canonical.query_service import (
     CanonicalPatientNotFoundError,
     get_patient_context,
@@ -26,6 +31,7 @@ router = APIRouter(
     prefix="/api/detection",
     tags=["Candidate Detection"],
 )
+logger = get_ai_detection_logger()
 
 
 class CandidateDetectionRequest(BaseModel):
@@ -44,6 +50,14 @@ def detect_patient_candidates(
 ) -> dict[str, Any]:
     """Detect potential candidates from one patient's canonical data."""
 
+    run_id = str(uuid4())
+    started = time.monotonic()
+    logger.info(
+        "Detection started | run_id=%s | patient_id=%s",
+        run_id,
+        request.patient_id,
+    )
+
     try:
         context = get_patient_context(
             db=db,
@@ -56,15 +70,27 @@ def detect_patient_candidates(
         ) from exc
 
     normalized_patient = canonical_context_to_detection_input(context)
+    logger.info(
+        "Patient data loaded | run_id=%s | conditions=%d | lab results=%d | documents=%d",
+        run_id,
+        len(context.get("conditions", [])),
+        len(context.get("lab_results", [])),
+        len(context.get("clinical_documents", [])),
+    )
 
     uploaded_document_count = sum(
         1
         for document in context.get("clinical_documents", [])
         if (document.get("provenance") or {}).get("source") == "document_upload"
     )
-    documents = process_documents(
-        context.get("clinical_documents", [])
-    )
+    try:
+        documents = process_documents(context.get("clinical_documents", []))
+    except Exception:
+        logger.exception(
+            "Detection checkpoint run_id=%s stage=document_processing_failed",
+            run_id,
+        )
+        raise
 
     documents_with_text = [
         document
@@ -78,25 +104,55 @@ def detect_patient_candidates(
 
     if not documents_with_text:
         document_evidence_status = "no_document_text"
+        logger.warning(
+            "No readable document text found | run_id=%s | uploaded documents=%d | processed documents=%d",
+            run_id,
+            uploaded_document_count,
+            len(documents),
+        )
     else:
+        logger.info(
+            "Document text ready for AI analysis | run_id=%s | documents=%d | total characters=%d",
+            run_id,
+            len(documents_with_text),
+            sum(len(document["text"]) for document in documents_with_text),
+        )
         try:
             document_evidence = extract_evidence(
-                documents_with_text
+                documents_with_text,
+                run_id=run_id,
             )
             document_evidence_status = "completed"
+            logger.info(
+                "AI document analysis completed | run_id=%s | evidence items=%d",
+                run_id,
+                len(document_evidence),
+            )
+
+        except DocumentAIUnavailableError as exc:
+            logger.error(
+                "Document processing could not take place | run_id=%s | both AI models are unavailable.",
+                run_id,
+            )
+            document_evidence_status = "failed"
+            document_evidence_error = _document_ai_error_message(exc)
 
         except RuntimeError as exc:
-            print(
-                f"DOCUMENT EVIDENCE CONFIG ERROR: "
-                f"{type(exc).__name__}: {exc}"
+            logger.error(
+                "Detection checkpoint run_id=%s stage=document_evidence_failed category=configuration error_type=%s detail=%s",
+                run_id,
+                type(exc).__name__,
+                _document_ai_error_message(exc),
             )
             document_evidence_status = "failed"
             document_evidence_error = _document_ai_error_message(exc)
 
         except Exception as exc:
-            print(
-                f"DOCUMENT EVIDENCE ERROR: "
-                f"{type(exc).__name__}: {exc}"
+            logger.error(
+                "Detection checkpoint run_id=%s stage=document_evidence_failed category=provider_or_parse error_type=%s detail=%s",
+                run_id,
+                type(exc).__name__,
+                _document_ai_error_message(exc),
             )
             document_evidence_status = "failed"
             document_evidence_error = _document_ai_error_message(exc)
@@ -105,6 +161,12 @@ def detect_patient_candidates(
         result = detect_candidates(
             normalized_patient,
             document_evidence=document_evidence,
+        )
+        logger.info(
+            "Detection matching completed | run_id=%s | signals=%d | candidates=%d",
+            run_id,
+            result.get("signal_count", 0),
+            result.get("candidate_count", 0),
         )
 
         result["document_evidence_status"] = document_evidence_status
@@ -161,6 +223,14 @@ def detect_patient_candidates(
             )
             result["detection_run"]["audit_id"] = audit_record.audit_id
 
+        logger.info(
+            "Detection finished | run_id=%s | status=%s | candidates=%d | elapsed=%.2fs",
+            run_id,
+            result["detection_run"]["status"],
+            len(result["candidates"]),
+            time.monotonic() - started,
+        )
+        result["diagnostics"] = {"run_id": run_id}
         return result
 
     except ValueError as exc:
@@ -171,7 +241,17 @@ def detect_patient_candidates(
 
 
 def _document_ai_error_message(exc: Exception) -> str:
+    if isinstance(exc, DocumentAIUnavailableError):
+        return str(exc)
+
     message = str(exc).casefold()
+    if "apiconnectionerror" in type(exc).__name__.casefold() or "connection error" in message:
+        return (
+            "The backend could not connect to the configured AI provider. This usually points to "
+            "backend outbound network, DNS, firewall/proxy, or TLS connectivity. Check that the "
+            "backend machine can reach the provider; the uploaded document is still saved. "
+            "Search backend/logs/ai_detection.log for the run ID shown below."
+        )
     busy_markers = (
         "429", "529", "rate limit", "rate_limit", "too many requests",
         "overloaded", "model is busy", "temporarily unavailable",
@@ -203,13 +283,14 @@ def _document_ai_error_message(exc: Exception) -> str:
     if detail:
         return (
             f"AI document analysis failed ({type(exc).__name__}: {detail}). "
-            "Your uploaded document is saved. Check the backend terminal for the full error; "
+            "Your uploaded document is saved. Search backend/logs/ai_detection.log for the run ID; "
             "structured record detection may still have completed."
         )
     return (
         "AI document analysis failed, so uploaded documents were not included in "
         "this detection run. Your documents are saved. Try again or check the "
-        "backend error log. Structured record detection may still have completed."
+        "backend/logs/ai_detection.log using the run ID shown in the workspace. "
+        "Structured record detection may still have completed."
     )
 
 

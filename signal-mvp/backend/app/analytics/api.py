@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
@@ -24,7 +23,6 @@ def analytics_summary(db: Session = Depends(get_db)) -> dict:
         "cases": db.query(Case.case_id).count(),
         "submissions": db.query(Submission.submission_id).count(),
         "deadlines": db.query(DeadlineEscalation.escalation_id).count(),
-        "follow_ups": db.query(FollowUp.followup_id).count(),
     }
 
 
@@ -60,9 +58,4 @@ def analytics_deadlines(db: Session = Depends(get_db)) -> dict:
         "by_status": _counts(db, DeadlineEscalation.status, DeadlineEscalation.escalation_id),
         "overdue": db.query(DeadlineEscalation.escalation_id).filter(DeadlineEscalation.status == "OVERDUE").count(),
         "upcoming": db.query(DeadlineEscalation.escalation_id).filter(DeadlineEscalation.status == "UPCOMING").count(),
-    }
-
-
-@router.get("/follow-ups")
-def analytics_followups(db: Session = Depends(get_db)) -> dict:
-    return {"by_status": _counts(db, FollowUp.status, FollowUp.followup_id)}
+    }\n

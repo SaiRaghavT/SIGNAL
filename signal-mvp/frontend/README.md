@@ -14,7 +14,7 @@ Vite proxies `/api/*` and `/health` to `http://localhost:8000`, so local develop
 
 ## Important backend truth
 
-This UI intentionally does not invent list endpoints for patients, candidates, submissions, or follow-ups because the current backend exposes actions/lookups for those areas rather than durable list APIs.
+This UI intentionally does not invent list endpoints for patients, candidates, or submissions because the current backend exposes actions/lookups for those areas rather than durable list APIs.
 
 Implemented read/list paths represented here:
 - `GET /health`
@@ -24,7 +24,7 @@ Implemented read/list paths represented here:
 - `GET /api/workflow/cases/{case_id}/journey`
 - `GET /api/canonical/patients/{patient_id}`
 
-Implemented actions represented here include FHIR/HL7/document ingestion, candidate detection, reportability processing, report-field updates, manual reporting, form rendering, attestation, eCR submission, tracking, acknowledgement, retry, follow-up, and audit events.
+Implemented actions represented here include FHIR/HL7/document ingestion, candidate detection, reportability processing, report-field updates, manual reporting, form rendering, attestation, eCR submission, tracking, acknowledgement, retry, and audit events.
 
 ## Validation
 
