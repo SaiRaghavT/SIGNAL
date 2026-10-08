@@ -32,6 +32,7 @@
       "conditions": [
         "Anthrax",
         "Measles (rubeola)",
+        "http://snomed.info/sct|14189004",
         "Melioidosis",
         "Invasive meningococcal infection",
         "Meningococcal infection, invasive (Neisseria meningitidis)",
