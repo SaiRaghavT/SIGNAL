@@ -47,7 +47,10 @@ class DeadlineCalculationService:
 
         disease_key = normalize(disease)
         scope_key = str(reporting_scope or "CASE_REPORT").strip().upper()
-        rules = list(catalog.get("deadline_rules", [])) + list(catalog.get("rules", []))
+        # Keep legacy evaluator-backed rules authoritative when they are a
+        # specific match (for example MEASLES-TX); the deadline catalog fills
+        # in the remaining notifiable conditions.
+        rules = list(catalog.get("rules", [])) + list(catalog.get("deadline_rules", []))
         for rule in rules:
             if str(rule.get("jurisdiction", "")).upper() != jurisdiction.upper():
                 continue
