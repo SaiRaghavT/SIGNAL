@@ -159,7 +159,7 @@
 
 .admin-metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -173,6 +173,17 @@
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(23, 50, 77, 0.025);
+}
+
+.admin-metric-link {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-metric-link:hover {
+  border-color: #e5a27f;
+  box-shadow: 0 2px 8px rgba(23, 50, 77, 0.08);
 }
 
 .admin-metric-icon {
@@ -446,7 +457,7 @@
 
 .admin-status-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   padding: 17px 18px 20px;
 }
@@ -627,14 +638,9 @@
     padding-left: 0;
   }
 
-  .admin-status-grid > div:nth-child(3),
-  .admin-status-grid > div:nth-child(4) {
+  .admin-status-grid > div:nth-child(3) {
     padding-top: 15px;
     border-top: 1px solid #edf1f3;
-  }
-
-  .admin-status-grid > div:nth-child(4) {
-    border-right: 0;
   }
 
   .admin-footer,

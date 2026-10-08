@@ -10,9 +10,14 @@ import {
   Send,
   Timer,
   UserRoundCheck,
+  UserRoundX,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAdminDashboard } from "../../services/adminService.js";
+import {
+  CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT,
+  countOpenClinicalInformationRequests,
+} from "../../utils/clinicalInformationRequests.js";
 import "../../styles/AdminDashboard.css";
 
 const EMPTY_DASHBOARD = {
@@ -29,9 +34,9 @@ const EMPTY_DASHBOARD = {
   due_soon: 0,
 };
 
-function MetricCard({ label, value, icon: Icon, tone = "default" }) {
-  return (
-    <div className={`admin-metric-card ${tone}`}>
+function MetricCard({ label, value, icon: Icon, tone = "default", to }) {
+  const content = (
+    <>
       <div className="admin-metric-icon">
         <Icon size={18} />
       </div>
@@ -40,12 +45,17 @@ function MetricCard({ label, value, icon: Icon, tone = "default" }) {
         <span className="admin-metric-label">{label}</span>
         <strong>{value}</strong>
       </div>
-    </div>
+    </>
   );
+
+  return to
+    ? <Link to={to} className={`admin-metric-card ${tone} admin-metric-link`}>{content}</Link>
+    : <div className={`admin-metric-card ${tone}`}>{content}</div>;
 }
 
 function AdminDashboard() {
   const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD);
+  const [informationRequested, setInformationRequested] = useState(countOpenClinicalInformationRequests);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -71,11 +81,27 @@ function AdminDashboard() {
     loadDashboard();
   }, []);
 
+  useEffect(() => {
+    const refreshInformationRequests = () => {
+      setInformationRequested(countOpenClinicalInformationRequests());
+    };
+    refreshInformationRequests();
+    window.addEventListener("storage", refreshInformationRequests);
+    window.addEventListener(CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT, refreshInformationRequests);
+    return () => {
+      window.removeEventListener("storage", refreshInformationRequests);
+      window.removeEventListener(CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT, refreshInformationRequests);
+    };
+  }, []);
+
   const totalOperationalWork =
     dashboard.ready_for_submission +
-    dashboard.immediate_reports +
-    dashboard.individual_reports +
+    informationRequested +
     dashboard.pending_batches;
+
+  // The backend currently derives both values from the same failed statuses.
+  // Use that count once instead of adding the duplicate retry_required count.
+  const failedRetryRequired = dashboard.failed;
 
   const totalDeadlineRisk =
     dashboard.overdue +
@@ -142,17 +168,11 @@ function AdminDashboard() {
           />
 
           <MetricCard
-            label="Immediate Reports"
-            value={dashboard.immediate_reports}
-            icon={AlertCircle}
-            tone="danger"
-          />
-
-          <MetricCard
-            label="Individual Reports"
-            value={dashboard.individual_reports}
-            icon={Send}
-            tone="info"
+            label="Information Requested"
+            value={informationRequested}
+            icon={UserRoundX}
+            tone="warning"
+            to="/admin/queue"
           />
 
           <MetricCard
@@ -177,17 +197,10 @@ function AdminDashboard() {
           />
 
           <MetricCard
-            label="Failed"
-            value={dashboard.failed}
+            label="Failed / Retry Required"
+            value={failedRetryRequired}
             icon={AlertCircle}
             tone="danger"
-          />
-
-          <MetricCard
-            label="Retry Required"
-            value={dashboard.retry_required}
-            icon={RefreshCw}
-            tone="warning"
           />
         </div>
       </div>
@@ -332,13 +345,8 @@ function AdminDashboard() {
             </div>
 
             <div>
-              <span>Failed</span>
-              <strong>{dashboard.failed}</strong>
-            </div>
-
-            <div>
-              <span>Retry Required</span>
-              <strong>{dashboard.retry_required}</strong>
+              <span>Failed / Retry Required</span>
+              <strong>{failedRetryRequired}</strong>
             </div>
           </div>
         </section>
