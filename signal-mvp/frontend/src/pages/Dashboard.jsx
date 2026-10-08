@@ -210,7 +210,12 @@ export default function Dashboard() {
                   return <tr key={patient.patient_id}>
                     <td><strong>{patientName(patient)}</strong></td><td>{patient.condition || "Patient review"}</td>
                     <td>{patient.jurisdiction || patient.deadline?.jurisdiction || EMPTY_VALUE}</td>
-                    <td><span className={badgeClass}>{priority}</span></td><td>{formatDeadline(deadline)}</td>
+                    <td><span className={badgeClass}>{priority}</span></td>
+                    <td>
+                      {patient.deadline?.reporting_timeline && <div>{patient.deadline.reporting_timeline}</div>}
+                      {deadline && <small>{formatDeadline(deadline)}</small>}
+                      {!patient.deadline?.reporting_timeline && !deadline && EMPTY_VALUE}
+                    </td>
                     <td><button className="row-action" type="button" onClick={() => navigate(`/patients/${encodeURIComponent(patient.patient_id)}`)}>View</button></td>
                   </tr>;
                 })}</tbody>

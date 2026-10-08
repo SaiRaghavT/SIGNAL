@@ -1,16 +1,2313 @@
 {
+  "source": {
+    "title": "Texas Notifiable Conditions - 2026",
+    "publisher": "Texas Department of State Health Services",
+    "document_number": "E59-11364",
+    "revision_date": "2026-01-01",
+    "expiration_date": "2026-12-31",
+    "url": "https://www.dshs.texas.gov/notifiable-conditions/investigation-guidance"
+  },
+  "jurisdiction": "TX",
+  "jurisdiction_aliases": [
+    "Texas"
+  ],
+  "general_reporting_rule": "Report all confirmed and suspected cases. Unless a condition is marked with an asterisk, report to the local or regional health department. Also report outbreaks, exotic diseases, unusual disease groupings of public-health concern, and select agents by the most expeditious means.",
+  "immediate_reporting_contact": "1-800-705-8868",
+  "workday_calculation_note": "Work-day deadlines skip weekends. The PDF does not define a holiday calendar, so holidays are not excluded by the deadline calculator.",
+  "footnotes": {
+    "1": "Use the specific Texas HIV/STD reporting rules for reporting requirements and destination.",
+    "2": "Reporting forms and investigation guidance are available from Texas DSHS. Call the listed 24/7 number for immediately reportable conditions.",
+    "3": "The listed laboratory isolates or specimens must be submitted to the Texas DSHS Laboratory Services Section or another designated public health laboratory; see the PDF for the organism list and submission details.",
+    "4": "Secure select-agent isolates and specimens under applicable regulations and immediately consult public health about testing or sequencing.",
+    "5": "Arboviral infections include California serogroup, chikungunya, dengue, EEE, Oropouche, SLE, WEE, West Nile, and Zika viruses, among others.",
+    "6": "Blood collection centers have additional reporting duties for reactive West Nile, Zika, Babesia, and Chagas donor tests to the DSHS Zoonosis Control Branch; the PDF specifies contacts and required donor information.",
+    "7": "Use Texas DSHS asbestosis reporting instructions.",
+    "8": "Report suspected botulism immediately by phone at 888-963-7111.",
+    "9": "Follow Texas Cancer Registry reporting rules and requirements; the condition table does not specify a general deadline.",
+    "10": "Use the Texas DSHS acute occupational pesticide reporting instructions.",
+    "11": "CRE includes Escherichia coli or Klebsiella species resistant to at least one carbapenem or producing a carbapenemase.",
+    "12": "The PDF includes sporadic, genetic/familial, iatrogenic, and other named prion diseases; see it for the full surveillance scope.",
+    "13": "Use the local health department’s Varicella Reporting Form instead of an Epi-1 or Epi-2 morbidity report.",
+    "14": "Contaminated sharps injury reporting applies to governmental entities, not private facilities (Texas Administrative Code §96.201).",
+    "15": "Report controlled substance overdoses through https://odreport.dshs.texas.gov/.",
+    "16": "Novel severe acute respiratory coronaviruses include MERS and SARS; call immediately for these or another novel coronavirus. COVID-19 is no longer a Texas notifiable condition as of March 1, 2024.",
+    "17": "Follow the specific Texas injury reporting rules for reporting and destination.",
+    "18": "Laboratories must report syphilis test results within 3 work days of the testing outcome, in addition to the condition-level reporting timelines shown in the table.",
+    "19": "Texas DSHS Hansen’s disease reporting forms are available online.",
+    "20": "Reportable TB disease includes suspected disease pending final lab results, positive nucleic acid amplification tests, confirmed disease, and the listed M. tuberculosis complex species.",
+    "21": "TB infection requires a positive approved IGRA or skin test, a normal chest radiograph, and no TB symptoms; report skin test results in millimeters.",
+    "22": "Report any person suspected of having HIV, including HIV-exposed infants.",
+    "23": "Use Texas DSHS lead reporting instructions for the required call/fax route.",
+    "24": "Also report any outbreak, exotic disease, or unusual disease grouping of public-health concern by the most expeditious means; this includes select agents. See the PDF for mpox requirements."
+  },
   "rules": [
     {
-      "disease": "measles",
+      "disease": "Acquired immune deficiency syndrome (AIDS)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-ACQUIRED-IMMUNE-DEFICIENCY-SYNDROME-AIDS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        1
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          1
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true,
+      "aliases": [
+        "aids"
+      ]
+    },
+    {
+      "disease": "Amebic meningitis and encephalitis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-AMEBIC-MENINGITIS-AND-ENCEPHALITIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Anaplasmosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-ANAPLASMOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Anthrax",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-ANTHRAX",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3,
+        4
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3,
+          4
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Arboviral infections",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-ARBOVIRAL-INFECTIONS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        5,
+        6
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          5,
+          6
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Asbestosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-ASBESTOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        7
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          7
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Ascariasis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-ASCARIASIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Babesiosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-BABESIOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        6
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          6
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Botulism (adult and infant)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-BOTULISM-ADULT-AND-INFANT",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3,
+        4,
+        8
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3,
+          4,
+          8
+        ],
+        "contact": "888-963-7111"
+      }
+    },
+    {
+      "disease": "Brucellosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-BRUCELLOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Campylobacteriosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CAMPYLOBACTERIOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Cancer",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CANCER",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        9
+      ],
+      "reporting": {
+        "timing": "SEE_RULES",
+        "timeline_text": "See rules",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          9
+        ],
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Candida auris",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CANDIDA-AURIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Carbapenem-resistant Enterobacterales (CRE)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CARBAPENEM-RESISTANT-ENTEROBACTERALES-CRE",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        11
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          11
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      },
+      "aliases": [
+        "cre"
+      ]
+    },
+    {
+      "disease": "Chagas disease",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CHAGAS-DISEASE",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        6
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          6
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Chancroid",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CHANCROID",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        1
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          1
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Chickenpox (varicella)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CHICKENPOX-VARICELLA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        13
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          13
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Chlamydia trachomatis infection",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CHLAMYDIA-TRACHOMATIS-INFECTION",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        1
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          1
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Contaminated sharps injury",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CONTAMINATED-SHARPS-INJURY",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        14
+      ],
+      "reporting": {
+        "timing": "MONTHS",
+        "timeline_text": "Within 1 month",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          14
+        ],
+        "value": 1,
+        "unit": "CALENDAR_MONTHS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Controlled substance overdose",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CONTROLLED-SUBSTANCE-OVERDOSE",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        15
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Report Immediately",
+        "method": "ONLINE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          15
+        ],
+        "destination": "https://odreport.dshs.texas.gov/"
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Coronavirus, novel",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CORONAVIRUS-NOVEL",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        16
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          16
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Cronobacter spp. in infants, invasive",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CRONOBACTER-SPP-IN-INFANTS-INVASIVE",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Cryptosporidiosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CRYPTOSPORIDIOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Cyclosporiasis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CYCLOSPORIASIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Cysticercosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-CYSTICERCOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Diphtheria",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-DIPHTHERIA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Drowning/near drowning",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-DROWNING-NEAR-DROWNING",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        17
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 10 work days",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          17
+        ],
+        "value": 10,
+        "unit": "WORK_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes.",
+        "calendar": "WEEKDAYS"
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Echinococcosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-ECHINOCOCCOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Ehrlichiosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-EHRLICHIOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Fascioliasis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-FASCIOLIASIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Gonorrhea",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-GONORRHEA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        1
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          1
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Haemophilus influenzae, invasive",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HAEMOPHILUS-INFLUENZAE-INVASIVE",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Hansen’s disease (leprosy)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HANSEN-S-DISEASE-LEPROSY",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        19
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          19
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Hantavirus infection",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HANTAVIRUS-INFECTION",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Hemolytic uremic syndrome (HUS)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HEMOLYTIC-UREMIC-SYNDROME-HUS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      },
+      "aliases": [
+        "hus"
+      ]
+    },
+    {
+      "disease": "Hepatitis A",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HEPATITIS-A",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Hepatitis B, C, and E (acute)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HEPATITIS-B-C-AND-E-ACUTE",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Hepatitis B infection identified prenatally or at delivery (mother)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HEPATITIS-B-INFECTION-IDENTIFIED-PRENATALLY-OR-AT-DELIVERY-MOTHER",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Hepatitis B, perinatal (HBsAg+ < 24 months old) (child)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HEPATITIS-B-PERINATAL-HBSAG-24-MONTHS-OLD-CHILD",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Hookworm (ancylostomiasis)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HOOKWORM-ANCYLOSTOMIASIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Human immunodeficiency virus (HIV), acute infection",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HUMAN-IMMUNODEFICIENCY-VIRUS-HIV-ACUTE-INFECTION",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        1,
+        22
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          1,
+          22
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes.",
+        "calendar": "WEEKDAYS"
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Human immunodeficiency virus (HIV), non-acute infection",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-HUMAN-IMMUNODEFICIENCY-VIRUS-HIV-NON-ACUTE-INFECTION",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        1,
+        22
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          1,
+          22
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Influenza-associated pediatric mortality",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-INFLUENZA-ASSOCIATED-PEDIATRIC-MORTALITY",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Influenza, novel",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-INFLUENZA-NOVEL",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Lead, child blood, any level & adult blood, any level",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-LEAD-CHILD-BLOOD-ANY-LEVEL-ADULT-BLOOD-ANY-LEVEL",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        23
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call/Fax Immediately",
+        "method": "CALL_OR_FAX",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          23
+        ],
+        "contact_instructions": "See Texas DSHS lead-reporting instructions in footnote 23."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Legionellosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-LEGIONELLOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Leishmaniasis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-LEISHMANIASIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Listeriosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-LISTERIOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Lyme disease",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-LYME-DISEASE",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Malaria",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-MALARIA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Measles (rubeola)",
       "jurisdiction": "TX",
       "rule_id": "MEASLES-TX",
-      "rule_version": "1.0",
+      "rule_version": "2026",
       "evaluator": "backend.app.rules.Measles_rules:evaluate_measles_rules",
-      "severity_warning_minutes": 60,
+      "source_footnotes": [
+        2
+      ],
       "reporting": {
-        "timing": "HOURS",
-        "value": 24,
-        "method": "CRF"
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "contact": "1-800-705-8868"
+      },
+      "aliases": [
+        "measles",
+        "rubeola"
+      ]
+    },
+    {
+      "disease": "Melioidosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-MELIOIDOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        4
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          4
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Meningococcal infection, invasive (Neisseria meningitidis)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-MENINGOCOCCAL-INFECTION-INVASIVE-NEISSERIA-MENINGITIDIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Mumps",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-MUMPS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Paragonimiasis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-PARAGONIMIASIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Pertussis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-PERTUSSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Pesticide poisoning, acute occupational",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-PESTICIDE-POISONING-ACUTE-OCCUPATIONAL",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        10
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          10
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Plague (Yersinia pestis)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-PLAGUE-YERSINIA-PESTIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3,
+        4
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3,
+          4
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Poliomyelitis, acute paralytic",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-POLIOMYELITIS-ACUTE-PARALYTIC",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Poliovirus infection, non-paralytic",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-POLIOVIRUS-INFECTION-NON-PARALYTIC",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Prion diseases, such as Creutzfeldt-Jakob disease (CJD)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-PRION-DISEASES-SUCH-AS-CREUTZFELDT-JAKOB-DISEASE-CJD",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        12
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          12
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Q fever",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-Q-FEVER",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        4
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          4
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Rabies, human",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-RABIES-HUMAN",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Rubella (including congenital)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-RUBELLA-INCLUDING-CONGENITAL",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Salmonellosis, including typhoid fever",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-SALMONELLOSIS-INCLUDING-TYPHOID-FEVER",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Shiga toxin-producing Escherichia coli",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-SHIGA-TOXIN-PRODUCING-ESCHERICHIA-COLI",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Shigellosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-SHIGELLOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Smallpox",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-SMALLPOX",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        4
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          4
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Spinal cord injury",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-SPINAL-CORD-INJURY",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        17
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 10 work days",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          17
+        ],
+        "value": 10,
+        "unit": "WORK_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes.",
+        "calendar": "WEEKDAYS"
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Spotted fever rickettsiosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-SPOTTED-FEVER-RICKETTSIOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Streptococcal disease (S. pneumo), invasive",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-STREPTOCOCCAL-DISEASE-S-PNEUMO-INVASIVE",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Syphilis – primary and secondary stages",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-SYPHILIS-PRIMARY-AND-SECONDARY-STAGES",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        1,
+        18
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          1,
+          18
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes.",
+        "calendar": "WEEKDAYS"
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Syphilis – all other stages including congenital syphilis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-SYPHILIS-ALL-OTHER-STAGES-INCLUDING-CONGENITAL-SYPHILIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        1,
+        18
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          1,
+          18
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes."
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Taenia solium and undifferentiated Taenia infection",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TAENIA-SOLIUM-AND-UNDIFFERENTIATED-TAENIA-INFECTION",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Tetanus",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TETANUS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Tick-borne relapsing fever (TBRF)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TICK-BORNE-RELAPSING-FEVER-TBRF",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Traumatic brain injury",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TRAUMATIC-BRAIN-INJURY",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        17
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 10 work days",
+        "method": "CONDITION_SPECIFIC",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          17
+        ],
+        "value": 10,
+        "unit": "WORK_DAYS",
+        "destination": "Follow the condition-specific reporting instructions listed in the referenced PDF footnotes.",
+        "calendar": "WEEKDAYS"
+      },
+      "condition_specific_reporting": true
+    },
+    {
+      "disease": "Trichinosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TRICHINOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Trichuriasis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TRICHURIASIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Tuberculosis (Mycobacterium tuberculosis complex)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TUBERCULOSIS-MYCOBACTERIUM-TUBERCULOSIS-COMPLEX",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        3,
+        20
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          3,
+          20
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      },
+      "aliases": [
+        "tuberculosis",
+        "tb disease"
+      ]
+    },
+    {
+      "disease": "Tuberculosis infection",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TUBERCULOSIS-INFECTION",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        21
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          21
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      },
+      "aliases": [
+        "tb infection"
+      ]
+    },
+    {
+      "disease": "Tularemia",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TULAREMIA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3,
+        4
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3,
+          4
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Typhus",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-TYPHUS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
+      }
+    },
+    {
+      "disease": "Vancomycin-intermediate Staph aureus (VISA)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-VANCOMYCIN-INTERMEDIATE-STAPH-AUREUS-VISA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "contact": "1-800-705-8868"
+      },
+      "aliases": [
+        "visa"
+      ]
+    },
+    {
+      "disease": "Vancomycin-resistant Staph aureus (VRSA)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-VANCOMYCIN-RESISTANT-STAPH-AUREUS-VRSA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "contact": "1-800-705-8868"
+      },
+      "aliases": [
+        "vrsa"
+      ]
+    },
+    {
+      "disease": "Vibrio infection, including cholera",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-VIBRIO-INFECTION-INCLUDING-CHOLERA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        3
+      ],
+      "reporting": {
+        "timing": "WORK_DAYS",
+        "timeline_text": "Within 1 work day",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          3
+        ],
+        "value": 1,
+        "unit": "WORK_DAYS",
+        "calendar": "WEEKDAYS"
+      }
+    },
+    {
+      "disease": "Viral hemorrhagic fever (including Ebola)",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-VIRAL-HEMORRHAGIC-FEVER-INCLUDING-EBOLA",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2,
+        4
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2,
+          4
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Yellow fever",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-YELLOW-FEVER",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "IMMEDIATE",
+        "timeline_text": "Call Immediately",
+        "method": "PHONE",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "contact": "1-800-705-8868"
+      }
+    },
+    {
+      "disease": "Yersiniosis",
+      "jurisdiction": "TX",
+      "rule_id": "TX-NC-2026-YERSINIOSIS",
+      "rule_version": "2026",
+      "evaluator": "backend.app.rules.texas_notifiable:evaluate_texas_notifiable_rule",
+      "source_footnotes": [
+        2
+      ],
+      "reporting": {
+        "timing": "DAYS",
+        "timeline_text": "Within 1 week",
+        "method": "LOCAL_OR_REGIONAL_HEALTH_DEPARTMENT",
+        "cases_to_report": [
+          "CONFIRMED",
+          "SUSPECTED"
+        ],
+        "footnotes": [
+          2
+        ],
+        "value": 7,
+        "unit": "CALENDAR_DAYS"
       }
     }
   ]

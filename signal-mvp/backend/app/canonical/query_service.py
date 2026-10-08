@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
+from functools import lru_cache
 import json
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import String, cast, func, inspect, or_
+from sqlalchemy import String, and_, cast, func, inspect, or_
 from sqlalchemy.orm import Session
 
 from backend.app.agents.deadline_calculation.schemas import DeadlineCalculationRequest
@@ -22,7 +23,12 @@ from backend.app.models.condition import Condition
 from backend.app.models.observation import Observation
 from backend.app.models.lab_result import LabResult
 from backend.app.models.clinical_document import ClinicalDocument
-from backend.app.rules.resolver import RuleResolutionError, resolve_rule
+from backend.app.rules.resolver import (
+    RuleResolutionError,
+    load_catalog,
+    normalize_jurisdiction,
+    resolve_rule,
+)
 
 
 class CanonicalPatientNotFoundError(ValueError):
@@ -70,7 +76,10 @@ def _case_patient_id(case: Case) -> UUID | None:
 
 
 def _is_texas_jurisdiction(value: str | None) -> bool:
-    return str(value or "").strip().casefold() in {"tx", "texas"}
+    if not value:
+        return False
+    catalog = load_catalog()
+    return normalize_jurisdiction(value, catalog) == str(catalog.get("jurisdiction") or "").upper()
 
 
 def _patient_jurisdiction(
@@ -86,11 +95,9 @@ def _patient_jurisdiction(
     so it is not treated as evidence of Texas.
     """
     if case and case.jurisdiction_status == "RESOLVED" and case.jurisdiction:
-        jurisdiction = case.jurisdiction.strip().upper()
-        return "TX" if jurisdiction == "TEXAS" else jurisdiction
+        return normalize_jurisdiction(case.jurisdiction)
     if candidate and candidate.jurisdiction:
-        jurisdiction = candidate.jurisdiction.strip().upper()
-        return "TX" if jurisdiction == "TEXAS" else jurisdiction
+        return normalize_jurisdiction(candidate.jurisdiction)
     result = resolve_jurisdiction(
         JurisdictionInput(
             candidate_id=str(patient.patient_id),
@@ -98,7 +105,7 @@ def _patient_jurisdiction(
             patient_county=patient.county,
             facility_state=None,
             facility_county=None,
-            disease="measles",
+            disease=(case.disease if case else None) or (candidate.disease_id if candidate else None),
         )
     )
     return result.jurisdiction if result.status == "RESOLVED" else None
@@ -234,10 +241,71 @@ def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
     return texas_patient_ids
 
 
+@lru_cache(maxsize=1)
+def _reportable_disease_names() -> dict[str, str]:
+    from backend.app.rules.resolver import load_catalog
+
+    names: dict[str, str] = {}
+    for rule in load_catalog().get("rules", []):
+        disease = str(rule.get("disease") or "").strip()
+        for name in (disease, *rule.get("aliases", [])):
+            normalized = " ".join(
+                str(name).casefold().replace("(disorder)", " ").replace("-", " ").split()
+            )
+            if normalized:
+                names[normalized] = disease
+    return names
+
+
+def _normalize_condition_name(value: str) -> str:
+    normalized = value.strip().casefold().replace("-", " ")
+    for qualifier in ("(disorder)", "(situation)", "(finding)", "(problem)"):
+        normalized = normalized.replace(qualifier, " ")
+    normalized = " ".join(normalized.split())
+    for qualifier in ("suspected ", "probable ", "confirmed ", "possible "):
+        if normalized.startswith(qualifier):
+            normalized = normalized[len(qualifier):].strip()
+        if normalized.endswith(f" {qualifier.strip()}"):
+            normalized = normalized[:-len(qualifier)].strip()
+    return " ".join(normalized.split())
+
+
+def _catalog_disease_name(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = _normalize_condition_name(value)
+    configured_disease = _reportable_disease_names().get(normalized)
+    if configured_disease:
+        return configured_disease
+
+    # Workflow disease IDs can be terminology URIs. Resolve those only through
+    # an explicit configured Condition trigger, then map its disease ID back
+    # through the rule catalog aliases.
+    raw_system, separator, raw_code = value.rpartition("|")
+    if not separator:
+        raw_system, separator, raw_code = value.rpartition("/")
+    if separator:
+        for trigger in STRUCTURED_TRIGGERS:
+            if (
+                trigger.get("resource_type") == "Condition"
+                and str(trigger.get("code_system") or "").casefold() == raw_system.casefold()
+                and raw_code.casefold() in {str(code).casefold() for code in trigger.get("codes", [])}
+            ):
+                return _catalog_disease_name(str(trigger.get("disease_id") or ""))
+    return None
+
+
 def _condition_disease(condition: Condition) -> str | None:
     display = (condition.condition_display or "").casefold()
     system = (condition.condition_system or "").casefold()
     code = (condition.condition_code or "").casefold()
+    normalized_display = _normalize_condition_name(display)
+    # The Texas catalog is the authoritative list of reportable disease names.
+    # Match canonical condition displays and catalog aliases even when those
+    # conditions do not have a detector-specific structured trigger.
+    catalog_disease = _catalog_disease_name(normalized_display)
+    if catalog_disease:
+        return catalog_disease
     for trigger in STRUCTURED_TRIGGERS:
         if trigger.get("resource_type") != "Condition":
             continue
@@ -249,7 +317,7 @@ def _condition_disease(condition: Condition) -> str | None:
             and code in {str(value).casefold() for value in trigger.get("codes", [])}
         )
         if code_match or disease.casefold() in display:
-            return disease
+            return _catalog_disease_name(disease) or disease
     return None
 
 
@@ -301,9 +369,9 @@ def _patient_deadline(
     # used by the reporting rule catalog. Prefer it over workflow codes such as
     # SNOMED URIs when calculating a cohort deadline.
     disease = (
-        disease_filter
-        or (case.disease if case else None)
-        or (candidate.disease_id if candidate else None)
+        _catalog_disease_name(disease_filter)
+        or _catalog_disease_name(case.disease if case else None)
+        or _catalog_disease_name(candidate.disease_id if candidate else None)
     )
     measles_conditions = []
     for condition in conditions:
@@ -311,7 +379,7 @@ def _patient_deadline(
         if disease and condition_disease and condition_disease.casefold() != disease.casefold():
             continue
         if not disease:
-            disease = condition_disease
+            disease = _catalog_disease_name(condition_disease) or condition_disease
         if not disease or not condition_disease or condition_disease.casefold() != disease.casefold():
             continue
         measles_conditions.append(condition)
@@ -400,6 +468,7 @@ def _patient_deadline(
             "jurisdiction": jurisdiction,
             "rule_id": rule_id,
             "reporting_timing": reporting.get("timing"),
+            "reporting_timeline": reporting.get("timeline_text"),
             "reporting_method": reporting.get("method"),
             "urgency": current_state["urgency"],
             "minutes_remaining": current_state["minutes_remaining"],
@@ -431,7 +500,16 @@ def _patient_deadline(
         event_time = last_encounter
 
     if event_time is None:
-        return None, "No clinical event or encounter timestamp is available to calculate a reporting deadline."
+        return {
+            "deadline": None,
+            "status": "NEEDS_EVENT_TIME",
+            "disease": disease,
+            "jurisdiction": jurisdiction,
+            "rule_id": rule_id,
+            "reporting_timing": rule.get("reporting", {}).get("timing"),
+            "reporting_timeline": rule.get("reporting", {}).get("timeline_text"),
+            "reporting_method": rule.get("reporting", {}).get("method"),
+        }, "No clinical event or encounter timestamp is available to calculate a calendar deadline."
     if event_time.tzinfo is None:
         event_time = event_time.replace(tzinfo=timezone.utc)
 
@@ -445,8 +523,19 @@ def _patient_deadline(
             )
         )
     except ValueError as exc:
-        return None, str(exc)
-    return result.model_dump(), None
+        return {
+            "deadline": None,
+            "status": "NEEDS_REVIEW",
+            "disease": disease,
+            "jurisdiction": jurisdiction,
+            "rule_id": rule_id,
+            "reporting_timing": rule.get("reporting", {}).get("timing"),
+            "reporting_timeline": rule.get("reporting", {}).get("timeline_text"),
+            "reporting_method": rule.get("reporting", {}).get("method"),
+        }, str(exc)
+    response = result.model_dump()
+    response["reporting_timeline"] = rule.get("reporting", {}).get("timeline_text")
+    return response, None
 
 
 def list_patients(
@@ -462,11 +551,20 @@ def list_patients(
     search_text = (search or "").strip()
     if search_text:
         pattern = f"%{search_text}%"
+        name_terms = [term for term in search_text.split() if term]
+        full_name_match = and_(
+            *[
+                or_(
+                    Patient.first_name.ilike(f"%{term}%"),
+                    Patient.last_name.ilike(f"%{term}%"),
+                )
+                for term in name_terms
+            ]
+        )
         query = query.filter(or_(
             cast(Patient.patient_id, String).ilike(pattern),
             Patient.source_patient_id.ilike(pattern),
-            Patient.first_name.ilike(pattern),
-            Patient.last_name.ilike(pattern),
+            full_name_match,
             cast(Patient.date_of_birth, String).ilike(pattern),
         ))
 
@@ -508,6 +606,20 @@ def list_patients(
             .all()
         )
         if row[0]
+    ]
+    condition_options = [
+        row[0].strip()
+        for row in (
+            db.query(Condition.condition_display)
+            .filter(
+                Condition.condition_display.isnot(None),
+                func.trim(Condition.condition_display) != "",
+            )
+            .distinct()
+            .order_by(Condition.condition_display.asc())
+            .all()
+        )
+        if row[0] and row[0].strip()
     ]
 
     encounters = []
@@ -671,6 +783,7 @@ def list_patients(
         "total": total,
         "pages": (total + page_size - 1) // page_size,
         "facilities": facilities,
+        "conditions": condition_options,
         "condition_filter": condition_text.title() if condition_text else None,
     }
 
@@ -956,8 +1069,49 @@ def get_patient_context(
         .all()
     )
 
+    candidate = (
+        db.query(Candidate)
+        .filter(Candidate.patient_id == str(patient_id))
+        .order_by(Candidate.updated_at.desc())
+        .first()
+    )
+    case = None
+    if inspect(db.get_bind()).has_table(Case.__tablename__):
+        case_query = db.query(Case)
+        if candidate:
+            case = (
+                case_query
+                .filter(Case.candidate_id == candidate.candidate_id)
+                .order_by(Case.updated_at.desc())
+                .first()
+            )
+        if case is None:
+            for possible_case in case_query.order_by(Case.updated_at.desc()).all():
+                if _case_patient_id(possible_case) == patient_id:
+                    case = possible_case
+                    break
+
+    last_encounter = max(
+        (
+            encounter.end_time or encounter.start_time
+            for encounter in encounters
+            if encounter.end_time or encounter.start_time
+        ),
+        default=None,
+    )
+    deadline, deadline_reason = _patient_deadline(
+        patient=patient,
+        conditions=conditions,
+        lab_results=lab_results,
+        candidate=candidate,
+        case=case,
+        last_encounter=last_encounter,
+    )
+
     return {
         "patient": _patient_to_dict(patient),
+        "deadline": deadline,
+        "deadline_reason": deadline_reason,
         "encounters": [
             _encounter_to_dict(encounter)
             for encounter in encounters

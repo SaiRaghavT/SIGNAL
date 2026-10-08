@@ -298,18 +298,14 @@ export default function QueueAcknowledgementPage() {
         setCalculatedDeadline(null);
       } else {
         setCalculatedDeadline(null);
-        const disease = String(loadedCase?.disease || "").trim();
-        const code = disease.match(/(?:\||\/)(\d+)$/)?.[1];
-        const isMeasles = /^(measles|rubeola)$/i.test(disease) || ["14189004", "14168008", "7180009"].includes(code);
+        const disease = String(loadedCase?.disease_display || loadedCase?.condition_display || loadedCase?.disease || "").trim();
         const jurisdiction = String(loadedCase?.jurisdiction || "").trim();
-        if (isMeasles && jurisdiction && loadedCase?.created_at) {
+        if (disease && jurisdiction && loadedCase?.created_at) {
           try {
-            const ruleId = String(loadedCase?.rule_id || "").trim();
             const deadlineResponse = await calculateDeadline({
               event_time: loadedCase.created_at,
-              disease: "measles",
-              jurisdiction: /^texas$/i.test(jurisdiction) ? "TX" : jurisdiction,
-              ...(ruleId && ruleId !== "NO_RULE_AVAILABLE" ? { rule_id: ruleId } : {}),
+              disease,
+              jurisdiction,
             });
             setCalculatedDeadline(responseData(deadlineResponse));
           } catch {
@@ -384,7 +380,7 @@ export default function QueueAcknowledgementPage() {
 
   const deadlineSubtitle = caseData?.deadline || caseData?.reporting_deadline
     ? "Configured reporting deadline"
-    : calculatedDeadline?.calculation_basis || "No reporting deadline rule is available";
+    : calculatedDeadline?.reporting_timeline || calculatedDeadline?.calculation_basis || "No reporting deadline rule is available";
 
 
   /* =======================================================

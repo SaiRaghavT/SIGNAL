@@ -58,6 +58,86 @@
   background: var(--signal-card);
 }
 
+.patients-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--signal-border);
+  background: var(--signal-card);
+}
+
+.patients-filters label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.patients-filters label > span {
+  color: var(--signal-text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.patients-filters input,
+.patients-filters select {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--signal-border);
+  border-radius: 7px;
+  outline: none;
+  background: var(--signal-surface);
+  color: var(--signal-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.patients-filters input:focus,
+.patients-filters select:focus {
+  border-color: var(--signal-info);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal-info) 14%, transparent);
+}
+
+.patients-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.patients-filter-apply,
+.patients-filter-clear {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--signal-border);
+  border-radius: 7px;
+  background: var(--signal-card);
+  color: var(--signal-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.patients-filter-apply {
+  border-color: var(--signal-navy);
+  background: var(--signal-navy);
+  color: #fff;
+}
+
+.patients-filter-apply:hover {
+  filter: brightness(1.1);
+}
+
+.patients-filter-clear:hover {
+  border-color: var(--signal-orange);
+  color: var(--signal-danger);
+}
+
 .patients-table-scroll {
   overflow-x: auto;
 }
@@ -253,5 +333,19 @@
   .patients-pagination {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .patients-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .patients-filter-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (min-width: 521px) and (max-width: 900px) {
+  .patients-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

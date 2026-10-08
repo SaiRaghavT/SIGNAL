@@ -31,6 +31,8 @@ class DeadlineCalculationResponse(BaseModel):
 
     reporting_timing: str
 
+    reporting_timeline: str | None = None
+
     reporting_method: str
     urgency: str
     minutes_remaining: int

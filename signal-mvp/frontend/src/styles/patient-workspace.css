@@ -278,6 +278,35 @@ section h2,
   font-size: 12px;
 }
 
+.patient-reporting-deadline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 12px;
+  padding: 9px 12px;
+  width: fit-content;
+  border: 1px solid #dbe8ef;
+  border-radius: 8px;
+  background: #f5fafc;
+  color: #345266;
+  font-size: 12px;
+}
+
+.patient-reporting-deadline > span {
+  color: #617b8c;
+  font-weight: 650;
+}
+
+.patient-reporting-deadline > strong {
+  color: #153d54;
+  font-weight: 750;
+}
+
+.patient-reporting-deadline > small {
+  color: #617b8c;
+}
+
 .location-icon {
   color: #8295a6;
   font-size: 9px;

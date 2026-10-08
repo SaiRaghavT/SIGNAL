@@ -1,14 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
-from backend.app.canonical.query_service import list_patients
+from backend.app.models.candidate import Candidate
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.submissions import Submission
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.condition import Condition
+from backend.app.models.patient import Patient
 
 from .schemas import DashboardSummaryResponse
 
@@ -46,25 +47,36 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         .count()
     )
 
-    # Reuse the unfiltered canonical patient list so dashboard KPIs cover all
-    # diseases and deadlines use the same calculations as the Patients page.
-    patient_worklist = list_patients(db, page=1, page_size=100_000)
-    local_today = datetime.now().astimezone().date()
-    patients_due_today = 0
-    for patient in patient_worklist["items"]:
-        deadline_data = patient.get("deadline")
-        deadline_value = deadline_data.get("deadline") if isinstance(deadline_data, dict) else deadline_data
-        if isinstance(deadline_value, str):
-            try:
-                deadline_value = datetime.fromisoformat(deadline_value.replace("Z", "+00:00"))
-            except ValueError:
-                continue
-        if not isinstance(deadline_value, datetime):
-            continue
-        if deadline_value.tzinfo is None:
-            deadline_value = deadline_value.replace(tzinfo=timezone.utc)
-        if deadline_value.astimezone().date() == local_today:
-            patients_due_today += 1
+    # Dashboard totals use persisted workflow deadlines. Do not build the
+    # complete patient worklist here: that recalculates a deadline for every
+    # patient and is unnecessary for these aggregate counts.
+    patient_count = db.query(Patient.patient_id).count()
+    local_now = datetime.now().astimezone()
+    start_of_today = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_tomorrow = start_of_today + timedelta(days=1)
+    patients_due_today = {
+        row[0]
+        for row in (
+            db.query(Candidate.patient_id)
+            .filter(
+                Candidate.deadline >= start_of_today,
+                Candidate.deadline < start_of_tomorrow,
+            )
+            .all()
+        )
+    }
+    patients_due_today.update(
+        row[0]
+        for row in (
+            db.query(Candidate.patient_id)
+            .join(Case, Case.candidate_id == Candidate.candidate_id)
+            .filter(
+                Case.deadline >= start_of_today,
+                Case.deadline < start_of_tomorrow,
+            )
+            .all()
+        )
+    )
 
     reported_case_ids = (
         db.query(Submission.case_id.label("case_id"))
@@ -97,9 +109,9 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         needs_review=needs_review,
         submitted_cases=submitted_cases,
         upcoming_deadlines=upcoming_deadlines,
-        total_patients=patient_worklist["total"],
+        total_patients=patient_count,
         active_cases=active_cases,
-        patients_due_today=patients_due_today,
+        patients_due_today=len(patients_due_today),
         reported_cases=reported_cases,
     )
 

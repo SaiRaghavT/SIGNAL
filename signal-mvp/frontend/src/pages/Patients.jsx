@@ -65,8 +65,11 @@ export default function Patients() {
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showLoadingAnimation, setShowLoadingAnimation] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [filters, setFilters] = useState({ search: "", condition: "" });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -79,6 +82,7 @@ export default function Patients() {
         const response = await listCanonicalPatients({
           page,
           page_size: PAGE_SIZE,
+          ...filters,
           signal: controller.signal,
         });
         if (active) setResult(response);
@@ -94,12 +98,48 @@ export default function Patients() {
       active = false;
       controller.abort();
     };
-  }, [page, refreshKey]);
+  }, [page, refreshKey, filters]);
+
+  useEffect(() => {
+    if (!loading) {
+      setShowLoadingAnimation(true);
+      return undefined;
+    }
+    setShowLoadingAnimation(true);
+    const timer = window.setTimeout(() => setShowLoadingAnimation(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   const visiblePatients = Array.isArray(result?.items) ? result.items : [];
   const totalPages = result?.pages || 0;
   const firstVisiblePatient = result?.total ? (page - 1) * PAGE_SIZE + 1 : 0;
   const lastVisiblePatient = Math.min(page * PAGE_SIZE, result?.total || 0);
+  const conditionOptions = Array.isArray(result?.conditions) ? result.conditions : [];
+
+  function applyFilters(event) {
+    event.preventDefault();
+    setPage(1);
+    setFilters((current) => ({ ...current, search: searchInput.trim() }));
+  }
+
+  function updateSearch(value) {
+    setSearchInput(value);
+    setPage(1);
+    setFilters((current) => ({ ...current, search: value.trim() }));
+  }
+
+  function updateFilter(key, value) {
+    setPage(1);
+    setFilters((current) => ({ ...current, [key]: value }));
+  }
+
+  function clearFilters() {
+    setSearchInput("");
+    setFilters({ search: "", condition: "" });
+    setPage(1);
+  }
+
+  const hasFilters = Object.values(filters).some(Boolean);
 
   return (
     <section className="patients-page">
@@ -118,8 +158,33 @@ export default function Patients() {
       </PageHeader>
 
       <div className="patients-card">
+        <form className="patients-filters" onSubmit={applyFilters}>
+          <label className="patients-filter-search">
+            <span>Search patients</span>
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) => updateSearch(event.target.value)}
+              placeholder="Name or patient ID"
+            />
+          </label>
+          <label>
+            <span>Condition</span>
+            <input
+              type="search"
+              value={filters.condition}
+              onChange={(event) => updateFilter("condition", event.target.value)}
+              placeholder="Type a condition"
+              aria-label="Filter patients by condition"
+            />
+          </label>
+          <div className="patients-filter-actions">
+            <button className="patients-filter-apply" type="submit">Search</button>
+            {hasFilters && <button className="patients-filter-clear" type="button" onClick={clearFilters}>Clear</button>}
+          </div>
+        </form>
         {loading ? (
-          <SignalLoading title="Loading patients..." message="Retrieving patient records." />
+          <SignalLoading title="Loading patients..." message="Retrieving patient records." animate={showLoadingAnimation} />
         ) : error ? (
           <div className="patients-error" role="alert">
             <p>Unable to load patients.</p>
@@ -129,6 +194,7 @@ export default function Patients() {
         ) : visiblePatients.length === 0 ? (
           <div className="patients-empty">
             <strong>No patients found</strong>
+            {hasFilters && <button className="patients-filter-clear" type="button" onClick={clearFilters}>Clear filters</button>}
           </div>
         ) : (
           <>
@@ -154,7 +220,12 @@ export default function Patients() {
                         <td>{formatCondition(patient.condition) || EMPTY_VALUE}</td>
                         <td>{formatDate(patient.last_encounter)}</td>
                         <td title={patient.deadline_reason || undefined}>
-                          <span className="patient-deadline-value">{formatDeadline(patient.deadline?.deadline)}</span>
+                          {patient.deadline?.reporting_timeline && (
+                            <span className="patient-deadline-state">{patient.deadline.reporting_timeline}</span>
+                          )}
+                          {patient.deadline?.deadline && (
+                            <span className="patient-deadline-value">{formatDeadline(patient.deadline.deadline)}</span>
+                          )}
                           {patient.deadline?.deadline_status && (
                             <span className="patient-deadline-state">
                               {patient.deadline.deadline_status}
