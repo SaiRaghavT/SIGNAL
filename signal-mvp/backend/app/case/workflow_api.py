@@ -84,10 +84,23 @@ def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_d
         raise HTTPException(status_code=409, detail="An approved review is required before queueing.")
     if attestation is None or attestation.status != "ATTESTED":
         raise HTTPException(status_code=409, detail="A persisted attestation is required before queueing.")
+    # Submission mode comes from backend case classification, never a
+    # Clinical Staff selection. Preserve explicit existing modes; classify
+    # the configured Texas immediate measles rule only when the case is ready.
+    if not case.submission_mode and getattr(case, "rule_id", None) == "TX-MEASLES-IMMEDIATE":
+        case.submission_mode = "IMMEDIATE"
+        db.commit()
     latest = _latest(db, case_id, ADMIN_QUEUE_TYPE)
     if latest and latest.status in {"QUEUED", "READY_FOR_SUBMISSION"}:
         return {"case_id": str(case_id), "queue_status": latest.status, "submission_mode": case.submission_mode}
-    row = _record(db, case_id, ADMIN_QUEUE_TYPE, "QUEUED", {"submission_mode": case.submission_mode}, request.actor_id.strip())
+    row = _record(
+        db,
+        case_id,
+        ADMIN_QUEUE_TYPE,
+        "READY_FOR_SUBMISSION",
+        {"submission_mode": case.submission_mode},
+        request.actor_id.strip(),
+    )
     return {"case_id": str(case_id), "queue_status": row.status, "submission_mode": case.submission_mode, "queued_at": row.created_at}
 
 

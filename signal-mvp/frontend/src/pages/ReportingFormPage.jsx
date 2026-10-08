@@ -158,15 +158,6 @@ export default function ReportingFormPage() {
     ]);
     let data = responseData(caseResponse);
     const definition = responseData(formResponse);
-    const fieldsToReset = REPORTING_MISSING_INFO_FIELDS.filter((field) =>
-      hasRequiredValue(data?.report_fields?.[field]),
-    );
-    if (fieldsToReset.length) {
-      await updateCaseReport(caseId, {
-        report_fields: Object.fromEntries(fieldsToReset.map((field) => [field, ""])),
-      });
-      data = responseData(await getCase(caseId));
-    }
     setCaseData(data);
     setFormDefinition(definition);
     const initialValues = Object.fromEntries(toList(definition?.fields).map((field) => [

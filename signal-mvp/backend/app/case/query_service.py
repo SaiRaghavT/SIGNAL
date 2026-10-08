@@ -11,6 +11,7 @@ from backend.app.models.workflow_records import CaseWorkflowRecord
 from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
 from backend.app.agents.deadline_escalation.service import DeadlineEscalationService
 from backend.app.case.workflow_api import _validation
+from backend.app.demo.synthetic_jordan_reporting import apply_synthetic_jordan_reporting_defaults
 from .report_fields import available_case_report_fields, missing_report_fields
 
 from .schemas import CaseDetailResponse, CaseListItem, CaseListResponse
@@ -20,6 +21,13 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
     case = db.query(Case).filter(Case.case_id == case_id).first()
     if case is None:
         return None
+
+    # Normalize the checked-in synthetic Jordan fixture into its Case record
+    # before returning it to Clinical Staff. The helper is exact-case scoped
+    # and idempotent, so opening the form never creates another Case.
+    if apply_synthetic_jordan_reporting_defaults(case):
+        db.commit()
+        db.refresh(case)
 
     report_fields = available_case_report_fields(case)
     missing_fields, required_missing_fields = missing_report_fields(report_fields)

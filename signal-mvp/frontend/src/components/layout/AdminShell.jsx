@@ -9,7 +9,6 @@ import {
   LogOut,
   ShieldCheck,
 } from "lucide-react";
-import { clearAdminQueueEntries } from "../../utils/adminQueueLocalStorage.js";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
 import {
   clearAdminSessionSubmissions,
@@ -145,7 +144,6 @@ export default function AdminShell() {
       return;
     }
 
-    clearAdminQueueEntries();
     clearClinicalInformationRequests();
     clearTemporaryWorkflowValues();
     sessionStorage.clear();

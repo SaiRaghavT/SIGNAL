@@ -5,9 +5,7 @@ import {
   dispatchCase,
   getAdminQueueCase,
 } from "../../services/adminService.js";
-import { queueCase } from "../../api/workflow.js";
 import { ensureSubmissionFollowUp } from "../../api/followups.js";
-import { removeAdminQueueEntry } from "../../utils/adminQueueLocalStorage.js";
 import { upsertClinicalInformationRequest } from "../../utils/clinicalInformationRequests.js";
 import { demoPatientName } from "../../utils/adminDemoPatientNames.js";
 import "../../styles/AdminIndividualReview.css";
@@ -348,17 +346,6 @@ export default function AdminIndividualReview() {
       setSubmitting(true);
       setError("");
 
-      // The POC handoff lives in localStorage. The unchanged backend dispatch
-      // gate still requires a queue record, so create it only when Admin
-      // authorizes dispatch, using the Case's existing mode without a default.
-      const handoff = await queueCase(caseId, {
-        actor_id: "signal-admin",
-        submission_mode: caseData?.raw?.submission_mode ?? null,
-      });
-      if (!["QUEUED", "READY_FOR_SUBMISSION"].includes(handoff?.queue_status)) {
-        throw new Error("The case could not be prepared for Admin dispatch.");
-      }
-
       const dispatchResponse = await dispatchCase(caseId);
       const submissionResponse = dispatchResponse?.submission
         || dispatchResponse?.data?.submission
@@ -373,7 +360,6 @@ export default function AdminIndividualReview() {
         || submissionResponse?.submissionId
         || dispatchResponse?.submission_id
         || dispatchResponse?.data?.submission_id;
-      removeAdminQueueEntry(caseId);
       if (!submissionId) {
         throw new Error("Submission succeeded, but the dispatch response did not include a submission ID.");
       }

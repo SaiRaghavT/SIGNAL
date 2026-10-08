@@ -59,66 +59,7 @@ const readable = (value) => {
   return String(value);
 };
 
-const DEMO_REVIEW_SAMPLE = {
-  patient: {
-    first_name: "Taylor",
-    last_name: "Reed",
-    date_of_birth: "1990-04-12",
-  },
-  condition: "Measles",
-  jurisdiction: "Texas",
-  facility: "Demo County Health Clinic",
-  provider: "Demo Reporting Provider",
-  reportability: "REPORT",
-  ruleId: "DEMO-RULE-001",
-  deadline: "2026-10-14T00:00:00Z",
-  reportFields: {
-    "patient.case_name": "Taylor Reed",
-    "patient.current_address": "100 Example Street",
-    "patient.city": "Austin",
-    "patient.county": "Travis",
-    "patient.zip": "78701",
-    "patient.date_of_birth": "1990-04-12",
-    "patient.sex": "Unknown",
-    "patient.country_of_residence": "United States",
-    "patient.hispanic": "No",
-    "patient.race": "Unknown",
-    "clinical.hospitalized": "No",
-    "clinical.icu_admission": "No",
-    "clinical.admission_date": "Not applicable",
-    "clinical.discharge_date": "Not applicable",
-    "clinical.hospital": "Not applicable",
-    "clinical.illness_onset_date": "2026-09-20",
-    "clinical.diagnosis_date": "2026-09-22",
-    "clinical.diagnosis": "Measles",
-    "clinical.confirmation_method": "Laboratory confirmed",
-    "laboratory.igm": "Positive",
-    "laboratory.igg": "Positive",
-    "laboratory.pcr": "Positive",
-    "laboratory.culture": "Not performed",
-    "rash_fever.rash": "Yes",
-    "rash_fever.rash_location": "Face and trunk",
-    "rash_fever.rash_onset_date": "2026-09-21",
-    "rash_fever.rash_duration": "3 days",
-    "rash_fever.fever": "Yes",
-    "rash_fever.fever_onset_date": "2026-09-20",
-    "rash_fever.highest_temperature": "39 °C",
-    "rash_fever.cough": "Yes",
-    "rash_fever.coryza": "Yes",
-    "rash_fever.conjunctivitis": "Yes",
-    "rash_fever.koplik_spots": "No",
-    "reporting.agency": "Demo County Health",
-    "reporting.reported_by": "Demo Clinical Staff",
-    "reporting.email": "clinical.staff@example.test",
-    "reporting.phone": "555-0100",
-    "reporting.earliest_date_reported": "2026-09-22",
-    "reporting.investigated_by": "Demo Clinical Staff",
-    "reporting.investigating_agency": "Demo County Health",
-    "reporting.investigating_agency_email": "investigation@example.test",
-    "reporting.investigating_agency_phone": "555-0101",
-    "reporting.investigation_start_date": "2026-09-23",
-  },
-};
+const DEMO_REVIEW_SAMPLE = { patient: {}, reportFields: {} };
 
 const hasValue = (value) =>
   value !== null &&
@@ -468,9 +409,7 @@ export default function CaseWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const [demoReviewPreview, setDemoReviewPreview] = useState(false);
-  const [demoReviewConfirmed, setDemoReviewConfirmed] = useState(false);
-  const [demoAttestationConfirmed, setDemoAttestationConfirmed] = useState(false);
+  const demoReviewPreview = false;
 
   const [reviewDecision, setReviewDecision] =
     useState("APPROVE");
@@ -952,64 +891,19 @@ export default function CaseWorkspacePage() {
 
 
   async function submitToQueue() {
-    if (demoReviewPreview) {
-      setError("");
-      const patientId = routePatientId || data?.patient?.patient_id || data?.patient_id;
-      const queuePath = patientId
-        ? `/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}/queue`
-        : `/cases/${encodeURIComponent(caseId)}/queue`;
-      navigate(queuePath, { state: { demoSubmission: true } });
-      return;
-    }
     if (!caseId || busy) return;
     setBusy("queue");
     setError("");
     try {
       const reviewer = currentReviewer();
-      const caseSnapshot = await getCase(caseId);
-      const queueResult = await queueCase(caseId, { actor_id: reviewer.id, submission_mode: caseSnapshot?.submission_mode ?? null });
-      const storedPatient = caseSnapshot?.patient || {};
-      const diagnosis = caseSnapshot?.clinical_evidence?.diagnosis
-        || caseSnapshot?.report_fields?.["clinical.diagnosis"]
-        || caseSnapshot?.disease
-        || null;
-      const condition = typeof diagnosis === "string" && diagnosis.includes("|")
-        ? (diagnosis.split("|").at(-1) === "14189004" ? "Measles" : diagnosis)
-        : diagnosis;
-      const handoff = {
-        case_id: caseId,
-        patient: {
-          patient_id: storedPatient.patient_id || data?.patient?.patient_id || data?.patient_id,
-          name: storedPatient.name || [storedPatient.first_name, storedPatient.last_name].filter(Boolean).join(" "),
-          first_name: storedPatient.first_name,
-          last_name: storedPatient.last_name,
-          state: storedPatient.state,
-        },
-        condition,
-        jurisdiction: caseSnapshot?.jurisdiction || null,
-        deadline: caseSnapshot?.deadline || null,
-        priority: caseSnapshot?.severity || null,
-        case_status: caseSnapshot?.final_decision || caseSnapshot?.status || null,
-        reportability: caseSnapshot?.reportability_decision || null,
-        review_status: review?.status || "APPROVE",
-        attestation_status: attestation?.status || "ATTESTED",
-        submission_mode: caseSnapshot?.submission_mode ?? null,
-        queue_status: "QUEUED",
-        submission_status: null,
-        missing_information: [],
-        available_actions: ["review"],
-        queued_at: new Date().toISOString(),
-        source: "CLINICAL_STAFF_POC",
-      };
-      if (queueResult?.record?.status === "READY") {
-        resolveClinicalInformationRequest(caseId);
-        setAdminInformationRequest(null);
-      }
+      const queueResult = await queueCase(caseId, { actor_id: reviewer.id });
+      resolveClinicalInformationRequest(caseId);
+      setAdminInformationRequest(null);
       const patientId = routePatientId || data?.patient?.patient_id || data?.patient_id;
       const queuePath = patientId
         ? `/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}/queue`
         : `/cases/${encodeURIComponent(caseId)}/queue`;
-      navigate(queuePath, { state: { queueResult, adminQueueHandoff: handoff } });
+      navigate(queuePath, { state: { queueResult } });
     } catch (requestError) {
       const detail = requestError?.data?.detail;
       const validation = detail?.validation;
@@ -1022,7 +916,7 @@ export default function CaseWorkspacePage() {
         ? ` Complete these required fields first: ${uniqueIncompleteFields.join("; ")}`
         : "";
       setError(
-        `${typeof detail === "string" ? detail : detail?.message || requestError?.message || "Unable to confirm queue readiness."}${validationMessage}`
+        `${typeof detail === "string" ? detail : detail?.message || requestError?.message || "Unable to submit the case to the Admin queue."}${validationMessage}`
       );
     } finally {
       setBusy("");

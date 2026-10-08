@@ -66,7 +66,13 @@ class FakeSession:
 
 def test_review_and_attestation_are_persisted_and_used_for_readiness(monkeypatch):
     case_id = uuid4()
-    case = SimpleNamespace(case_id=case_id, status="NEEDS_REVIEW", submission_mode="INDIVIDUAL", deadline=None)
+    case = SimpleNamespace(
+        case_id=case_id,
+        status="NEEDS_REVIEW",
+        submission_mode=None,
+        rule_id="TX-MEASLES-IMMEDIATE",
+        deadline=None,
+    )
     session = FakeSession(case)
     monkeypatch.setattr(
         "backend.app.case.workflow_api._validation",
@@ -136,23 +142,22 @@ def test_review_and_attestation_are_persisted_and_used_for_readiness(monkeypatch
 
         queue_response = client.post(
             f"/api/cases/{case_id}/queue",
-            json={
-                "actor_id": "clinical-staff@example.org",
-                "submission_mode": "INDIVIDUAL",
-            },
+            json={"actor_id": "clinical-staff@example.org"},
         )
         assert queue_response.status_code == 201
-        assert queue_response.json()["queue_status"] == "QUEUED"
-        assert queue_response.json()["submission_mode"] == "INDIVIDUAL"
-        assert case.submission_mode == "INDIVIDUAL"
+        assert queue_response.json()["queue_status"] == "READY_FOR_SUBMISSION"
+        assert queue_response.json()["submission_mode"] == "IMMEDIATE"
+        assert case.submission_mode == "IMMEDIATE"
 
         repeated_handoff = client.post(
             f"/api/cases/{case_id}/queue",
             json={"actor_id": "clinical-staff@example.org"},
         )
         assert repeated_handoff.status_code == 201
-        assert repeated_handoff.json()["submission_mode"] == "INDIVIDUAL"
+        assert repeated_handoff.json()["queue_status"] == "READY_FOR_SUBMISSION"
+        assert repeated_handoff.json()["submission_mode"] == "IMMEDIATE"
         assert sum(row.record_type == "ADMIN_QUEUE" for row in session.records[CaseWorkflowRecord]) == 1
+        assert session.records[CaseWorkflowRecord][-1].status == "READY_FOR_SUBMISSION"
 
         monkeypatch.setattr(
             "backend.app.admin.router._case_payload",

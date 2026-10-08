@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, ChevronDown, Clock3, FileCheck2, Layers3, RefreshCw } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { dispatchAdminBatch, getAdminBatch, getAdminQueueCase } from "../../services/adminService.js";
-import { removeAdminQueueEntry } from "../../utils/adminQueueLocalStorage.js";
 import "../../styles/AdminBatchReview.css";
 
 const DASH = "—";
@@ -160,12 +159,11 @@ export default function AdminBatchReview() {
       const response = await dispatchAdminBatch(batchId);
       const normalizedResults = normalizeDispatchResult(response, caseIdsOf(batch));
       const confirmedSuccesses = normalizedResults.filter((item) => String(item?.status || "").toUpperCase() === "SUBMITTED");
-      confirmedSuccesses.forEach((item) => removeAdminQueueEntry(item.case_id));
       const result = { ...response, results: normalizedResults };
       setDispatchResult(result);
       setBatch((current) => ({ ...current, ...response }));
     } catch (dispatchError) {
-      setError(dispatchError?.message || "Batch dispatch failed. Local queue entries were retained.");
+      setError(dispatchError?.message || "Batch dispatch failed. The database queue record is still available for review.");
     } finally {
       setDispatching(false);
     }
