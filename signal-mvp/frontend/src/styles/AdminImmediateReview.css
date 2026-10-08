@@ -37,8 +37,15 @@
 .admin-immediate-summary-item > strong { display: flex; align-items: center; gap: 5px; color: #203d56; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
 .severity-urgent { color: #b74736 !important; }
 
-.admin-immediate-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(310px, 340px); align-items: start; gap: 16px; }
-.admin-immediate-main { display: flex; min-width: 0; flex-direction: column; gap: 12px; }
+.admin-immediate-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 14px; }
+.admin-immediate-main { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
+.admin-immediate-section-row { display: flex; min-width: 0; min-height: 62px; align-items: center; gap: 12px; padding: 10px 15px; border: 1px solid #dbe2e9; border-radius: 7px; background: #fff; }
+.admin-immediate-section-check { display: grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #e8f4ec; color: #398357; font-size: 12px; font-weight: 800; line-height: 1; }
+.admin-immediate-section-check.is-warning { background: #fff3df; color: #a76a11; }
+.admin-immediate-section-row .admin-immediate-section-number { width: auto; height: auto; padding: 0; background: transparent; color: #8b98a5; font-size: 11px; }
+.admin-immediate-section-copy { min-width: 0; }
+.admin-immediate-section-row h2 { margin: 0; color: #17324d; font-size: 14px; font-weight: 700; line-height: 1.3; }
+.admin-immediate-section-row p { margin: 3px 0 0; color: #82909d; font-size: 11px; line-height: 1.35; }
 .admin-immediate-card { min-width: 0; border: 1px solid #dbe2e9; border-radius: 8px; background: #fff; overflow: hidden; }
 .admin-immediate-card-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 15px; border-bottom: 1px solid #e5eaf0; }
 .admin-immediate-card-header > div { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -74,15 +81,11 @@
 .validation-icon { display: flex; flex: 0 0 auto; color: #247749; }
 .admin-immediate-validation strong { display: block; margin-bottom: 4px; color: #286a43; font-size: 12px; }
 .admin-immediate-validation span { color: #5d7e68; font-size: 11px; }
-.admin-immediate-sidebar { position: sticky; top: 18px; display: grid; gap: 12px; min-width: 0; }
-.admin-immediate-action-card { padding: 17px; border: 1px solid #dbe2e9; border-radius: 8px; background: #fff; }
-.admin-immediate-action-icon { display: grid; width: 43px; height: 43px; place-items: center; margin-bottom: 16px; border-radius: 7px; background: #fff1e9; color: #d45e32; }
+.admin-immediate-sidebar { position: static; display: grid; gap: 12px; min-width: 0; }
+.admin-immediate-action-card { width: 100%; max-width: 560px; padding: 16px; border: 1px solid #dbe2e9; border-radius: 8px; background: #fff; }
+.admin-immediate-action-icon { display: grid; width: 34px; height: 34px; place-items: center; margin-bottom: 10px; border-radius: 7px; background: #fff1e9; color: #d45e32; }
 .admin-immediate-action-card h2 { margin: 5px 0 9px; color: #153b5b; font-size: 19px; line-height: 1.35; }
 .admin-immediate-action-card > p { margin: 0 0 19px; color: #647a90; font-size: 13px; line-height: 1.6; }
-.admin-immediate-action-details { margin-bottom: 18px; border-top: 1px solid #e5eaf0; }
-.admin-immediate-action-details > div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #edf0f3; }
-.admin-immediate-action-details span { flex: 0 0 auto; color: #71859a; font-size: 11px; }
-.admin-immediate-action-details strong { max-width: 65%; color: #29455d; font-size: 11px; text-align: right; overflow-wrap: anywhere; }
 .authorize-submit-button { display: flex; width: 100%; min-height: 46px; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 6px; background: #e66c3d; color: #fff; font-size: 11px; font-weight: 850; letter-spacing: .025em; cursor: pointer; }
 .authorize-submit-button:hover:not(:disabled) { background: #ce592f; }
 .authorize-submit-button:disabled { cursor: wait; opacity: .65; }
@@ -98,8 +101,7 @@
 }
 
 @media (max-width: 1120px) {
-  .admin-immediate-grid { grid-template-columns: 1fr; }
-  .admin-immediate-sidebar { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .admin-immediate-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 700px) {
