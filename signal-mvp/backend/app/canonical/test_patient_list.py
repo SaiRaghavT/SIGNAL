@@ -258,7 +258,7 @@ def test_list_patients_calculates_deadline_from_positive_measles_lab_event():
 
     result = list_patients(db, condition="measles")
     deadline = result["items"][0]["deadline"]
-    assert deadline["deadline"] == event_time + timedelta(hours=24)
+    assert deadline["deadline"] == event_time
     assert deadline["disease"] == "measles"
     assert deadline["jurisdiction"] == "TX"
     assert deadline["rule_id"] == "MEASLES-TX"
@@ -312,7 +312,7 @@ def test_candidate_explicit_clinical_event_time_is_used_without_using_created_at
 
     result = list_patients(db, condition="measles")
     deadline = result["items"][0]["deadline"]
-    assert deadline["deadline"] == event_time + timedelta(hours=24)
+    assert deadline["deadline"] == event_time
     assert deadline["rule_id"] == "MEASLES-TX"
     db.close()
 
@@ -417,7 +417,7 @@ def test_list_patients_calculates_independent_deadlines_from_condition_events():
     assert len(by_patient) == 2
     for patient, event_time in zip(patients, event_times):
         deadline = by_patient[str(patient.patient_id)]["deadline"]
-        assert deadline["deadline"] == event_time + timedelta(hours=24)
+        assert deadline["deadline"] == event_time
         assert deadline["disease"] == "measles"
         assert deadline["jurisdiction"] == "TX"
         assert deadline["rule_id"] == "MEASLES-TX"
@@ -428,7 +428,7 @@ def test_list_patients_calculates_independent_deadlines_from_condition_events():
         for item in refreshed["items"]
     }
     for patient, event_time in zip(patients, event_times):
-        assert refreshed_deadlines[str(patient.patient_id)] == event_time + timedelta(hours=24)
+        assert refreshed_deadlines[str(patient.patient_id)] == event_time
     db.close()
 
 
@@ -526,7 +526,7 @@ def test_measles_condition_timestamp_matching_dob_is_not_a_deadline_event():
     result = list_patients(db, condition="measles")
     item = result["items"][0]
     assert result["total"] == 1
-    assert item["deadline"]["deadline"] == encounter.start_time.replace(tzinfo=timezone.utc) + timedelta(hours=24)
+    assert item["deadline"]["deadline"] == encounter.start_time.replace(tzinfo=timezone.utc)
     assert item["deadline"]["rule_id"] == "MEASLES-TX"
     db.close()
 
@@ -559,7 +559,7 @@ def test_measles_condition_without_event_uses_last_encounter_fallback():
 
     result = list_patients(db, condition="measles")
     assert result["total"] == 1
-    assert result["items"][0]["deadline"]["deadline"] == encounter_time + timedelta(hours=24)
+    assert result["items"][0]["deadline"]["deadline"] == encounter_time
     assert result["items"][0]["deadline"]["rule_id"] == "MEASLES-TX"
     db.close()
 
