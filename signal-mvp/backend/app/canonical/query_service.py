@@ -446,17 +446,34 @@ def _patient_deadline(
         return None, "Jurisdiction could not be resolved from patient, facility, or workflow data."
     jurisdiction = "TX" if jurisdiction.strip().casefold() == "texas" else jurisdiction
 
+    # The dashboard and patient worklist share this deadline calculation. Keep
+    # the case's persisted rule selection authoritative when one is available;
+    # otherwise let the deadline service resolve the rule from disease and
+    # jurisdiction as it does for other canonical patient data.
+    rule_id = case.rule_id if case else None
+    try:
+        rule = deadline_calculation_service._load_rule(
+            disease=disease,
+            jurisdiction=jurisdiction,
+            rule_id=rule_id,
+        )
+    except ValueError:
+        rule = None
+    if rule is not None:
+        rule_id = rule.get("rule_id")
+    reporting = rule.get("reporting", {}) if rule else {}
+
     persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
     if persisted_deadline is not None and last_encounter is None:
-        reporting = rule.get("reporting", {})
-        current_state = DeadlineEscalationService().evaluate_current_state(
-            persisted_deadline,
-            rule,
+        current_state = (
+            DeadlineEscalationService().evaluate_current_state(persisted_deadline, rule)
+            if rule
+            else {"urgency": None, "minutes_remaining": None}
         )
         return {
             "deadline": None,
             "status": "SEE_RULES",
-            "calculation_basis": rule.get("instructions") or "Follow the condition-specific Texas reporting rules.",
+            "calculation_basis": (rule.get("instructions") if rule else None) or "Follow the condition-specific Texas reporting rules.",
             "disease": disease,
             "jurisdiction": jurisdiction,
             "rule_id": rule_id,
@@ -506,10 +523,10 @@ def _patient_deadline(
                 "disease": disease,
                 "jurisdiction": jurisdiction,
                 "rule_id": rule_id,
-                "reporting_timing": reporting.get("timing"),
+                "reporting_timing": reporting.get("timing") if rule else None,
                 "reporting_method": reporting.get("method"),
-                "effective_year": rule.get("effective_year"),
-                "source_url": rule.get("source_url"),
+                "effective_year": rule.get("effective_year") if rule else None,
+                "source_url": rule.get("source_url") if rule else None,
                 **_deadline_time_metadata(persisted_deadline),
             }, None
         return None, "No clinical event or encounter timestamp is available to calculate a reporting deadline."

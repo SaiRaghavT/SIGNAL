@@ -7,6 +7,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql import operators
 
 from backend.app.database import get_db
+from backend.app.canonical.query_service import _patient_deadline
 from backend.app.main import app
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
@@ -154,6 +155,46 @@ def test_dashboard_summary_returns_zero_for_empty_database():
         "submitted_cases": 0,
         "upcoming_deadlines": 0,
     }
+
+
+def test_dashboard_patient_deadline_uses_persisted_case_rule_id():
+    patient_id = uuid4()
+    patient = SimpleNamespace(
+        patient_id=patient_id,
+        source_patient_id="patient-1",
+        first_name="Jordan",
+        last_name="Smith",
+        date_of_birth=None,
+        sex=None,
+        address_line=None,
+        city=None,
+        county=None,
+        state="TX",
+        postal_code=None,
+        source="test",
+        source_resource="Patient",
+    )
+    case = SimpleNamespace(
+        disease="measles",
+        jurisdiction="TX",
+        jurisdiction_status="RESOLVED",
+        rule_id="MEASLES-TX",
+        deadline=None,
+        clinical_evidence={"event_time": "2026-01-15T12:00:00+00:00"},
+        laboratory_evidence={},
+    )
+
+    deadline, reason = _patient_deadline(
+        patient=patient,
+        conditions=[],
+        lab_results=[],
+        candidate=None,
+        case=case,
+    )
+
+    assert reason is None
+    assert deadline["rule_id"] == "MEASLES-TX"
+    assert deadline["status"] != "NO_RULE"
 
 
 def test_dashboard_work_items_include_the_latest_patient_encounter():
