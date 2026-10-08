@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { CalendarClock, FileCheck2, HeartPulse, MapPin } from "lucide-react";
+import { CalendarClock, FileCheck2, HeartPulse, MapPin, UserRound } from "lucide-react";
 import { getAdminQueueCase, getAdminSubmission } from "../../services/adminService.js";
 import "../../styles/AdminSubmissionJourney.css";
 
@@ -75,17 +75,27 @@ function getPatientName(submission) {
     submission?.case?.patient_name
   );
 
-  if (fullName) return fullName;
+  if (fullName && typeof fullName === "object") {
+    const displayName = firstValue(fullName.text, fullName.display, fullName.name);
+    const nameParts = [fullName.given, fullName.family].filter(Boolean).join(" ");
+    if (displayName || nameParts) return displayName || nameParts;
+  } else if (fullName) {
+    return fullName;
+  }
 
   const firstName = firstValue(
     patient?.first_name,
+    patient?.given_name,
     submission?.first_name,
+    submission?.given_name,
     submission?.case?.first_name
   );
 
   const lastName = firstValue(
     patient?.last_name,
+    patient?.family_name,
     submission?.last_name,
+    submission?.family_name,
     submission?.case?.last_name
   );
 
@@ -96,6 +106,21 @@ function getPatientName(submission) {
 
 function getCondition(submission) {
   return submission?.disease;
+}
+
+function getPatientField(submission, caseData, ...keys) {
+  const casePatient = caseData?.patient || {};
+  const submissionPatient = submission?.patient || submission?.case?.patient || {};
+  for (const key of keys) {
+    const value = firstValue(
+      casePatient?.[key],
+      submissionPatient?.[key],
+      caseData?.[key],
+      submission?.[key]
+    );
+    if (value !== undefined) return displayValue(value);
+  }
+  return "—";
 }
 
 function conditionLabel(value) {
@@ -351,7 +376,11 @@ export default function AdminSubmissionJourney() {
     ? submission.acknowledgement.requested_fields
     : [];
 
-  const patientName = getPatientName(submission || {});
+  const patientDetails = {
+    ...(submission || {}),
+    ...(caseData || {}),
+    patient: caseData?.patient || submission?.patient || submission?.case?.patient,
+  };
   const condition = getCondition(submission || {});
   const caseId = getCaseId(submission || null);
   const destination = getDestination(submission || {});
@@ -416,9 +445,9 @@ export default function AdminSubmissionJourney() {
           <button
             type="button"
             className="journey-back-button"
-            onClick={() => navigate("/admin/submissions")}
+            onClick={() => navigate("/admin/queue")}
           >
-            ← Back to Submissions
+            {"\u2190 Back to Reporting Queue"}
           </button>
           <h1>Submission Journey</h1>
         </div>
@@ -439,9 +468,9 @@ export default function AdminSubmissionJourney() {
           <button
             type="button"
             className="journey-back-button"
-            onClick={() => navigate("/admin/submissions")}
+            onClick={() => navigate("/admin/queue")}
           >
-            ← Back to Submissions
+            {"\u2190 Back to Reporting Queue"}
           </button>
           <h1>Submission Journey</h1>
         </div>
@@ -460,9 +489,9 @@ export default function AdminSubmissionJourney() {
         <button
           type="button"
           className="journey-back-button"
-          onClick={() => navigate("/admin/submissions")}
+          onClick={() => navigate("/admin/queue")}
         >
-          ← Back to Submissions
+          {"\u2190 Back to Reporting Queue"}
         </button>
 
         <div className="journey-title-row">
@@ -493,6 +522,23 @@ export default function AdminSubmissionJourney() {
             <small>{subtitle}</small>
           </article>
         ))}
+      </section>
+      <section className="journey-person-card" aria-labelledby="journey-person-title">
+        <div className="journey-person-heading">
+          <UserRound size={18} aria-hidden="true" />
+          <div>
+            <span className="journey-section-label">PATIENT &amp; CASE INFORMATION</span>
+            <h2 id="journey-person-title">Core patient and reporting information.</h2>
+          </div>
+        </div>
+        <div className="journey-person-fields">
+          <div><span>Patient Name</span><strong>{getPatientName(patientDetails)}</strong></div>
+          <div><span>Date of Birth</span><strong>{getPatientField(submission, caseData, "date_of_birth", "dateOfBirth", "dob")}</strong></div>
+          <div><span>Sex</span><strong>{getPatientField(submission, caseData, "sex")}</strong></div>
+          <div><span>Condition</span><strong>{conditionValue}</strong></div>
+          <div><span>Jurisdiction</span><strong>{jurisdictionValue}</strong></div>
+          <div><span>Submission Mode</span><strong>{displayValue(caseData?.submission_mode || submissionMode)}</strong></div>
+        </div>
       </section>
       <section className="journey-section">
         <div className="journey-section-heading">
@@ -558,11 +604,6 @@ export default function AdminSubmissionJourney() {
           </div>
 
           <div className="journey-panel-row">
-            <span>Patient</span>
-            <strong>{patientName}</strong>
-          </div>
-
-          <div className="journey-panel-row">
             <span>Destination</span>
             <strong>{destination || "—"}</strong>
           </div>
@@ -602,11 +643,6 @@ export default function AdminSubmissionJourney() {
             <div>
               <span>Destination</span>
               <strong>{destination || "—"}</strong>
-            </div>
-
-            <div>
-              <span>Mode</span>
-              <strong>{submissionMode || "—"}</strong>
             </div>
 
             <div>
