@@ -1557,3 +1557,68 @@
       "attestation";
   }
 }
+
+/* Keep the case review panels visibly grouped at every browser zoom level. */
+.main-content > .review-validation-page {
+  width: min(100%, 1180px);
+  max-width: 1180px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.review-validation-page .review-validation-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "summary reporting"
+    "human attestation";
+  align-items: stretch;
+  gap: 14px;
+}
+
+.review-validation-page .review-validation-left,
+.review-validation-page .review-validation-right {
+  display: contents;
+}
+
+.review-validation-page .review-validation-card {
+  min-width: 0;
+  border: 1px solid #dce4eb;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(21 58 91 / 7%);
+  overflow: hidden;
+}
+
+.review-validation-page .review-validation-case-summary-card { grid-area: summary; }
+.review-validation-page .review-validation-reporting-data { grid-area: reporting; }
+.review-validation-page .review-validation-human-card { grid-area: human; }
+.review-validation-page .review-validation-attestation-card { grid-area: attestation; }
+
+.review-validation-page .review-validation-card-header {
+  padding: 15px 16px 12px;
+  border-bottom: 1px solid #e6ebf0;
+}
+
+.review-validation-page .review-validation-decision-option {
+  border-color: #dce4eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.review-validation-page .review-validation-comment-field textarea {
+  min-height: 78px;
+  border: 1px solid #dce4eb;
+  border-radius: 7px;
+  background: #fff;
+}
+
+@media (max-width: 760px) {
+  .review-validation-page .review-validation-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "summary"
+      "reporting"
+      "human"
+      "attestation";
+  }
+}

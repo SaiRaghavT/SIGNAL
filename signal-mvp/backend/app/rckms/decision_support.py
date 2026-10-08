@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 import json
 
@@ -14,6 +14,8 @@ class DecisionSupportResult:
     reasons: List[str]
     warnings: List[str]
     llm_reasoning: str = ""
+    human_review_required: bool = False
+    conflicts: List[str] = field(default_factory=list)
 
 
 def evaluate_decision_support(
@@ -21,6 +23,7 @@ def evaluate_decision_support(
     disease: str,
     laboratory_evidence: list,
     clinical_evidence: dict,
+    jurisdiction: str | None = None,
 ) -> DecisionSupportResult:
 
     # ---------------------------------------------------------
@@ -47,6 +50,9 @@ Candidate ID:
 
 Disease:
 {disease}
+
+Jurisdiction:
+{jurisdiction or "Not resolved"}
 
 Laboratory evidence:
 {json.dumps(laboratory_evidence, indent=2)}
@@ -82,6 +88,8 @@ Return JSON:
 """
 
     llm_reasoning = ""
+    human_review_required = False
+    conflicts: list[str] = []
 
     try:
         llm_response = generate_json(prompt)
@@ -91,14 +99,16 @@ Return JSON:
             "reasoning",
             "",
         )
+        human_review_required = bool(llm_result.get("human_review_required"))
+        conflicts = [str(item) for item in llm_result.get("conflicts", [])]
 
         # Add important LLM findings to warnings
-        if llm_result.get("human_review_required"):
+        if human_review_required:
             result.warnings.append(
                 "Gemini identified the case for human review."
             )
 
-        for conflict in llm_result.get("conflicts", []):
+        for conflict in conflicts:
             result.warnings.append(
                 f"LLM conflict: {conflict}"
             )
@@ -121,4 +131,6 @@ Return JSON:
         reasons=result.reasons,
         warnings=result.warnings,
         llm_reasoning=llm_reasoning,
+        human_review_required=human_review_required,
+        conflicts=conflicts,
     )

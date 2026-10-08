@@ -76,19 +76,39 @@ class DemoWorkflowResetRequest(BaseModel):
 @router.post("/api/cases/{case_id}/queue", status_code=201)
 def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
     case = _case(db, case_id)
-    if request.submission_mode is not None and request.submission_mode != case.submission_mode:
+    report_fields = case.report_fields if isinstance(case.report_fields, dict) else {}
+    stored_mode = case.submission_mode or report_fields.get("submission_mode")
+    if isinstance(stored_mode, str):
+        stored_mode = stored_mode.strip().replace("-", "_").replace(" ", "_").upper()
+        if stored_mode in {"PER_CASE", "PERCASE"}:
+            stored_mode = "INDIVIDUAL"
+    if request.submission_mode is not None and stored_mode and request.submission_mode != stored_mode:
         raise HTTPException(status_code=409, detail="Queue submission mode must match the Case submission mode.")
+    submission_mode = request.submission_mode or stored_mode or "INDIVIDUAL"
+    if submission_mode not in {"IMMEDIATE", "INDIVIDUAL", "BATCH"}:
+        raise HTTPException(status_code=422, detail="Case has an unsupported submission mode.")
+
     review = _latest(db, case_id, RECORD_TYPES["review"])
     attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
     if review is None or review.status != "APPROVE":
         raise HTTPException(status_code=409, detail="An approved review is required before queueing.")
     if attestation is None or attestation.status != "ATTESTED":
         raise HTTPException(status_code=409, detail="A persisted attestation is required before queueing.")
+
+    # Persist the routing choice with the case so the separate Admin application
+    # can classify and display this handoff after the clinical user navigates away.
+    if case.submission_mode != submission_mode:
+        case.submission_mode = submission_mode
+        db.add(case)
+
     latest = _latest(db, case_id, ADMIN_QUEUE_TYPE)
     if latest and latest.status in {"QUEUED", "READY_FOR_SUBMISSION"}:
-        return {"case_id": str(case_id), "queue_status": latest.status, "submission_mode": case.submission_mode}
-    row = _record(db, case_id, ADMIN_QUEUE_TYPE, "QUEUED", {"submission_mode": case.submission_mode}, request.actor_id.strip())
-    return {"case_id": str(case_id), "queue_status": row.status, "submission_mode": case.submission_mode, "queued_at": row.created_at}
+        if (latest.payload or {}).get("submission_mode") != submission_mode:
+            latest.payload = {**(latest.payload or {}), "submission_mode": submission_mode}
+        db.commit()
+        return {"case_id": str(case_id), "queue_status": latest.status, "submission_mode": submission_mode}
+    row = _record(db, case_id, ADMIN_QUEUE_TYPE, "QUEUED", {"submission_mode": submission_mode}, request.actor_id.strip())
+    return {"case_id": str(case_id), "queue_status": row.status, "submission_mode": submission_mode, "queued_at": row.created_at}
 
 
 class WorkflowRecordResponse(BaseModel):

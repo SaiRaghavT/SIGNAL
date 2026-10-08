@@ -25,36 +25,9 @@ const postJson = (path, body) => request(path, {
   body: JSON.stringify(body),
 })
 
-function stateFromJurisdiction(jurisdiction) {
-  return jurisdiction?.split('(')[0].trim() || undefined
-}
-
 export function processCandidateWorkflow(candidate) {
-  const state = stateFromJurisdiction(candidate.jurisdiction)
-
   return postJson('/api/candidate/process', {
-    candidate_id: candidate.id,
-    patient_state: state,
-    facility_state: state,
-    disease: candidate.condition,
-    patient: {
-      name: candidate.patient,
-      medical_record_number: candidate.mrn,
-      dob: candidate.dob,
-      sex: candidate.sex,
-      state,
-    },
-    facility: {
-      name: candidate.facility,
-      state,
-    },
-    provider: candidate.provider || {},
-    clinical_evidence: {
-      summary: (candidate.evidence || []).join('; '),
-      source: 'SIGNAL candidate record',
-    },
-    laboratory_evidence: candidate.laboratory_evidence || [],
-    ai_evidence: {},
+    candidate_id: candidate.candidate_id || candidate.id,
   })
 }
 
@@ -66,7 +39,6 @@ export const signalApi = {
   },
   getCanonicalPatient: patientId => request(`/api/canonical/patients/${encodeURIComponent(patientId)}`),
   detectCandidates: patientId => postJson('/api/detection/candidates', { patient_id: patientId }),
-  resolveJurisdiction: body => postJson('/api/jurisdiction/resolve', body),
   processCandidate: processCandidateWorkflow,
   ingestFhirBundle: (bundle, source = 'fhir') => postJson(`/api/ingestion/fhir?source=${encodeURIComponent(source)}`, bundle),
   ingestFhirBatch: (bundles, source = 'fhir') => postJson(`/api/ingestion/fhir/batch?source=${encodeURIComponent(source)}`, { bundles }),

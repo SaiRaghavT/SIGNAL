@@ -3474,6 +3474,7 @@ section h2,
 
 .patient-workspace-page .detection-action-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
@@ -3485,8 +3486,16 @@ section h2,
   box-shadow: 0 2px 7px rgba(16, 47, 80, .045);
 }
 
+.patient-workspace-page .detection-continue-error {
+  flex: 1 0 100%;
+  color: #a62f2f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .patient-workspace-page .detection-action-bar > div {
   min-width: 0;
+  flex: 1 1 280px;
   display: grid;
   gap: 3px;
 }

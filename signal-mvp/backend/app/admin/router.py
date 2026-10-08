@@ -83,6 +83,16 @@ def _condition_display(case: Case) -> str | None:
     return disease
 
 
+def _submission_mode(case: Case, queue: CaseWorkflowRecord | None = None) -> str:
+    report_fields = case.report_fields if isinstance(case.report_fields, dict) else {}
+    payload = queue.payload if queue and isinstance(queue.payload, dict) else {}
+    raw_mode = case.submission_mode or payload.get("submission_mode") or report_fields.get("submission_mode")
+    normalized = str(raw_mode or "INDIVIDUAL").strip().replace("-", "_").replace(" ", "_").upper()
+    if normalized in {"PER_CASE", "PERCASE"}:
+        return "INDIVIDUAL"
+    return normalized if normalized in {"IMMEDIATE", "INDIVIDUAL", "BATCH"} else "INDIVIDUAL"
+
+
 def _case_payload(db: Session, case: Case) -> dict:
     case_id = str(case.case_id)
     queue = _latest(db, case_id, "ADMIN_QUEUE")
@@ -101,7 +111,7 @@ def _case_payload(db: Session, case: Case) -> dict:
         "case_status": case.status, "reportability": case.reportability_decision,
         "review_status": review.status if review else "PENDING",
         "attestation_status": attestation.status if attestation else "PENDING",
-        "submission_mode": case.submission_mode,
+        "submission_mode": _submission_mode(case, queue),
         "queue_status": queue.status if queue else "NOT_QUEUED",
         "submission_status": latest_submission,
         "missing_information": validation["missing_information"],
