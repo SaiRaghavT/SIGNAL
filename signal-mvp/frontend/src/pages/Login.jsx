@@ -363,35 +363,6 @@ function Login() {
               : "Sign in to SIGNAL →"}
           </button>
 
-          {/* DEMO CREDENTIALS */}
-          <div className="demo-credentials">
-            <strong>
-              {selectedRole === "clinical"
-                ? "Clinical Staff POC"
-                : "Administrator POC"}
-            </strong>
-
-            <div>
-              <span>Email</span>
-
-              <code>
-                {selectedUser.email}
-              </code>
-            </div>
-
-            <div>
-              <span>Password</span>
-
-              <code>
-                {selectedUser.password}
-              </code>
-            </div>
-          </div>
-
-          <div className="login-security-note">
-            Prototype authentication only.
-            Credentials are not sent to the backend yet.
-          </div>
         </form>
 
         <div className="login-copyright">

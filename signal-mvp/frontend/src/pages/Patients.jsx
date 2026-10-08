@@ -6,7 +6,6 @@ import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import "../styles/patients.css";
 
 const PAGE_SIZE = 10;
-const CONDITION_FILTER = "measles";
 const EMPTY_VALUE = "—";
 
 function formatDate(value) {
@@ -80,7 +79,6 @@ export default function Patients() {
         const response = await listCanonicalPatients({
           page,
           page_size: PAGE_SIZE,
-          condition: CONDITION_FILTER,
           signal: controller.signal,
         });
         if (active) setResult(response);
@@ -107,8 +105,8 @@ export default function Patients() {
     <section className="patients-page">
       <PageHeader
         title="Patients"
-        subtitle={result?.condition_filter
-          ? `${result.total} ${result.condition_filter} Patients`
+        subtitle={result
+          ? `${result.total} patients from canonical clinical data.`
           : "Manage and review patients from canonical clinical data."}
       >
         <button

@@ -1,1 +1,13 @@
-Generic single-database configuration.
+Run migrations from the `signal-mvp` project directory after configuring `.env`
+and activating its virtual environment:
+
+```shell
+alembic upgrade head
+```
+
+The migration at `f13d9a2c6b80` also seeds the bundled synthetic canonical
+dataset. It includes 333 patients (332 Synthea records and one SIGNAL demo
+record), plus their canonical encounters, conditions, observations, lab
+results, synthetic documents, candidates, and cases. The insert is safe to
+reapply and does not replace existing rows. The user-uploaded document is not
+included.
