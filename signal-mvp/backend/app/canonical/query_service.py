@@ -134,7 +134,10 @@ def _patient_jurisdiction(
             disease="measles",
         )
     )
-    return result.jurisdiction if result.status == "RESOLVED" else None
+    if result.status != "RESOLVED":
+        return None
+    jurisdiction = str(result.jurisdiction or "").strip().upper()
+    return "TX" if jurisdiction == "TEXAS" else jurisdiction or None
 
 
 def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
@@ -229,12 +232,21 @@ def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
                     "lab_results": [_lab_result_to_dict(lab_result)],
                 }
             )
-            is_positive_measles = any(
-                str(signal.get("disease_id", "")).casefold() == "measles"
-                and str(signal.get("evidence", {}).get("source_id", ""))
-                == str(lab_result.lab_result_id)
-                for signal in detect_structured_triggers(normalized)
-            )
+            is_positive_measles = False
+            for signal in detect_structured_triggers(normalized):
+                if str(signal.get("evidence", {}).get("source_id", "")) != str(lab_result.lab_result_id):
+                    continue
+                try:
+                    resolved_rule = deadline_calculation_service._load_rule(
+                        disease=str(signal.get("disease_id") or ""),
+                        jurisdiction="TX",
+                        rule_id=None,
+                    )
+                except ValueError:
+                    continue
+                is_positive_measles = resolved_rule.get("rule_id") == "MEASLES-TX"
+                if is_positive_measles:
+                    break
             if is_positive_measles:
                 patient_ids.add(lab_result.patient_id)
 
