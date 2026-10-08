@@ -23,7 +23,12 @@ from backend.app.submission.gates import smart_fields_for_case
 from backend.app.agents.ecr_submission.schemas import ECRSubmissionRequest
 from backend.app.agents.ecr_submission.service import ECRSubmissionService
 
-from .schemas import AdminReviewRequest, BatchCreateRequest, QueueRequest
+from .schemas import (
+    AdminReviewRequest,
+    AdminSessionSubmissionCleanupRequest,
+    BatchCreateRequest,
+    QueueRequest,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["Administrator"])
 audit = AuditLedgerService()
@@ -140,9 +145,6 @@ def _eligible_for_dispatch(db: Session, case: Case) -> None:
         raise HTTPException(status_code=409, detail="A generated report is required before dispatch.")
     if payload["missing_information"]:
         raise HTTPException(status_code=409, detail={"message": "Reporting package is incomplete.", "missing_information": payload["missing_information"]})
-    duplicate = db.query(Submission).filter(Submission.case_id == str(case.case_id), Submission.status.in_(("SUBMITTED", "ACKNOWLEDGED"))).first()
-    if duplicate:
-        raise HTTPException(status_code=409, detail="Case already has a successful submission.")
 
 
 @router.get("/dashboard")
@@ -214,6 +216,34 @@ def admin_submissions(db: Session = Depends(get_db)) -> dict:
                        "retry_attempts": db.query(SubmissionAttempt).filter(SubmissionAttempt.original_submission_id == item.submission_id).count()})
         result.append(record)
     return {"items": result, "total": len(result)}
+
+
+@router.delete("/session/submissions")
+def clear_admin_session_submissions(
+    request: AdminSessionSubmissionCleanupRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Remove only submission rows explicitly tracked as new in this Admin session."""
+    submission_ids = list(dict.fromkeys(request.submission_ids))
+    if not submission_ids:
+        return {"deleted": 0, "submission_ids": []}
+
+    rows = db.query(Submission).filter(Submission.submission_id.in_(submission_ids)).all()
+    matched_ids = [row.submission_id for row in rows]
+    if not matched_ids:
+        return {"deleted": 0, "submission_ids": []}
+
+    db.query(Acknowledgement).filter(Acknowledgement.submission_id.in_(matched_ids)).delete(synchronize_session=False)
+    db.query(SubmissionAttempt).filter(
+        or_(
+            SubmissionAttempt.original_submission_id.in_(matched_ids),
+            SubmissionAttempt.new_submission_id.in_(matched_ids),
+        )
+    ).delete(synchronize_session=False)
+    for row in rows:
+        db.delete(row)
+    db.commit()
+    return {"deleted": len(matched_ids), "submission_ids": matched_ids}
 
 
 @router.get("/submissions/{submission_id}")

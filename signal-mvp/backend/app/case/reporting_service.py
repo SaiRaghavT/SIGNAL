@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.ecr.builder import build_ecr
+from backend.app.demo.synthetic_jordan_reporting import apply_synthetic_jordan_reporting_defaults
 from backend.app.models.case import Case
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.schemas.validation import validate_ecr
@@ -33,16 +34,31 @@ def update_case_report(
     unknown_fields = sorted(set(request.report_fields) - allowed_fields)
     if unknown_fields:
         raise ValueError(f"Unknown report fields: {', '.join(unknown_fields)}")
-    transient_fields = sorted(set(request.report_fields) & set(REPORTING_MISSING_INFO_FIELDS))
-    if transient_fields:
-        raise ValueError(
-            "These missing-information values are browser-session only and cannot be saved to the case: "
-            + ", ".join(transient_fields)
-        )
-
     changed_fields = sorted(request.report_fields)
     report_updates = {key: value for key, value in request.report_fields.items() if not key.startswith(("provider.", "facility."))}
     case.report_fields = {**(case.report_fields or {}), **report_updates}
+    # Patient identity fields entered on the reporting form are part of the
+    # persisted Case as well as the rendered report. Keep the ECR patient
+    # object in sync so validation sees a submitted date of birth, for example.
+    patient_field_map = {
+        "patient.current_address": "address",
+        "patient.city": "city",
+        "patient.county": "county",
+        "patient.zip": "zip",
+        "patient.phone": "phone",
+        "patient.date_of_birth": "date_of_birth",
+        "patient.sex": "sex",
+        "patient.country_of_residence": "country_of_residence",
+        "patient.hispanic": "hispanic",
+        "patient.race": "race",
+    }
+    patient_updates = {
+        patient_field_map[field]: value
+        for field, value in report_updates.items()
+        if field in patient_field_map
+    }
+    if patient_updates:
+        case.patient = {**(case.patient or {}), **patient_updates}
     provider_updates = {key.removeprefix("provider."): value for key, value in request.report_fields.items() if key.startswith("provider.")}
     facility_updates = {key.removeprefix("facility."): value for key, value in request.report_fields.items() if key.startswith("facility.")}
     if provider_updates:
@@ -61,21 +77,47 @@ def update_case_report(
         case.facility = {**(case.facility or {}), **request.facility}
         changed_fields.extend(f"facility.{key}" for key in request.facility)
 
+    is_optional_missing_info_reset = (
+        bool(report_updates)
+        and set(report_updates).issubset(REPORTING_MISSING_INFO_FIELDS)
+        and all(is_missing(value) for value in report_updates.values())
+        and not provider_updates
+        and not facility_updates
+        and request.provider is None
+        and request.facility is None
+    )
+    synthetic_changes = (
+        [] if is_optional_missing_info_reset
+        else apply_synthetic_jordan_reporting_defaults(case)
+    )
+    changed_fields.extend(synthetic_changes)
+    # An explicit empty value is a user request to clear that field. Keep it
+    # cleared even for synthetic demo cases that otherwise receive defaults.
+    for field, value in report_updates.items():
+        if is_missing(value):
+            case.report_fields[field] = value
+
+    # The five missing-information values are optional form fields. Clearing
+    # only these values on a fresh form visit should not revoke clinical
+    # approval or attestation for the otherwise unchanged case.
+    clearing_optional_missing_info = is_optional_missing_info_reset and not synthetic_changes
+
     if changed_fields:
-        current_records = db.query(CaseWorkflowRecord).filter(
-            CaseWorkflowRecord.case_id == str(case.case_id),
-            CaseWorkflowRecord.record_type.in_(("VALIDATION", "REVIEW", "ATTESTATION")),
-            CaseWorkflowRecord.status.notin_(("SUPERSEDED",)),
-        ).all()
-        for record in current_records:
-            record.status = "SUPERSEDED"
+        if not clearing_optional_missing_info:
+            current_records = db.query(CaseWorkflowRecord).filter(
+                CaseWorkflowRecord.case_id == str(case.case_id),
+                CaseWorkflowRecord.record_type.in_(("VALIDATION", "REVIEW", "ATTESTATION")),
+                CaseWorkflowRecord.status.notin_(("SUPERSEDED",)),
+            ).all()
+            for record in current_records:
+                record.status = "SUPERSEDED"
         for report in db.query(Report).filter(
             Report.case_id == str(case.case_id), Report.status == "GENERATED"
         ).all():
             report.status = "SUPERSEDED"
 
     missing, required_missing = missing_report_fields(case.report_fields)
-    if case.final_decision != "HOLD":
+    if case.final_decision != "HOLD" and not clearing_optional_missing_info:
         case.status = "NEEDS_REVIEW"
     db.commit()
     db.refresh(case)

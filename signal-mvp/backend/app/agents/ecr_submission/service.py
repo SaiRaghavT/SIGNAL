@@ -91,8 +91,11 @@ class ECRSubmissionService:
         # 5. Persist submission
         # ---------------------------------------------------------
         submission = Submission(
-            submission_id=result.submission_id or f"SUB-{uuid4()}",
+            # Submission IDs identify attempts. The ECR ID remains stable for
+            # a case, so it cannot also serve as the primary key on resubmits.
+            submission_id=f"SUB-{uuid4()}",
             case_id=str(case.case_id),
+            submission_mode=case.submission_mode,
             report_id=report.report_id,
             ecr_id=ecr.ecr_id,
             channel="eCR",
@@ -126,6 +129,7 @@ class ECRSubmissionService:
         # ---------------------------------------------------------
         return ECRSubmissionResponse(
             case_id=str(case.case_id),
+            submission_mode=submission.submission_mode,
             report_id=report.report_id,
             ecr_id=ecr.ecr_id,
             submission_id=submission.submission_id,

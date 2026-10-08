@@ -95,6 +95,9 @@ class Case(Base):
         index=True,
     )
 
+    # Shared reporting mode selected before this case enters the submission queue.
+    submission_mode: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+
     final_decision: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,

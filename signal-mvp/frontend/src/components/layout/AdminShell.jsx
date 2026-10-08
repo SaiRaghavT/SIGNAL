@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { clearAdminQueueEntries } from "../../utils/adminQueueLocalStorage.js";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
+import {
+  clearAdminSessionSubmissions,
+  getAdminSubmissions,
+} from "../../services/adminService.js";
 import "../../styles/AdminShell.css";
+
+const ADMIN_SESSION_SUBMISSION_BASELINE = "signal:admin-session:submission-baseline";
 
 const TEMPORARY_WORKFLOW_PREFIXES = [
   "signal:missing-information:",
@@ -62,6 +68,41 @@ const NAVIGATION = [
 export default function AdminShell() {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const submissionBaselinePromise = useRef(null);
+
+  function getSubmissionBaseline() {
+    if (submissionBaselinePromise.current) return submissionBaselinePromise.current;
+
+    let baseline = null;
+    try {
+      const stored = sessionStorage.getItem(ADMIN_SESSION_SUBMISSION_BASELINE);
+      if (stored !== null) baseline = JSON.parse(stored);
+    } catch {
+      baseline = null;
+    }
+
+    if (Array.isArray(baseline)) {
+      submissionBaselinePromise.current = Promise.resolve(baseline);
+      return submissionBaselinePromise.current;
+    }
+
+    submissionBaselinePromise.current = getAdminSubmissions()
+      .then((response) => {
+        const ids = (response?.items || [])
+          .map((item) => item.submission_id)
+          .filter(Boolean);
+        sessionStorage.setItem(ADMIN_SESSION_SUBMISSION_BASELINE, JSON.stringify(ids));
+        return ids;
+      })
+      .catch(() => null);
+
+    return submissionBaselinePromise.current;
+  }
+
+  useEffect(() => {
+    getSubmissionBaseline();
+  }, []);
 
   const storedUser =
     sessionStorage.getItem("signal-user") ||
@@ -83,9 +124,26 @@ export default function AdminShell() {
     // Keep default administrator information.
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
+    setLogoutError("");
+
+    try {
+      const baseline = await getSubmissionBaseline();
+      if (!baseline) throw new Error("Unable to load the Admin session submission baseline.");
+
+      const current = await getAdminSubmissions();
+      const baselineIds = new Set(baseline);
+      const sessionSubmissionIds = (current?.items || [])
+        .map((item) => item.submission_id)
+        .filter((submissionId) => submissionId && !baselineIds.has(submissionId));
+      await clearAdminSessionSubmissions(sessionSubmissionIds);
+    } catch (error) {
+      setLogoutError(error?.message || "Could not clear submissions created during this Admin session.");
+      setLoggingOut(false);
+      return;
+    }
 
     clearAdminQueueEntries();
     clearClinicalInformationRequests();
@@ -177,6 +235,7 @@ export default function AdminShell() {
             <LogOut size={16} />
             <span>{loggingOut ? "Signing out..." : "Sign out"}</span>
           </button>
+          {logoutError && <small className="admin-logout-error" role="alert">{logoutError}</small>}
         </div>
       </aside>
 

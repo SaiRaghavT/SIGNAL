@@ -223,6 +223,7 @@ class RetryResubmissionService:
         retry_submission = Submission(
             submission_id=new_submission_id,
             case_id=submission.case_id,
+            submission_mode=getattr(case, "submission_mode", None),
             report_id=submission.report_id,
             ecr_id=submission.ecr_id,
             channel=submission.channel,

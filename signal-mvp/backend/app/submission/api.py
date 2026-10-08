@@ -17,6 +17,7 @@ def _submission_payload(db: Session, submission: Submission) -> dict:
     return {
         "submission_id": submission.submission_id,
         "case_id": submission.case_id,
+        "submission_mode": submission.submission_mode,
         "patient": case.patient if case else {},
         "disease": case.disease if case else None,
         "jurisdiction": case.jurisdiction if case else None,

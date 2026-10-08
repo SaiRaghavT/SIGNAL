@@ -303,6 +303,11 @@ def create_review(case_id: UUID, request: ReviewRequest, db: Session = Depends(g
     decision = request.decision.upper()
     if decision not in {"DRAFT", "APPROVE", "REQUEST_INFORMATION", "REJECT"}:
         raise HTTPException(status_code=422, detail="Unsupported review decision.")
+    latest_review = _latest(db, case_id, RECORD_TYPES["review"])
+    # An outstanding autosaved draft must never arrive after an explicit
+    # approval and replace the status that gates queueing and dispatch.
+    if decision == "DRAFT" and latest_review is not None and latest_review.status == "APPROVE":
+        return latest_review
     validation = _validation(case)
     if decision == "APPROVE" and not validation["valid"]:
         raise HTTPException(status_code=409, detail={"message": "Case is not valid for approval.", "validation": validation})

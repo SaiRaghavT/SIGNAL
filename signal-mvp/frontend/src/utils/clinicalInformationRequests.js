@@ -24,6 +24,21 @@ export function countOpenClinicalInformationRequests() {
   return readRequests().filter((request) => request.status === "OPEN").length;
 }
 
+export function clearClinicalInformationRequestsForPatient(patientId) {
+  if (!patientId) return 0;
+  const current = readRequests();
+  const remaining = current.filter((request) => request.patientId !== patientId);
+  const removedCount = current.length - remaining.length;
+  if (removedCount > 0) writeRequests(remaining);
+  return removedCount;
+}
+
+export function clearClinicalInformationRequests() {
+  const hadRequests = window.localStorage.getItem(STORAGE_KEY) !== null;
+  window.localStorage.removeItem(STORAGE_KEY);
+  if (hadRequests) window.dispatchEvent(new CustomEvent(CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT));
+}
+
 export function upsertClinicalInformationRequest(request) {
   if (!request?.caseId) throw new Error("caseId is required for an information request.");
   const current = readRequests();

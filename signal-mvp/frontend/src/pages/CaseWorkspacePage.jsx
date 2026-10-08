@@ -511,6 +511,10 @@ export default function CaseWorkspacePage() {
 
   async function persistReviewDraft(changes = {}) {
     if (!caseId || demoReviewPreview) return;
+    // Keep an approved review intact. Draft autosaves after approval are not
+    // needed for the dispatch gate and older API processes may reject them.
+    // A changed decision or comment is persisted by the explicit Save Review action.
+    if (review?.status === "APPROVE") return;
     const reviewer = currentReviewer();
     const payload = {
       reviewer_id: reviewer.id,
@@ -1093,7 +1097,7 @@ export default function CaseWorkspacePage() {
           </span>
 
           <h1>
-            Review & Validation
+            Reporting Review
           </h1>
 
           <p>

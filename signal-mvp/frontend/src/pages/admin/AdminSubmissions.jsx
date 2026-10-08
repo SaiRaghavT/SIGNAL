@@ -58,6 +58,7 @@ function conditionValueLabel(value) {
   const codeMatch = candidate.match(/(?:^|[|/])\s*(\d{5,})\s*$/);
   if (codeMatch) return codeMatch[1] === "14189004" ? "Measles" : "\u2014";
   if (/^\d+$/.test(candidate) || /(?:snomed|^https?:\/\/)/i.test(candidate)) return "\u2014";
+  if (candidate.toLowerCase() === "measles") return "Measles";
   return candidate;
 }
 
@@ -121,6 +122,14 @@ function normalizeSubmission(item) {
       ? payload.case
       : {};
 
+  const patientId =
+    payload.patient_id ||
+    payload.patientId ||
+    patient.patient_id ||
+    caseData.patient_id ||
+    caseData.patient?.patient_id ||
+    null;
+
   return {
     submissionId: textValue(
       payload.submission_id,
@@ -143,6 +152,8 @@ function normalizeSubmission(item) {
         .filter(Boolean)
         .join(" "),
     ),
+
+    patientId,
 
     condition: conditionLabel(
       payload.condition_name,
@@ -179,6 +190,30 @@ function normalizeSubmission(item) {
   };
 }
 
+function deduplicatePatientConditions(items) {
+  const newestFirst = [...items].sort((left, right) => {
+    const leftTime = Date.parse(left.createdAt);
+    const rightTime = Date.parse(right.createdAt);
+    if (!Number.isFinite(leftTime)) return Number.isFinite(rightTime) ? 1 : 0;
+    if (!Number.isFinite(rightTime)) return -1;
+    return rightTime - leftTime;
+  });
+  const seen = new Set();
+
+  return newestFirst.filter((item) => {
+    const patientIdentity = item.patientId || item.patient;
+    const normalizedCondition = String(item.condition || "").trim().toLowerCase();
+    if (!patientIdentity || patientIdentity === "—" || !normalizedCondition || normalizedCondition === "—") {
+      return true;
+    }
+
+    const key = `${String(patientIdentity).trim().toLowerCase()}::${normalizedCondition}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function formatDate(value) {
   if (!value || value === "—") return "—";
 
@@ -196,6 +231,7 @@ function formatDate(value) {
 
 export default function AdminSubmissions() {
   const [submissions, setSubmissions] = useState([]);
+  const [submissionRecords, setSubmissionRecords] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [modeFilter, setModeFilter] = useState("ALL");
   const [search, setSearch] = useState("");
@@ -215,7 +251,9 @@ export default function AdminSubmissions() {
 
       const response = await getAdminSubmissions();
 
-      const items = normalizeItems(response).map(normalizeSubmission);
+      const records = normalizeItems(response).map(normalizeSubmission);
+      setSubmissionRecords(records);
+      const items = deduplicatePatientConditions(records);
 
       setSubmissions(items);
     } catch (err) {
@@ -276,14 +314,14 @@ export default function AdminSubmissions() {
 
   const metrics = useMemo(() => {
     return {
-      total: submissions.length,
+      total: submissionRecords.length,
 
-      submitted: submissions.filter(
+      submitted: submissionRecords.filter(
         (item) =>
           normalizeStatus(item.status) === "SUBMITTED",
       ).length,
 
-      awaiting: submissions.filter((item) => {
+      awaiting: submissionRecords.filter((item) => {
         const status = normalizeStatus(item.status);
 
         return (
@@ -292,18 +330,18 @@ export default function AdminSubmissions() {
         );
       }).length,
 
-      acknowledged: submissions.filter(
+      acknowledged: submissionRecords.filter(
         (item) =>
           normalizeStatus(item.status) === "ACKNOWLEDGED",
       ).length,
 
-      failedRetryRequired: submissions.filter((item) =>
+      failedRetryRequired: submissionRecords.filter((item) =>
         ["FAILED", "ERROR", "REJECTED", "RETRY_REQUIRED"].includes(
           normalizeStatus(item.status),
         ),
       ).length,
     };
-  }, [submissions]);
+  }, [submissionRecords]);
 
   return (
     <main className="admin-submissions-page">
