@@ -368,7 +368,7 @@ def test_measles_case_only_qualifies_and_preserves_deadline_rule_distinction():
     john = result["items"][0]
     assert john["source_patient_id"] == "TEST-MEASLES-001"
     assert john["condition"] == "Measles"
-    assert john["deadline"]["deadline"] == event_time.astimezone(timezone.utc)
+    assert john["deadline"]["deadline"] == event_time.replace(tzinfo=timezone.utc)
     assert john["deadline"]["disease"] == "measles"
     assert john["deadline"]["jurisdiction"] == "TX"
     assert john["deadline"]["rule_id"] == "MEASLES-TX"
