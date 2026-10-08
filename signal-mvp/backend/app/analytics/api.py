@@ -58,4 +58,4 @@ def analytics_deadlines(db: Session = Depends(get_db)) -> dict:
         "by_status": _counts(db, DeadlineEscalation.status, DeadlineEscalation.escalation_id),
         "overdue": db.query(DeadlineEscalation.escalation_id).filter(DeadlineEscalation.status == "OVERDUE").count(),
         "upcoming": db.query(DeadlineEscalation.escalation_id).filter(DeadlineEscalation.status == "UPCOMING").count(),
-    }\n
+    }

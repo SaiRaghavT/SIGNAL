@@ -2661,6 +2661,27 @@ function getCandidateSignalEntries(candidate) {
   return Array.isArray(source) ? source.filter((signal) => signal && typeof signal === "object") : [];
 }
 
+function getVisibleDetectionCandidates(candidates) {
+  if (!Array.isArray(candidates)) return [];
+  return candidates.filter((candidate) => {
+    const identity = [
+      candidate?.disease_id,
+      candidate?.trigger_concept_key,
+      candidate?.trigger_key,
+      candidate?.disease,
+      candidate?.condition,
+    ].some((value) => {
+      const label = getReadableConditionName(value);
+      return label && !/^potential condition$/i.test(label);
+    });
+    const signals = getCandidateSignalEntries(candidate);
+    const documentOnly = signals.length > 0 && signals.every(
+      (signal) => getEvidenceCategory(signal) === "document"
+    );
+    return !(documentOnly && !identity);
+  });
+}
+
 function getCandidateDisplaySignals(candidate) {
   const entries = getCandidateSignalEntries(candidate);
   const documentEntries = entries.filter(
@@ -2693,33 +2714,49 @@ function getCandidateDisplaySignals(candidate) {
     return true;
   });
 
-  if (clinicalEntries.length === 0 || documentEntries.length === 0) {
+  if (documentEntries.length === 0) {
     return visibleSignals;
   }
 
-  const supportingDocumentEvidence = documentEntries.map((signal) => ({
-    title: getSignalTitle(signal, "document"),
-    text: getSignalValue(
-      signal,
-      "evidence.evidence_text",
-      "evidence.concept",
-      "evidence.text",
-      "evidence_text",
-      "text",
-      "description"
-    ),
-    sourceId: getSignalValue(signal, "evidence.source_id", "source_id"),
-  }));
-  const conditionIndex = visibleSignals.findIndex(
-    (signal) => getEvidenceCategory(signal) === "condition"
-  );
-  const attachmentIndex = conditionIndex >= 0 ? conditionIndex : 0;
+  const documentsBySource = new Map();
+  for (const signal of documentEntries) {
+    const evidence = signal?.evidence || {};
+    const sourceId = getSignalValue(signal, "evidence.source_id", "source_id");
+    const title = getSignalTitle(signal, "document");
+    const existing = sourceId ? documentsBySource.get(sourceId) : null;
+    const sourceRecord = evidence.evidence_role === "supporting_clinical_evidence";
+    const item = {
+      title,
+      text: sourceRecord
+        ? ""
+        : getSignalValue(
+          signal,
+          "evidence.evidence_text",
+          "evidence.concept",
+          "evidence_text",
+          "description"
+        ),
+      sourceId,
+      documentDate: evidence.document_date,
+    };
+    if (!existing || sourceRecord) {
+      documentsBySource.set(sourceId || `${title}-${documentsBySource.size}`, item);
+    }
+  }
 
-  return visibleSignals.map((signal, index) =>
-    index === attachmentIndex
-      ? { ...signal, supporting_document_evidence: supportingDocumentEvidence }
-      : signal
-  );
+  const supportingDocumentEvidence = [...documentsBySource.values()];
+  const documentSignal = {
+    trigger_type: "DOCUMENT_EVIDENCE",
+    trigger_id: "clinical-document-sources",
+    title: `Clinical documents (${supportingDocumentEvidence.length})`,
+    evidence: {
+      source_type: "ClinicalDocument",
+      title: `Clinical documents (${supportingDocumentEvidence.length})`,
+    },
+    supporting_document_evidence: supportingDocumentEvidence,
+  };
+
+  return [...visibleSignals, documentSignal];
 }
 
 function getSignalValue(signal, ...keys) {
@@ -3060,6 +3097,11 @@ function DetectionSignal({ signal, category }) {
               {supportingDocumentEvidence.map((item, index) => (
                 <p key={item.sourceId || `${item.title}-${index}`}>
                   <strong>{item.title || "Clinical document"}</strong>
+                  {item.documentDate && (
+                    <time dateTime={item.documentDate}>
+                      {` · ${new Date(item.documentDate).toLocaleDateString()}`}
+                    </time>
+                  )}
                   {item.text ? ` — ${item.text}` : ""}
                 </p>
               ))}
@@ -5492,10 +5534,10 @@ export default function PatientWorkspace() {
                     )}
                   </section>
                 )}
-                {Array.isArray(detectionResult?.candidates) && detectionResult.candidates.length > 0 ? (
-                  detectionResult.candidates.length === 1 ? (
+                {getVisibleDetectionCandidates(detectionResult?.candidates).length > 0 ? (
+                  getVisibleDetectionCandidates(detectionResult?.candidates).length === 1 ? (
                     <DetectionCandidate
-                      candidate={detectionResult.candidates[0]}
+                      candidate={getVisibleDetectionCandidates(detectionResult?.candidates)[0]}
                       onContinue={handleReviewCandidate}
                       onRunAgain={handleDetection}
                     />
@@ -5506,7 +5548,7 @@ export default function PatientWorkspace() {
                       <p className="section-description">
                         Review each condition and its supporting evidence before continuing.
                       </p>
-                      {detectionResult.candidates.map((candidate, index) => (
+                      {getVisibleDetectionCandidates(detectionResult?.candidates).map((candidate, index) => (
                         <div key={candidate?.candidate_id || candidate?.id || index}>
                           <DetectionCandidate
                             candidate={candidate}
