@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getAdminSubmission } from "../../services/adminService";
+import { CalendarClock, FileCheck2, HeartPulse, MapPin } from "lucide-react";
+import { getAdminQueueCase, getAdminSubmission } from "../../services/adminService.js";
 import "../../styles/AdminSubmissionJourney.css";
 
 const STAGES = [
@@ -95,6 +96,38 @@ function getPatientName(submission) {
 
 function getCondition(submission) {
   return submission?.disease;
+}
+
+function conditionLabel(value) {
+  if (Array.isArray(value)) return value.map(conditionLabel).find((label) => label !== "—") || "—";
+  if (value && typeof value === "object") {
+    for (const key of ["display", "name", "condition_name", "disease_name", "text", "label", "title", "description", "condition", "disease", "concept", "coding", "code"]) {
+      const label = conditionLabel(value[key]);
+      if (label !== "—") return label;
+    }
+    return "—";
+  }
+  if (typeof value === "number") return value === 14189004 ? "Measles" : "—";
+  if (typeof value !== "string" || !value.trim()) return "—";
+
+  const candidate = value.trim();
+  const code = candidate.match(/(?:^|[|/])(\d{5,})\s*$/)?.[1];
+  if (code) return code === "14189004" ? "Measles" : "—";
+  if (/^\d+$/.test(candidate) || /(?:snomed|^https?:\/\/)/i.test(candidate)) return "—";
+  return candidate.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatDeadline(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function displayValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return conditionLabel(value);
 }
 
 function getCaseId(submission) {
@@ -253,6 +286,7 @@ export default function AdminSubmissionJourney() {
   const navigate = useNavigate();
 
   const [submission, setSubmission] = useState(null);
+  const [caseData, setCaseData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -268,7 +302,17 @@ export default function AdminSubmissionJourney() {
 
         if (!active) return;
 
-        setSubmission(result?.data ?? result);
+        const record = result?.data ?? result;
+        setSubmission(record);
+        setCaseData(null);
+        if (record?.case_id) {
+          try {
+            const caseResult = await getAdminQueueCase(record.case_id);
+            if (active) setCaseData(caseResult?.data ?? caseResult);
+          } catch {
+            // Deadline details are optional; keep the real submission visible if case details fail.
+          }
+        }
       } catch (err) {
         if (!active) return;
 
@@ -334,6 +378,17 @@ export default function AdminSubmissionJourney() {
     submission || {},
     currentStage
   );
+  const jurisdictionValue = displayValue(caseData?.jurisdiction || submission?.jurisdiction || destination);
+  const caseConditionValue = conditionLabel(caseData?.condition);
+  const conditionValue = caseConditionValue !== "—" ? caseConditionValue : conditionLabel(condition);
+  const reportabilityValue = displayValue(caseData?.reportability);
+  const deadlineValue = formatDeadline(caseData?.deadline ?? caseData?.reporting_deadline);
+  const kpis = [
+    { label: "REPORTING JURISDICTION", value: jurisdictionValue, subtitle: "State health authority", Icon: MapPin },
+    { label: "REPORTING CONDITION", value: conditionValue, subtitle: reportabilityValue !== "—" ? `Reportability: ${reportabilityValue}` : "Reportability status unavailable", Icon: HeartPulse },
+    { label: "REPORTING DEADLINE", value: deadlineValue, subtitle: "Reporting deadline", Icon: CalendarClock },
+    { label: "SUBMISSION STATUS", value: displayValue(submission?.status), subtitle: "Current submission state", Icon: FileCheck2 },
+  ];
 
   const handleProvideInformation = () => {
     if (caseId) {
@@ -424,47 +479,21 @@ export default function AdminSubmissionJourney() {
             </p>
           </div>
 
-          <div className="journey-header-status">
-            <span className="journey-section-label">
-              CURRENT STATUS
-            </span>
-            <strong>{currentStatus}</strong>
-          </div>
-        </div>
-
-        <div className="journey-meta">
-          <div>
-            <span>Submission ID</span>
-            <strong>{submissionId || "—"}</strong>
-          </div>
-
-          <div>
-            <span>Case ID</span>
-            <strong>{caseId || "—"}</strong>
-          </div>
-
-          <div>
-            <span>Patient</span>
-            <strong>{patientName}</strong>
-          </div>
-
-          <div>
-            <span>Condition</span>
-            <strong>{condition || "—"}</strong>
-          </div>
-
-          <div>
-            <span>Mode</span>
-            <strong>{submissionMode || "—"}</strong>
-          </div>
-
-          <div>
-            <span>Destination</span>
-            <strong>{destination || "—"}</strong>
-          </div>
         </div>
       </header>
 
+      <section className="journey-kpis" aria-label="Submission summary">
+        {kpis.map(({ label, value, subtitle, Icon }) => (
+          <article className="journey-kpi" key={label}>
+            <div className="journey-kpi-heading">
+              <span>{label}</span>
+              <Icon size={16} aria-hidden="true" />
+            </div>
+            <strong title={value}>{value}</strong>
+            <small>{subtitle}</small>
+          </article>
+        ))}
+      </section>
       <section className="journey-section">
         <div className="journey-section-heading">
           <span className="journey-section-label">
@@ -526,6 +555,11 @@ export default function AdminSubmissionJourney() {
           <div className="journey-panel-row">
             <span>Status</span>
             <strong>{currentStatus}</strong>
+          </div>
+
+          <div className="journey-panel-row">
+            <span>Patient</span>
+            <strong>{patientName}</strong>
           </div>
 
           <div className="journey-panel-row">
