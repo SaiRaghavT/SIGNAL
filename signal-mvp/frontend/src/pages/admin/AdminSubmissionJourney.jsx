@@ -1,215 +1,724 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { listFollowUps } from "../../api/followups.js";
-import { getSubmissionAcknowledgement } from "../../api/submissions.js";
-import { getAdminQueueCase, getAdminSubmission } from "../../services/adminService.js";
-import { getOpenClinicalInformationRequest, CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT } from "../../utils/clinicalInformationRequests.js";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { getAdminSubmission } from "../../services/adminService";
 import "../../styles/AdminSubmissionJourney.css";
 
-const text = (value, fallback = "Not available") => value === undefined || value === null || String(value).trim() === "" ? fallback : String(value);
-const statusCode = (value) => String(value || "").trim().toUpperCase();
-const isFailed = (value) => /FAILED|ERROR|REJECTED|REJECT|INVALID/i.test(String(value || ""));
+const STAGES = [
+  { key: "ADMIN", label: "ADMIN", subtitle: "Authorize" },
+  { key: "SIGNAL", label: "SIGNAL", subtitle: "Prepare" },
+  { key: "EICR", label: "eICR", subtitle: "Generate" },
+  { key: "AIMS_OUTBOUND", label: "APHL AIMS", subtitle: "Transport" },
+  { key: "TX_DSHS", label: "TEXAS DSHS", subtitle: "Receive" },
+  { key: "NEDSS", label: "NEDSS", subtitle: "Process" },
+  { key: "PHA_PROCESSING", label: "PHA PROCESS", subtitle: "Review" },
+  { key: "RESPONSE", label: "RESPONSE", subtitle: "RR" },
+  { key: "AIMS_INBOUND", label: "APHL AIMS", subtitle: "Return" },
+  { key: "SIGNAL_RESPONSE", label: "SIGNAL", subtitle: "Receive" },
+  { key: "FOLLOW_UP", label: "FOLLOW-UP", subtitle: "Track" },
+];
 
-function formatTimestamp(value) {
-  if (!value) return "Not available";
+function firstValue(...values) {
+  return values.find(
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      value !== "" &&
+      value !== "null"
+  );
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
-function isAcknowledgementComplete(acknowledgement) {
-  const state = statusCode(acknowledgement?.status);
-  return ["ACKNOWLEDGED", "RECEIVED", "SUCCESS", "COMPLETED", "ACCEPTED"].includes(state);
+function normalizeStatus(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
 }
 
-function OverviewField({ label, value }) {
-  return <div className="asj-overview-field"><span>{label}</span><strong title={value ? String(value) : undefined}>{text(value)}</strong></div>;
+function getTransportValue(submission) {
+  return submission?.channel;
 }
 
-function JourneyStage({ number, title, subtitle, state }) {
-  const marker = state === "complete" ? "\u2713" : state === "failed" ? "!" : "\u2022";
-  const label = state === "complete" ? "Completed" : state === "failed" ? "Failed" : state === "current" ? "Current" : "Pending";
-  return <article className={`asj-stage ${state}`}>
-    <span className="asj-stage-number" aria-hidden="true">{number}</span>
-    <h3>{title}</h3>
-    {subtitle && <small className="asj-stage-subtitle">{subtitle}</small>}
-    <span className="asj-stage-state" aria-label={label}>{marker}</span>
-  </article>;
+function getDestination(submission) {
+  return submission?.destination;
 }
 
-function JourneyTrack({ stages, className = "" }) {
-  return <div className={`asj-journey-track ${className}`}>
-    {stages.map((item, index) => <div className={`asj-stage-slot ${item.state}`} key={`${item.title}-${index}`}>
-      <JourneyStage number={index + 1} {...item} />
-    </div>)}
-  </div>;
+function getSubmissionMode(submission) {
+  return submission?.submission_mode;
 }
+
+function getPatientName(submission) {
+  const patient = submission?.patient || submission?.case?.patient || {};
+
+  const fullName = firstValue(
+    patient?.name,
+    patient?.full_name,
+    submission?.patient_name,
+    submission?.case?.patient_name
+  );
+
+  if (fullName) return fullName;
+
+  const firstName = firstValue(
+    patient?.first_name,
+    submission?.first_name,
+    submission?.case?.first_name
+  );
+
+  const lastName = firstValue(
+    patient?.last_name,
+    submission?.last_name,
+    submission?.case?.last_name
+  );
+
+  const combined = [firstName, lastName].filter(Boolean).join(" ");
+
+  return combined || "—";
+}
+
+function getCondition(submission) {
+  return submission?.disease;
+}
+
+function getCaseId(submission) {
+  return submission?.case_id;
+}
+
+function getEicrId(submission) {
+  return submission?.ecr_id;
+}
+
+function getResponsePayload(submission) {
+  return submission?.acknowledgement || null;
+}
+
+function getErrorMessage(submission) {
+  return firstValue(
+    Array.isArray(submission?.errors) && submission.errors.length ? submission.errors.join("; ") : null,
+  );
+}
+
+function getCurrentStage(submission) {
+  const rawStatus = normalizeStatus(
+    firstValue(
+      submission?.status,
+      submission?.submission_status,
+      submission?.state,
+      submission?.acknowledgement?.status
+    )
+  );
+  const acknowledgementStatus = normalizeStatus(submission?.acknowledgement?.status);
+
+  if (acknowledgementStatus.includes("INFORMATION_REQUESTED") || acknowledgementStatus.includes("INFO_REQUEST")) return "FOLLOW_UP";
+  if (submission?.acknowledgement || acknowledgementStatus.includes("ACKNOWLEDGED")) return "RESPONSE";
+
+  if (
+    rawStatus.includes("FAILED") ||
+    rawStatus.includes("ERROR") ||
+    rawStatus.includes("REJECTED")
+  ) {
+    return submission?.ecr_id ? "EICR" : "SIGNAL";
+  }
+
+  if (
+    rawStatus.includes("ACKNOWLEDGED") ||
+    rawStatus.includes("ACKNOWLEDGEMENT")
+  ) {
+    return "RESPONSE";
+  }
+
+  if (
+    rawStatus.includes("RESPONSE") ||
+    rawStatus.includes("RR_RECEIVED") ||
+    rawStatus.includes("REPORTABILITY")
+  ) {
+    return "RESPONSE";
+  }
+
+  if (
+    rawStatus.includes("FOLLOW") ||
+    rawStatus.includes("INFORMATION_REQUESTED") ||
+    rawStatus.includes("INFO_REQUEST")
+  ) {
+    return "FOLLOW_UP";
+  }
+
+  if (/DELIVERED|SENT|SUBMITTED/.test(rawStatus)) return "AIMS_OUTBOUND";
+
+  if (
+    rawStatus.includes("VALIDATED") ||
+    rawStatus.includes("EICR_GENERATED") ||
+    rawStatus.includes("PREPARED")
+  ) {
+    return "EICR";
+  }
+
+  if (submission?.ecr_id) return "EICR";
+  return "SIGNAL";
+}
+
+function getStageState(stageKey, currentStage, submission) {
+  const currentIndex = STAGES.findIndex(
+    (stage) => stage.key === currentStage
+  );
+
+  const stageIndex = STAGES.findIndex(
+    (stage) => stage.key === stageKey
+  );
+
+  const rawStatus = normalizeStatus(
+    firstValue(
+      submission?.status,
+      submission?.submission_status,
+      submission?.state,
+      submission?.acknowledgement?.status
+    )
+  );
+
+  const isFailure =
+    rawStatus.includes("FAILED") ||
+    rawStatus.includes("ERROR") ||
+    rawStatus.includes("REJECTED");
+
+  if (isFailure && stageKey === currentStage) {
+    return "failed";
+  }
+
+  if (stageIndex < currentIndex) {
+    return "completed";
+  }
+
+  if (stageIndex === currentIndex) {
+    return "current";
+  }
+
+  return "pending";
+}
+
+function getCurrentStageLabel(stageKey) {
+  return (
+    STAGES.find((stage) => stage.key === stageKey)?.label || "SIGNAL"
+  );
+}
+
+function getStatusLabel(submission, currentStage) {
+  const rawStatus = firstValue(
+    submission?.status,
+    submission?.submission_status,
+    submission?.state
+  );
+
+  if (!rawStatus) {
+    return getCurrentStageLabel(currentStage);
+  }
+
+  return String(rawStatus)
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function isInformationRequested(submission) {
+  const status = normalizeStatus(
+    firstValue(
+      submission?.acknowledgement?.status
+    )
+  );
+
+  return (
+    status.includes("INFORMATION_REQUESTED") ||
+    status.includes("INFO_REQUEST")
+  );
+}
+
 export default function AdminSubmissionJourney() {
   const { submissionId } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
+
   const [submission, setSubmission] = useState(null);
-  const [caseData, setCaseData] = useState(null);
-  const [acknowledgement, setAcknowledgement] = useState(null);
-  const [followup, setFollowup] = useState(null);
-  const [informationRequest, setInformationRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
-    async function load() {
-      setLoading(true);
-      setError("");
+
+    async function loadSubmission() {
       try {
-        const record = await getAdminSubmission(submissionId);
-        const caseId = record?.case_id || record?.case?.case_id;
-        const [caseResult, acknowledgementResult, followupResult] = await Promise.allSettled([
-          caseId ? getAdminQueueCase(caseId) : Promise.resolve(null),
-          getSubmissionAcknowledgement(submissionId),
-          listFollowUps({ search: submissionId, page_size: 100 }),
-        ]);
+        setLoading(true);
+        setError("");
+
+        const result = await getAdminSubmission(submissionId);
+
         if (!active) return;
-        setSubmission(record);
-        setCaseData(caseResult.status === "fulfilled" ? caseResult.value?.data || caseResult.value : null);
-        setAcknowledgement(acknowledgementResult.status === "fulfilled" ? acknowledgementResult.value?.data || acknowledgementResult.value : record?.acknowledgement || null);
-        const followups = followupResult.status === "fulfilled" ? followupResult.value?.items || [] : [];
-        const matchingFollowups = followups
-          .filter((item) => item.submission_id === submissionId)
-          .sort((left, right) => Date.parse(right.updated_at || right.created_at || 0) - Date.parse(left.updated_at || left.created_at || 0));
-        setFollowup(matchingFollowups[0] || null);
-        if (caseResult.status === "rejected") setError(caseResult.reason?.message || "Case details could not be loaded.");
-        else if (followupResult.status === "rejected") setError(followupResult.reason?.message || "Follow-up information could not be loaded.");
-      } catch (requestError) {
-        if (active) setError(requestError?.message || "Submission information could not be loaded.");
+
+        setSubmission(result?.data ?? result);
+      } catch (err) {
+        if (!active) return;
+
+        setError(
+          err?.response?.data?.detail ||
+            err?.message ||
+            "Unable to load submission."
+        );
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
-    load();
-    return () => { active = false; };
+
+    if (submissionId) {
+      loadSubmission();
+    }
+
+    return () => {
+      active = false;
+    };
   }, [submissionId]);
 
-  const status = statusCode(submission?.status);
-  const destination = submission?.destination;
-  const warnings = Array.isArray(submission?.warnings) ? submission.warnings : [];
-  const simulated = /MOCK_PHA|SIMULAT/i.test(String(destination || "")) || warnings.some((warning) => /MOCK_PHA|SIMULAT/i.test(String(warning)));
-  const patient = submission?.patient || caseData?.patient || {};
-  const patientName = patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" ");
-  const caseId = submission?.case_id || caseData?.case_id;
-  useEffect(() => {
-    const refreshInformationRequest = () => setInformationRequest(caseId ? getOpenClinicalInformationRequest(caseId) : null);
-    refreshInformationRequest();
-    window.addEventListener(CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT, refreshInformationRequest);
-    window.addEventListener("storage", refreshInformationRequest);
-    return () => {
-      window.removeEventListener(CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT, refreshInformationRequest);
-      window.removeEventListener("storage", refreshInformationRequest);
-    };
-  }, [caseId]);
+  const currentStage = useMemo(
+    () => getCurrentStage(submission || {}),
+    [submission]
+  );
 
-  const condition = caseData?.condition || caseData?.clinical_evidence?.diagnosis || submission?.disease;
-  const jurisdictionCode = caseData?.jurisdiction || submission?.jurisdiction;
-  const jurisdiction = statusCode(jurisdictionCode) === "TX" ? "Texas" : jurisdictionCode;
-  const reviewStatus = statusCode(caseData?.review_status);
-  const attestationStatus = statusCode(caseData?.attestation_status);
-  const adminReviewed = ["APPROVE", "APPROVED"].includes(reviewStatus) && attestationStatus === "ATTESTED";
-  const acknowledgementComplete = isAcknowledgementComplete(acknowledgement);
-  const submissionFailed = isFailed(status);
-  const submissionComplete = ["SUBMITTED", "ACKNOWLEDGED"].includes(status);
-  const followupStatus = statusCode(followup?.status);
-  const followupComplete = ["CLOSED", "COMPLETED"].includes(followupStatus);
-  const followupFailed = isFailed(followupStatus);
-  const followupState = followupFailed ? "failed" : followupComplete ? "complete" : followup ? "current" : acknowledgementComplete ? "current" : "pending";
-  const adminState = submissionComplete || adminReviewed ? "complete" : caseData && isFailed(reviewStatus) ? "failed" : caseData && reviewStatus ? "current" : "pending";
-  const signalState = submissionFailed ? "failed" : submissionComplete ? "complete" : submission ? "current" : "pending";
-  const eicrState = submissionFailed ? "failed" : submission?.ecr_id ? "complete" : "pending";
-  const transmissionState = submissionFailed ? "failed" : simulated && submissionComplete ? "current" : submissionComplete ? "complete" : submission ? "current" : "pending";
-  const responseState = acknowledgementComplete ? "complete" : acknowledgement && isFailed(acknowledgement.status) ? "failed" : submissionComplete && !simulated ? "current" : "pending";
-  const acknowledgementState = acknowledgementComplete ? "complete" : acknowledgement && isFailed(acknowledgement.status) ? "failed" : "pending";
-  const phaProgressState = acknowledgementComplete ? "complete" : acknowledgement && isFailed(acknowledgement.status) ? "failed" : submissionComplete && !simulated ? "current" : "pending";
-  const stages = [
-    { title: "ADMIN", state: adminState },
-    { title: "SIGNAL", state: signalState },
-    { title: "eICR", state: eicrState },
-    { title: "APHL AIMS", state: transmissionState },
-    { title: "TEXAS DSHS", state: phaProgressState },
-    { title: "NEDSS", state: phaProgressState },
-    { title: "PHA PROCESS", state: phaProgressState },
-    { title: "RESPONSE", state: responseState },
-    { title: "APHL AIMS", state: acknowledgementState },
-    { title: "SIGNAL", state: acknowledgementState },
-    { title: "FOLLOW-UP", state: followupState },
-  ];
-  if (loading) return <main className="admin-submission-journey"><div className="asj-state">Loading submission journey…</div></main>;
-  if (!submission) return <main className="admin-submission-journey"><div className="asj-error" role="alert">{error || "Submission not found."}</div><Link className="asj-secondary-button" to="/admin/submissions">Admin Submissions</Link></main>;
+  const informationRequested = useMemo(
+    () => isInformationRequested(submission || {}),
+    [submission]
+  );
 
-  const acknowledgementLabel = acknowledgementComplete ? "ACKNOWLEDGED" : acknowledgement && isFailed(acknowledgement.status) ? text(acknowledgement.status) : "PENDING";
-  const transmissionLabel = submissionFailed ? "FAILED" : simulated ? "SIMULATED" : submissionComplete ? "SENT" : "PENDING";
-  const followupLabel = text(followup?.status, "PENDING");
-  const currentStatusMessage = informationRequest
-    ? "Additional information has been requested. Administrator action is required."
-    : acknowledgementComplete
-      ? "PHA acknowledgement received. SIGNAL has received the PHA response."
-      : acknowledgement && isFailed(acknowledgement.status)
-        ? `PHA acknowledgement status: ${text(acknowledgement.status)}.`
-        : "PHA acknowledgement is pending. SIGNAL is awaiting the PHA response.";
-  const followupError = location.state?.followupError;
+  const requestedInformation = Array.isArray(submission?.acknowledgement?.requested_fields)
+    ? submission.acknowledgement.requested_fields
+    : [];
 
-  return <main className="admin-submission-journey">
-    <header className="asj-header">
-      <div>
-        <span>ADMINISTRATOR / SUBMISSION</span>
-        <h1>Submission Acknowledgement</h1>
-        <p>Case successfully submitted from SIGNAL.</p>
-        <p className="asj-context-line">{[patientName, condition, jurisdiction].filter(Boolean).join(" \u00b7 ")}</p>
+  const patientName = getPatientName(submission || {});
+  const condition = getCondition(submission || {});
+  const caseId = getCaseId(submission || null);
+  const destination = getDestination(submission || {});
+  const submissionMode = getSubmissionMode(submission || {});
+  const transport = getTransportValue(submission || {});
+  const transportIsSimulated = /mock|simulat/i.test(String(transport || ""))
+    || /mock|simulat/i.test(String(destination || ""))
+    || (submission?.warnings || []).some((warning) => /mock|simulat/i.test(String(warning)));
+  const eicrId = getEicrId(submission || {});
+  const responsePayload = getResponsePayload(submission || {});
+  const errorMessage = getErrorMessage(submission || {});
+  const responseFailed = Boolean(responsePayload)
+    && /FAILED|FAILURE|ERROR|REJECTED/.test(normalizeStatus(responsePayload?.status));
+
+  const submittedAt = firstValue(
+    submission?.submitted_at,
+    submission?.created_at,
+    submission?.timestamp
+  );
+
+  const responseReceivedAt = submission?.acknowledgement?.received_at;
+
+  const currentStatus = getStatusLabel(
+    submission || {},
+    currentStage
+  );
+
+  const handleProvideInformation = () => {
+    if (caseId) {
+      navigate(`/admin/queue/${caseId}`);
+      return;
+    }
+
+    navigate("/admin/queue");
+  };
+
+  if (loading) {
+    return (
+      <div className="admin-journey-page">
+        <div className="admin-journey-loading">
+          Loading submission...
+        </div>
       </div>
-      <Link to="/admin/submissions" className="asj-header-link">Admin Submissions</Link>
-    </header>
+    );
+  }
 
-    <section className="asj-status-cards" aria-label="Submission status summary">
-      <article><span>SUBMISSION</span><strong className={submissionFailed ? "failed" : submissionComplete ? "complete" : "pending"}>{text(submission?.status, "PENDING")}</strong></article>
-      <article><span>TRANSMISSION</span><strong className={submissionFailed ? "failed" : simulated ? "info" : submissionComplete ? "complete" : "pending"}>{transmissionLabel}</strong></article>
-      <article><span>ACKNOWLEDGEMENT</span><strong className={acknowledgementComplete ? "complete" : acknowledgement && isFailed(acknowledgement.status) ? "failed" : "pending"}>{acknowledgementLabel}</strong></article>
-      <article><span>FOLLOW-UP</span><strong className={followupFailed ? "failed" : followupComplete ? "complete" : followup ? "current" : "pending"}>{followupLabel}</strong></article>
-    </section>
+  if (error) {
+    return (
+      <div className="admin-journey-page">
+        <div className="admin-journey-header">
+          <button
+            type="button"
+            className="journey-back-button"
+            onClick={() => navigate("/admin/submissions")}
+          >
+            ← Back to Submissions
+          </button>
+          <h1>Submission Journey</h1>
+        </div>
 
-    {error && <div className="asj-inline-error" role="alert">{error}</div>}
-    {followupError && !followup && <div className="asj-inline-error" role="status">{followupError}</div>}
+        <div className="journey-error-card">
+          <span className="journey-section-label">ERROR</span>
+          <h2>Unable to load submission</h2>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
 
-    <section className="asj-card asj-journey-card" aria-labelledby="asj-journey-title">
-      <header className="asj-section-header">
-        <div><h2 id="asj-journey-title">SUBMISSION JOURNEY</h2><p className="asj-journey-subtitle">How the reporting package moves from SIGNAL to the Public Health Authority and how the response returns to SIGNAL.</p></div>
+  if (!submission) {
+    return (
+      <div className="admin-journey-page">
+        <div className="admin-journey-header">
+          <button
+            type="button"
+            className="journey-back-button"
+            onClick={() => navigate("/admin/submissions")}
+          >
+            ← Back to Submissions
+          </button>
+          <h1>Submission Journey</h1>
+        </div>
+
+        <div className="journey-empty-card">
+          <span className="journey-section-label">SUBMISSION</span>
+          <h2>Submission not found</h2>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="admin-journey-page">
+      <header className="admin-journey-header">
+        <button
+          type="button"
+          className="journey-back-button"
+          onClick={() => navigate("/admin/submissions")}
+        >
+          ← Back to Submissions
+        </button>
+
+        <div className="journey-title-row">
+          <div>
+            <span className="journey-section-label">
+              ADMIN SUBMISSION
+            </span>
+
+            <h1>Submission Journey</h1>
+
+            <p>
+              Track the electronic case report from administrative
+              authorization through public health processing.
+            </p>
+          </div>
+
+          <div className="journey-header-status">
+            <span className="journey-section-label">
+              CURRENT STATUS
+            </span>
+            <strong>{currentStatus}</strong>
+          </div>
+        </div>
+
+        <div className="journey-meta">
+          <div>
+            <span>Submission ID</span>
+            <strong>{submissionId || "—"}</strong>
+          </div>
+
+          <div>
+            <span>Case ID</span>
+            <strong>{caseId || "—"}</strong>
+          </div>
+
+          <div>
+            <span>Patient</span>
+            <strong>{patientName}</strong>
+          </div>
+
+          <div>
+            <span>Condition</span>
+            <strong>{condition || "—"}</strong>
+          </div>
+
+          <div>
+            <span>Mode</span>
+            <strong>{submissionMode || "—"}</strong>
+          </div>
+
+          <div>
+            <span>Destination</span>
+            <strong>{destination || "—"}</strong>
+          </div>
+        </div>
       </header>
-      <JourneyTrack stages={stages} className="asj-main-track" />
-    </section>
 
-    {simulated && <div className="asj-simulation-notice" role="status"><strong>SIMULATED PHA FLOW</strong><span>Demo environment &mdash; no real PHA transmission has occurred.</span></div>}
+      <section className="journey-section">
+        <div className="journey-section-heading">
+          <span className="journey-section-label">
+            TRANSMISSION JOURNEY
+          </span>
+          <h2>Public Health Data Path</h2>
+        </div>
 
-    {informationRequest && <section className="asj-card asj-information-card" aria-label="Information request">
-      <div><span className="asj-card-eyebrow">INFORMATION REQUESTED</span><h2>Additional information is required before processing can continue.</h2>
-        {informationRequest.message && <p>{informationRequest.message}</p>}
-        <strong className="asj-action-required">ADMIN ACTION REQUIRED</strong>
-      </div>
-      {caseId && <Link className="asj-primary-button" to={`/cases/${encodeURIComponent(caseId)}`}>PROVIDE INFORMATION</Link>}
-    </section>}
+        <div className="journey-track-wrapper">
+          <div
+            className={`journey-track ${currentStage === "AIMS_OUTBOUND" && transportIsSimulated ? "is-simulated" : ""}`}
+            style={{ "--journey-progress": `${Math.max(0, STAGES.findIndex((stage) => stage.key === currentStage) - 1) / STAGES.length * 100}%` }}
+          >
+            {STAGES.map((stage) => {
+              const state = getStageState(
+                stage.key,
+                currentStage,
+                submission
+              );
 
-    <section className="asj-card asj-current-status" aria-label="Current status">
-      <span className="asj-card-eyebrow">CURRENT STATUS</span>
-      <p>{currentStatusMessage}</p>
-    </section>
+              return (
+                <React.Fragment key={stage.key}>
+                  <div className={`journey-stage ${state}`}>
+                    <div className="journey-stage-circle" aria-label={state}>
+                      {state === "completed" ? "✓" : ""}
+                    </div>
 
-    <section className="asj-card asj-submission-details" id="submission-details" aria-label="Submission details">
-      <OverviewField label="Submission ID" value={submission?.submission_id || submissionId} />
-      <OverviewField label="Status" value={submission?.status} />
-      <OverviewField label="Destination" value={destination} />
-      <OverviewField label="Submitted" value={formatTimestamp(submission?.created_at)} />
-    </section>
+                    <div className="journey-stage-label">
+                      {stage.label}
+                    </div>
 
-    <section className="asj-next-step">
-      <div className="asj-next-actions">
-        <button type="button" className="asj-primary-button" onClick={() => document.getElementById("submission-details")?.scrollIntoView({ behavior: "smooth", block: "center" })}>VIEW SUBMISSION</button>
-        <button type="button" className="asj-secondary-button" onClick={() => navigate("/admin/queue")}>RETURN TO QUEUE</button>
-      </div>
-    </section>
-  </main>;
+                    <div className="journey-stage-subtitle">
+                      {stage.subtitle}
+                    </div>
+                  </div>
+
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {transportIsSimulated && (
+        <div className="journey-simulation-note" role="status">
+          SIMULATED — no real PHA transmission or receipt is recorded.
+        </div>
+      )}
+
+      <section className="journey-grid">
+        <div className="journey-panel">
+          <span className="journey-section-label">
+            CURRENT STATUS
+          </span>
+
+          <h2>{getCurrentStageLabel(currentStage)}</h2>
+          <p>{transportIsSimulated ? "Simulated submission to the configured transport. Downstream delivery is not confirmed." : currentStage === "AIMS_OUTBOUND" ? "Backend submission is recorded; destination receipt is not confirmed." : currentStage === "FOLLOW_UP" ? "The response requests follow-up." : currentStage === "RESPONSE" ? "A backend acknowledgement is recorded." : "Submission progress is shown from available backend status."}</p>
+
+          <div className="journey-panel-row">
+            <span>Status</span>
+            <strong>{currentStatus}</strong>
+          </div>
+
+          <div className="journey-panel-row">
+            <span>Destination</span>
+            <strong>{destination || "—"}</strong>
+          </div>
+
+          <div className="journey-panel-row">
+            <span>Channel / transport</span>
+            <strong>{transport ? `${transport}${transportIsSimulated ? " (simulated)" : ""}` : "—"}</strong>
+          </div>
+
+          <div className="journey-panel-row">
+            <span>Submitted</span>
+            <strong>{formatDate(submittedAt)}</strong>
+          </div>
+        </div>
+
+        <div className="journey-panel">
+          <span className="journey-section-label">
+            TRANSMISSION DETAILS
+          </span>
+
+          <div className="journey-details-grid">
+            <div>
+              <span>Submission ID</span>
+              <strong>{submissionId || "—"}</strong>
+            </div>
+
+            <div>
+              <span>Case ID</span>
+              <strong>{caseId || "—"}</strong>
+            </div>
+
+            <div>
+              <span>eICR ID</span>
+              <strong>{eicrId || "—"}</strong>
+            </div>
+
+            <div>
+              <span>Destination</span>
+              <strong>{destination || "—"}</strong>
+            </div>
+
+            <div>
+              <span>Mode</span>
+              <strong>{submissionMode || "—"}</strong>
+            </div>
+
+            <div>
+              <span>Channel / transport</span>
+              <strong>{transport ? `${transport}${transportIsSimulated ? " (simulated)" : ""}` : "—"}</strong>
+            </div>
+
+            <div>
+              <span>Submitted At</span>
+              <strong>{formatDate(submittedAt)}</strong>
+            </div>
+
+            <div>
+              <span>Response Received</span>
+              <strong>{formatDate(responseReceivedAt)}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {errorMessage && (
+        <section className="journey-alert-card error">
+          <span className="journey-section-label">SUBMISSION ERROR</span>
+          <h2>Transmission requires attention</h2>
+          <p>{errorMessage}</p>
+        </section>
+      )}
+
+      <section className="journey-response-card">
+        <div>
+          <span className="journey-section-label">
+            RESPONSE / RR
+          </span>
+
+          <h2>{informationRequested ? "INFORMATION REQUESTED" : errorMessage || responseFailed ? "FAILURE" : responsePayload ? "RESPONSE RECEIVED" : "AWAITING REPORTABILITY RESPONSE"}</h2>
+
+          <p>
+            {informationRequested ? "Public health requires additional information before processing can be completed." : errorMessage || (responseFailed && responsePayload?.errors?.join("; ")) ? errorMessage || responsePayload?.errors?.join("; ") : responsePayload ? "Backend acknowledgement details are available for this submission." : "The submission is recorded and SIGNAL is waiting for a response. No acknowledgement has been recorded by the backend."}
+          </p>
+        </div>
+
+        {responsePayload && (
+          <div className="journey-response-content">
+            <div>
+              <span>Acknowledgement status</span>
+              <strong>{responsePayload?.status || "—"}</strong>
+            </div>
+
+            <div>
+              <span>Acknowledgement ID</span>
+              <strong>{responsePayload?.acknowledgement_id || "—"}</strong>
+            </div>
+
+            <div>
+              <span>Received</span>
+              <strong>{formatDate(responsePayload?.received_at)}</strong>
+            </div>
+
+            <div>
+              <span>Errors</span>
+              <strong>{Array.isArray(responsePayload?.errors) && responsePayload.errors.length ? responsePayload.errors.join("; ") : "—"}</strong>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {informationRequested && (
+        <section className="journey-information-card">
+          <div className="journey-information-copy">
+            <span className="journey-section-label">
+              INFORMATION REQUESTED
+            </span>
+
+            <h2>Additional information is required</h2>
+
+            <p>
+              Public health requires additional information before
+              processing can be completed.
+            </p>
+
+            {requestedInformation.length > 0 && (
+              <div className="journey-requested-list">
+                {requestedInformation.map((item, index) => {
+                  const label =
+                    typeof item === "string"
+                      ? item
+                      : firstValue(
+                          item?.label,
+                          item?.field,
+                          item?.name,
+                          item?.description
+                        );
+
+                  if (!label) return null;
+
+                  return (
+                    <div key={`${label}-${index}`}>
+                      <span>•</span>
+                      <span>{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="journey-primary-button"
+            onClick={handleProvideInformation}
+          >
+            Provide Information
+          </button>
+        </section>
+      )}
+
+      <section className="journey-followup-card">
+        <div>
+          <span className="journey-section-label">FOLLOW-UP</span>
+          <h2>Submission Follow-up</h2>
+        </div>
+
+        <div className="journey-followup-status">
+          <span
+            className={`followup-dot ${
+              informationRequested
+                ? "warning"
+              : responsePayload && !responseFailed
+              ? "success"
+              : responseFailed
+              ? "warning"
+                : "pending"
+            }`}
+          />
+
+          <span>
+            {informationRequested
+              ? "Information Requested"
+              : responseFailed
+              ? "Response indicates failure"
+              : responsePayload
+              ? "Response Received"
+              : "Awaiting Public Health Response"}
+          </span>
+        </div>
+      </section>
+    </div>
+  );
 }
