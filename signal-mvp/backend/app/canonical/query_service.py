@@ -361,21 +361,7 @@ def _patient_deadline(
     if not jurisdiction:
         return None, "Jurisdiction could not be resolved from patient, facility, or workflow data."
 
-    # A stored deadline is authoritative and does not need a reconstructed event time.
     persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
-    if persisted_deadline is not None and last_encounter is None:
-        return {
-            "deadline": persisted_deadline,
-            "status": "PERSISTED",
-            "calculation_basis": "Existing workflow deadline.",
-            "disease": disease,
-            "jurisdiction": jurisdiction,
-            "rule_id": None,
-            "reporting_timing": None,
-            "reporting_method": None,
-            **_deadline_time_metadata(persisted_deadline),
-        }, None
-
     rule = None
     selected_disease = None
     positive_lab_event_time = None
@@ -430,6 +416,18 @@ def _patient_deadline(
                 continue
 
     if rule is None:
+        if persisted_deadline is not None and last_encounter is None:
+            return {
+                "deadline": persisted_deadline,
+                "status": "PERSISTED",
+                "calculation_basis": "Existing workflow deadline.",
+                "disease": disease,
+                "jurisdiction": jurisdiction,
+                "rule_id": None,
+                "reporting_timing": None,
+                "reporting_method": None,
+                **_deadline_time_metadata(persisted_deadline),
+            }, None
         if not disease:
             return None, "No condition could be resolved from the patient's clinical or workflow data."
         return None, f"No Texas 2026 reporting deadline rule applies to '{disease}' in {jurisdiction}."
@@ -485,6 +483,20 @@ def _patient_deadline(
         event_time = last_encounter
 
     if event_time is None:
+        if persisted_deadline is not None:
+            return {
+                "deadline": persisted_deadline,
+                "status": "PERSISTED",
+                "calculation_basis": "Existing workflow deadline; no newer reporting trigger is recorded.",
+                "disease": disease,
+                "jurisdiction": jurisdiction,
+                "rule_id": rule_id,
+                "reporting_timing": reporting.get("timing"),
+                "reporting_method": reporting.get("method"),
+                "effective_year": rule.get("effective_year"),
+                "source_url": rule.get("source_url"),
+                **_deadline_time_metadata(persisted_deadline),
+            }, None
         return None, "No clinical event or encounter timestamp is available to calculate a reporting deadline."
     if event_time.tzinfo is None:
         event_time = event_time.replace(tzinfo=timezone.utc)
