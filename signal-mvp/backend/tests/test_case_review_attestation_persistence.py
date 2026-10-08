@@ -70,7 +70,9 @@ def test_review_and_attestation_are_persisted_and_used_for_readiness(monkeypatch
         case_id=case_id,
         status="NEEDS_REVIEW",
         submission_mode=None,
-        rule_id="TX-MEASLES-IMMEDIATE",
+        rule_id="MEASLES-TX",
+        disease="measles",
+        jurisdiction="TX",
         deadline=None,
     )
     session = FakeSession(case)
@@ -139,6 +141,9 @@ def test_review_and_attestation_are_persisted_and_used_for_readiness(monkeypatch
         assert readiness_response.status_code == 200
         assert readiness_response.json()["ready"] is True
         assert readiness_response.json()["record"]["status"] == "READY"
+
+        # Older workflow records may persist APPROVED instead of APPROVE.
+        session.records[CaseWorkflowRecord][0].status = "APPROVED"
 
         queue_response = client.post(
             f"/api/cases/{case_id}/queue",

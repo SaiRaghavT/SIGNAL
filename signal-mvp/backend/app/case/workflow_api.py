@@ -23,6 +23,7 @@ from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
 from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
 from backend.app.admin.schemas import QueueRequest
+from backend.app.agents.deadline_calculation.service import DeadlineCalculationService, NoReportingRuleError
 
 router = APIRouter(tags=["Case Workflow"])
 
@@ -30,6 +31,25 @@ RECORD_TYPES = {"notification": "IMMEDIATE_NOTIFICATION", "investigation": "INVE
 SUBMISSION_READINESS_TYPE = "SUBMISSION_READINESS"
 ADMIN_QUEUE_TYPE = "ADMIN_QUEUE"
 audit = AuditLedgerService()
+
+
+def _has_immediate_reporting_rule(case: Case) -> bool:
+    """Resolve immediacy from the configured jurisdiction/disease rules."""
+    if not case.disease or not case.jurisdiction:
+        return False
+
+    rules = DeadlineCalculationService()
+    rule_ids = [case.rule_id] if case.rule_id else []
+    rule_ids.append(None)
+    for rule_id in dict.fromkeys(rule_ids):
+        try:
+            rule = rules._load_rule(case.disease, case.jurisdiction, rule_id)
+        except NoReportingRuleError:
+            continue
+        timing = str((rule.get("reporting") or {}).get("timing") or "").upper()
+        if timing in {"CALL_IMMEDIATELY", "REPORT_IMMEDIATELY", "CALL_FAX_IMMEDIATELY", "IMMEDIATE"}:
+            return True
+    return False
 
 
 class NotificationRequest(BaseModel):
@@ -76,22 +96,23 @@ class DemoWorkflowResetRequest(BaseModel):
 @router.post("/api/cases/{case_id}/queue", status_code=201)
 def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
     case = _case(db, case_id)
-    if request.submission_mode is not None and request.submission_mode != case.submission_mode:
-        raise HTTPException(status_code=409, detail="Queue submission mode must match the Case submission mode.")
     review = _latest(db, case_id, RECORD_TYPES["review"])
     attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
-    if review is None or review.status != "APPROVE":
+    review_status = str(getattr(review, "status", "") or "").strip().upper()
+    attestation_status = str(getattr(attestation, "status", "") or "").strip().upper()
+    if review_status not in {"APPROVE", "APPROVED"}:
         raise HTTPException(status_code=409, detail="An approved review is required before queueing.")
-    if attestation is None or attestation.status != "ATTESTED":
+    if attestation_status != "ATTESTED":
         raise HTTPException(status_code=409, detail="A persisted attestation is required before queueing.")
-    # Submission mode comes from backend case classification, never a
-    # Clinical Staff selection. Preserve explicit existing modes; classify
-    # the configured Texas immediate measles rule only when the case is ready.
-    if not case.submission_mode and getattr(case, "rule_id", None) == "TX-MEASLES-IMMEDIATE":
+    # The effective reporting rule determines mode; a client cannot override
+    # an immediate jurisdiction rule with a browser-selected value.
+    if _has_immediate_reporting_rule(case) and case.submission_mode != "IMMEDIATE":
         case.submission_mode = "IMMEDIATE"
-        db.commit()
+    if request.submission_mode is not None and request.submission_mode != case.submission_mode:
+        raise HTTPException(status_code=409, detail="Queue submission mode must match the Case reporting rule.")
     latest = _latest(db, case_id, ADMIN_QUEUE_TYPE)
     if latest and latest.status in {"QUEUED", "READY_FOR_SUBMISSION"}:
+        db.commit()
         return {"case_id": str(case_id), "queue_status": latest.status, "submission_mode": case.submission_mode}
     row = _record(
         db,
