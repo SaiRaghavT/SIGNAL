@@ -1,6 +1,9 @@
 from typing import Any
 
-from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
+from backend.app.smart_field_population.form_config import (
+    REPORTING_MISSING_INFO_FIELDS,
+    TEXAS_MEASLES_FORM,
+)
 
 
 def is_missing(value: Any) -> bool:
@@ -27,7 +30,12 @@ def missing_report_fields(values: dict[str, Any]) -> tuple[list[str], list[str]]
 
 def available_case_report_fields(case: Any) -> dict[str, Any]:
     """Combine explicitly saved form edits with real values on the case record."""
-    values = dict(getattr(case, "report_fields", None) or {})
+    transient_fields = set(REPORTING_MISSING_INFO_FIELDS)
+    values = {
+        key: value
+        for key, value in (getattr(case, "report_fields", None) or {}).items()
+        if key not in transient_fields
+    }
     sources = {
         "patient": getattr(case, "patient", None) or {},
         "facility": getattr(case, "facility", None) or {},

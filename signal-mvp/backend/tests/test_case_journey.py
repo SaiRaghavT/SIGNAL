@@ -10,6 +10,7 @@ from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
+from backend.app.models.workflow_records import Report
 from backend.app.workflow.router import read_case_journey
 from backend.app.workflow.service import STAGE_ORDER
 
@@ -137,7 +138,7 @@ def test_followup_data_is_from_persisted_followup_record():
     assert followup_stage.data["follow_ups"][0]["action"] == "REQUEST_INFORMATION"
 
 
-def test_reporting_audit_event_is_supporting_evidence():
+def test_historical_reporting_audit_does_not_mark_current_reporting_complete():
     case = make_case()
     audit = SimpleNamespace(
         event_type="CASE_MANUAL_REPORT_PREPARED",
@@ -155,9 +156,30 @@ def test_reporting_audit_event_is_supporting_evidence():
     result = journey_for(case, {AuditEvent: [audit]})
     report_stage = stage(result, "REPORTING")
 
-    assert report_stage.available is True
-    assert report_stage.agent == "Agent-31"
+    assert report_stage.available is False
+    assert report_stage.status == "PENDING"
+    assert report_stage.agent is None
     assert result.supporting_audit_events[0]["event_type"] == "CASE_MANUAL_REPORT_PREPARED"
+
+
+def test_current_report_record_marks_reporting_complete():
+    case = make_case()
+    report = SimpleNamespace(
+        report_id="REPORT-1",
+        form_id="TX-MEASLES",
+        form_version="1",
+        render_id="render-1",
+        report_type="TEXAS_MEASLES",
+        status="GENERATED",
+        created_at=case.created_at,
+    )
+    result = journey_for(case, {Report: [report]})
+    report_stage = stage(result, "REPORTING")
+
+    assert report_stage.available is True
+    assert report_stage.status == "COMPLETED"
+    assert report_stage.entity_reference == "REPORT-1"
+    assert report_stage.data["reports"][0]["render_id"] == "render-1"
 
 
 def test_detection_stage_is_unavailable_without_rerunning_detection():

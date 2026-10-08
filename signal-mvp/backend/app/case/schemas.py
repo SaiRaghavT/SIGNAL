@@ -18,6 +18,9 @@ class CaseListItem(BaseModel):
     warnings: list[Any] = Field(default_factory=list)
     severity: str | None = None
     deadline: datetime | None = None
+    needs_review: bool = False
+    deadline_risk: bool = False
+    report_ready: bool = False
 
 
 class CaseListResponse(BaseModel):
@@ -25,6 +28,7 @@ class CaseListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    metrics: dict[str, int] = Field(default_factory=dict)
 
 
 class CaseDetailResponse(BaseModel):

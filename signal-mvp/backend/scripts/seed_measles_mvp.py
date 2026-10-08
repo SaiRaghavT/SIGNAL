@@ -1,4 +1,4 @@
-"""Prepare PAT-HL7-001 as the controlled Texas measles MVP patient."""
+"""Prepare the configured controlled Texas measles MVP patient."""
 
 from datetime import datetime, timezone
 
@@ -16,13 +16,13 @@ from backend.app.models.follow_up import FollowUp
 from backend.app.models.lab_result import LabResult
 from backend.app.models.observation import Observation
 from backend.app.models.patient import Patient
+from backend.app.config.demo import DEMO_FACILITY_ID, DEMO_PATIENT_SOURCE_ID
 
 
-PATIENT_SOURCE_ID = "PAT-HL7-001"
+PATIENT_SOURCE_ID = DEMO_PATIENT_SOURCE_ID
 LEGACY_PATIENT_SOURCE_ID = "MEASLES-MVP-001"
 LEGACY_PATIENT_SOURCE = "signal_demo"
-EVENT_TIME = datetime(2026, 10, 4, 10, 0, tzinfo=timezone.utc)
-DEMO_FACILITY_ID = "SIGNAL-MVP-TX-DEMO"
+EVENT_TIME = datetime(2026, 10, 3, 10, 0, tzinfo=timezone.utc)
 
 
 def _one_or_none(rows, description: str):
@@ -96,7 +96,7 @@ def remove_legacy_demo_patient(db: Session) -> bool:
 
 
 def seed_measles_mvp_patient(db: Session) -> Patient:
-    """Update the existing PAT-HL7-001 canonical records, without adding a patient."""
+    """Update the existing configured demo patient, without adding a patient."""
     patient = _one_or_none(
         db.query(Patient)
         .filter(Patient.source_patient_id == PATIENT_SOURCE_ID)

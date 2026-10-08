@@ -5,8 +5,8 @@ from backend.app.ingestion.hl7.parser import parse_hl7_message
 SAMPLE_HL7 = (
     "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
     "202609281200||ORU^R01|MSG00001|P|2.5.1\r"
-    "PID|1||PAT001^^^HOSPITAL||DOE^JOHN||"
-    "19900101|M\r"
+    "PID|1||TEST-PATIENT-001^^^HOSPITAL||PATIENT^SAMPLE||"
+    "19850505|M\r"
     "PV1|1|I|ER^01^01||||12345^SMITH^JANE\r"
     "ORC|RE|ORDER001\r"
     "OBR|1|ORDER001|LAB001|"
@@ -27,8 +27,8 @@ def test_map_hl7_message():
     patient = result["patient"]
 
     assert patient["source_patient_id"] == "PAT001"
-    assert patient["name"] == {"family": "DOE", "given": "JOHN"}
-    assert patient["date_of_birth"].isoformat() == "1990-01-01"
+    assert patient["name"] == {"family": "PATIENT", "given": "SAMPLE"}
+    assert patient["date_of_birth"].isoformat() == "1985-05-05"
     assert patient["sex"] == "M"
     assert patient["source"] == "hl7"
     assert patient["source_resource"] == "PID"

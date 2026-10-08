@@ -12,6 +12,7 @@ class CandidateProcessRequest(BaseModel):
 
 class CandidateWorkflowInput(BaseModel):
     candidate_id: str
+    existing_case_id: str | None = None
     # Canonical patient UUID. If omitted, candidate_id must itself be a UUID
     # for compatibility with detection flows that use the patient UUID as ID.
     patient_id: UUID | None = None

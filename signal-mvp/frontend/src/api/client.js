@@ -17,7 +17,10 @@ async function request(path, options = {}) {
         : Array.isArray(detail)
           ? detail.map((item) => item?.msg).filter(Boolean).join("; ") || `Request failed (${response.status})`
           : `Request failed (${response.status})`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
   return data;
 }

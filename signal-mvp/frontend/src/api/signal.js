@@ -6,6 +6,8 @@ import {
   getCaseAttestation,
   getCaseReview,
   getCaseValidation,
+  getSubmissionReadiness,
+  getFormDefinition,
   getImmediateNotification,
   processAcknowledgement,
   recordImmediateNotification,
@@ -15,6 +17,7 @@ import {
   trackSubmission,
   updateCaseReview,
   validateCase,
+  markSubmissionReady,
   validateAttestation,
   attestCase,
   calculateDeadline,
@@ -31,9 +34,9 @@ const manualReporting = (caseId, reportingMethod, notes = "") => request("/api/a
   method: "POST",
   body: JSON.stringify({ case_id: caseId, reporting_method: reportingMethod, notes }),
 });
-const renderForm = (caseId, body) => request("/api/agents/form-rendering/render", {
+const renderForm = (caseId, formId, formVersion, fieldValues = {}) => request("/api/agents/form-rendering/render", {
   method: "POST",
-  body: JSON.stringify({ case_id: caseId, ...body }),
+  body: JSON.stringify({ case_id: caseId, form_id: formId, form_version: formVersion, field_values: fieldValues }),
 });
 const renderSeedPatientForm = (patientId, body) => request(`/api/forms/seed-patients/${encodeURIComponent(patientId)}/render`, {
   method: "POST",
@@ -57,10 +60,13 @@ export {
   getCaseAttestation,
   getCaseReview,
   getCaseValidation,
+  getSubmissionReadiness,
+  getFormDefinition,
   getImmediateNotification,
   getJourney,
   processFollowup,
   manualReporting,
+  markSubmissionReady,
   processAcknowledgement,
   renderForm,
   renderSeedPatientForm,

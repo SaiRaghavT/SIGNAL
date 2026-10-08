@@ -51,6 +51,9 @@ class FakeQuery:
     def count(self):
         return len(self.rows)
 
+    def distinct(self):
+        return self
+
     def order_by(self, expression):
         column = expression.element.key if isinstance(expression, UnaryExpression) else expression.key
         reverse = isinstance(expression, UnaryExpression)
@@ -102,6 +105,15 @@ def test_get_cases_returns_persisted_case_summaries_without_sensitive_json():
     assert body["total"] == 1
     assert body["items"][0]["case_id"] == str(case.case_id)
     assert body["items"][0]["disease"] == "measles"
+    assert body["metrics"] == {
+        "candidate_cases": 1,
+        "at_risk_deadlines": 0,
+        "needs_review": 0,
+        "report_ready": 0,
+    }
+    assert body["items"][0]["needs_review"] is False
+    assert body["items"][0]["deadline_risk"] is False
+    assert body["items"][0]["report_ready"] is False
     for forbidden in ("patient", "provider", "facility", "clinical_evidence", "laboratory_evidence", "ai_evidence"):
         assert forbidden not in body["items"][0]
 
@@ -169,7 +181,18 @@ def test_empty_results_return_successful_empty_page():
         app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 200
-    assert response.json() == {"items": [], "total": 0, "page": 1, "page_size": 20}
+    assert response.json() == {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "page_size": 20,
+        "metrics": {
+            "candidate_cases": 0,
+            "at_risk_deadlines": 0,
+            "needs_review": 0,
+            "report_ready": 0,
+        },
+    }
 
 
 def test_invalid_pagination_is_rejected():

@@ -95,6 +95,7 @@ class PatientListItem(BaseModel):
     deadline_reason: str | None = None
     facility: str | None = None
     last_encounter: datetime | None = None
+    jurisdiction: str | None = None
     conditions: list[PatientListCondition] = Field(default_factory=list)
     reporting_status: str | None = None
     reportability_decision: str | None = None
@@ -110,3 +111,4 @@ class PatientListResponse(BaseModel):
     total: int
     pages: int
     facilities: list[str] = Field(default_factory=list)
+    condition_filter: str | None = None

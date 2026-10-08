@@ -4,7 +4,7 @@ import "@google/model-viewer";
 
 
 
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 
 
@@ -15,7 +15,8 @@ import { getCanonicalPatient } from "../api/canonical.js";
 
 
 
-import { detectPatientCandidates as detectCandidates } from "../api/detection.js";
+import { detectPatientCandidates as detectCandidates, getCandidate, persistDetectedCandidate, processCandidate } from "../api/detection.js";
+import { getCase } from "../api/cases.js";
 
 
 
@@ -975,7 +976,7 @@ const DETECTION_STAGES = [
 
 
 
-    title: "Candidate fusion",
+    title: "Patient detection",
 
 
 
@@ -1970,7 +1971,7 @@ function AiDocumentUploadCard({
 
 
 
-   Candidate Result
+   Patient Detection Result
 
 
 
@@ -3080,7 +3081,7 @@ function CandidateDetails({ candidate, signalCount }) {
     ["Detected", detectedLabel],
   ];
   const technicalDetails = [
-    ["Candidate ID", candidate?.candidate_id ?? candidate?.id],
+    ["Patient detection ID", candidate?.candidate_id ?? candidate?.id],
     ["Disease ID", candidate?.disease_id],
     ["Encounter", candidate?.encounter_id ?? candidate?.encounter?.id],
     ["Trigger Type", candidate?.trigger_type ?? candidate?.trigger_types],
@@ -3093,7 +3094,7 @@ function CandidateDetails({ candidate, signalCount }) {
     <section className="detection-candidate-details">
       <div className="detection-section-heading">
         <div>
-          <span className="detection-eyebrow">CANDIDATE DETAILS</span>
+          <span className="detection-eyebrow">PATIENT DETAILS</span>
           <h3>{getCandidateConditionName(candidate)} review</h3>
         </div>
         <span className="detection-section-note">AI detection summary</span>
@@ -3213,7 +3214,7 @@ function DetectionCandidate({ candidate, onContinue, onRunAgain }) {
 
         {signalCount === 0 && (
           <div className="detection-empty-signals">
-            No supporting signals were returned for this candidate.
+            No supporting signals were returned for this patient.
           </div>
         )}
       </section>
@@ -3223,7 +3224,7 @@ function DetectionCandidate({ candidate, onContinue, onRunAgain }) {
       <div className="detection-action-bar">
         <div>
           <span className="detection-eyebrow">NEXT STEP</span>
-          <strong>Candidate review is ready</strong>
+          <strong>Patient review is ready</strong>
           <span>Continue when you are ready to begin reporting.</span>
         </div>
         <button
@@ -4211,6 +4212,7 @@ export default function PatientWorkspace() {
 
 
   const { patientId } = useParams();
+  const navigate = useNavigate();
 
   const [consentCheckPatientId, setConsentCheckPatientId] = useState(null);
   const [consentedPatientId, setConsentedPatientId] = useState(null);
@@ -4758,159 +4760,80 @@ export default function PatientWorkspace() {
 
 
   async function handleReviewCandidate(candidate) {
-
-
-
-    /*
-
-
-
-     * Keep this as the transition into the Review stage.
-
-
-
-     * Do not automatically create a case.
-
-
-
-     *
-
-
-
-     * If your existing application already has a review
-
-
-
-     * route/action, connect it here.
-
-
-
-     */
-
-
-
+    setDetectionError("");
     try {
-
-
-
-      await auditEvent({
-
-
-
-        entity_type: "PATIENT",
-
-
-
-        event_type: "CANDIDATE_REVIEW_STARTED",
-
-
-
-        status: "STARTED",
-
-
-
-        new_value: {
-
-
-
-          disease:
-
-
-
-            candidate?.disease ||
-
-
-
-            candidate?.condition ||
-
-
-
-            candidate?.condition_name ||
-
-
-
-            "unknown",
-
-
-
-        },
-
-
-
-        metadata: {
-
-
-
-          patient_id: patientId,
-
-
-
-        },
-
-
-
-      });
-
-
-
-
-
-      const events =
-
-
-
-        await listAuditEvents(
-
-
-
-          "PATIENT",
-
-
-
-          patientId
-
-
-
-        );
-
-
-
-
-
-      setAuditEvents(events || []);
-
-
-
+      let candidateId = candidate?.candidate_id || candidate?.id;
+      let caseId = candidate?.case_id || candidate?.case?.case_id || candidate?.case?.id;
+
+      if (!candidateId && candidate?.disease_id) {
+        const persisted = await persistDetectedCandidate(patientId, candidate);
+        candidateId = persisted?.candidate_id;
+        caseId = persisted?.case_id || caseId;
+      }
+      if (!candidateId) {
+        throw new Error("This patient detection has no record ID. Run detection again before continuing.");
+      }
+
+      if (!caseId) {
+        const candidateResponse = await getCandidate(candidateId);
+        const candidateRecord = candidateResponse?.data || candidateResponse;
+        if (String(candidateRecord?.patient_id) !== String(patientId)) {
+          throw new Error("This patient record does not match the current workspace.");
+        }
+        caseId = candidateRecord?.case_id || candidateRecord?.case?.case_id;
+      }
+      if (!caseId) {
+        const processResponse = await processCandidate(candidateId);
+        const processed = processResponse?.data || processResponse;
+        caseId = processed?.case?.case_id || processed?.case?.id || processed?.case_id;
+      }
+      if (!caseId) {
+        throw new Error("SIGNAL could not create a case for this patient.");
+      }
+
+      const caseResponse = await getCase(caseId);
+      const caseRecord = caseResponse?.data || caseResponse;
+      const casePatientId = caseRecord?.patient?.patient_id || caseRecord?.patient_id;
+      if (casePatientId && String(casePatientId) !== String(patientId)) {
+        throw new Error("This case does not belong to the current patient.");
+      }
+
+      const storedUser = sessionStorage.getItem("signal-user") || localStorage.getItem("signal-user");
+      let actorId = "reporting_user";
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          actorId = user?.email || user?.name || actorId;
+        } catch {
+          // Keep a valid fallback actor if stored session data is malformed.
+        }
+      }
+
+      try {
+        await auditEvent({
+          entity_type: "PATIENT",
+          entity_id: String(patientId),
+          event_type: "CANDIDATE_REVIEW_STARTED",
+          actor_type: "USER",
+          actor_id: actorId,
+          source_agent: "patient_workspace",
+          status: "STARTED",
+          description: "Reviewer continued a detected candidate to reporting.",
+          new_value: { disease: getCandidateConditionName(candidate), case_id: String(caseId) },
+          metadata: { patient_id: String(patientId), case_id: String(caseId) },
+        });
+        const events = await listAuditEvents("PATIENT", patientId);
+        setAuditEvents(events || []);
+      } catch (auditError) {
+        console.warn("Unable to record candidate review event", auditError);
+      }
+
+      navigate(`/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}/reporting-form`);
     } catch (err) {
-
-
-
-      console.error(
-
-
-
-        "Unable to record review event",
-
-
-
-        err
-
-
-
-      );
-
-
-
+      console.error("Unable to continue to reporting", err);
+      setDetectionError(err?.message || "Unable to continue to reporting.");
     }
-
-
-
   }
-
-
-
-
-
   if (loading) {
 
 
@@ -5495,7 +5418,8 @@ export default function PatientWorkspace() {
 
             {detectionState === "completed" && detectionResult && (
               <>
-                {detectionResult.document_evidence_status === "failed" && (
+                {detectionResult.document_evidence_status === "failed" &&
+                  Number(detectionResult.uploaded_document_count) > 0 && (
                   <section className="document-ai-warning" role="status">
                     <strong>AI document analysis did not complete</strong>
                     <p>
@@ -5514,9 +5438,9 @@ export default function PatientWorkspace() {
                   ) : (
                     <section className="candidate-section">
                       <div className="section-label">SIGNAL DETECTION</div>
-                      <h2>Multiple candidates identified</h2>
+                      <h2>Multiple patient records identified</h2>
                       <p className="section-description">
-                        More than one candidate was returned. Review each candidate before continuing.
+                        More than one patient record was returned. Review the records before continuing.
                       </p>
                       {detectionResult.candidates.map((candidate, index) => (
                         <div key={candidate?.candidate_id || candidate?.id || index}>
@@ -5532,9 +5456,9 @@ export default function PatientWorkspace() {
                 ) : (
                   <section className="no-candidate-panel">
                     <div className="section-label">DETECTION COMPLETE</div>
-                    <h2>No potential candidates identified</h2>
+                    <h2>No reportable patient condition identified</h2>
                     <p>
-                      No candidate was returned from the available patient evidence.
+                      No reportable condition was returned from the available patient evidence.
                     </p>
                   </section>
                 )}

@@ -851,6 +851,7 @@ def process_candidate(
             ),
         ),
         db,
+        existing_case_id=request.existing_case_id,
     )
 
     # =========================================================

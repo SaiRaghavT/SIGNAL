@@ -12,6 +12,7 @@ from backend.app.forms.mappings.texas_measles import (
     PDF_FIELD_MAP,
     PDF_MULTI_CHECKBOX_MAP,
 )
+from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
 from .schemas import FormRenderingRequest, FormRenderingResponse, RenderedField
 
 
@@ -127,7 +128,14 @@ def _display_value(value: Any) -> Any:
 
 
 class FormRenderingService:
-    def render_form(self, request: FormRenderingRequest) -> FormRenderingResponse:
+    def render_form(
+        self,
+        request: FormRenderingRequest,
+        report_data: dict[str, Any],
+        *,
+        demo_fill: bool = False,
+        required_missing_fields: list[str] | None = None,
+    ) -> FormRenderingResponse:
         if not TEMPLATE_PATH.exists():
             raise ValueError(f"Template not found: {TEMPLATE_PATH}")
         reader = PdfReader(str(TEMPLATE_PATH))
@@ -139,14 +147,14 @@ class FormRenderingService:
         values: dict[str, Any] = {}
         request_value_fields: set[str] = set()
         for source, target in PDF_FIELD_MAP.items():
-            value = _display_value(_report_value(request.report_data, source))
+            value = _display_value(_report_value(report_data, source))
             if value is not None and str(value) != "":
                 values[target] = value
                 request_value_fields.add(target)
 
         checkbox_values: dict[str, Any] = {}
         for source, definition in PDF_CHECKBOX_MAP.items():
-            value = _report_value(request.report_data, source)
+            value = _report_value(report_data, source)
             if value is None or str(value).strip() == "":
                 continue
             selected = definition["values"].get(_normal(value))
@@ -154,7 +162,7 @@ class FormRenderingService:
                 checkbox_values[definition["pdf_field"]] = selected
                 request_value_fields.add(definition["pdf_field"])
         for source, choices in PDF_MULTI_CHECKBOX_MAP.items():
-            value = _report_value(request.report_data, source)
+            value = _report_value(report_data, source)
             if value is None or str(value).strip() == "":
                 continue
             if isinstance(value, (list, tuple, set)):
@@ -169,10 +177,98 @@ class FormRenderingService:
                     checkbox_values[target] = "1"
                     request_value_fields.add(target)
         # Also accept exact PDF widget names for existing API integrations.
-        for name, value in request.report_data.items():
+        for name, value in report_data.items():
             if isinstance(name, str) and value is not None:
                 values.setdefault(name, value)
                 checkbox_values.setdefault(name, value)
+
+        demo_blank_widgets: set[str] = set()
+        if demo_fill:
+            # A demo case without an outcome is treated as a recovered case.
+            # Never show death details alongside a Survived selection.
+            if not checkbox_values.get("OUTCOME"):
+                checkbox_values["OUTCOME"] = "Survived"
+            if _normal(checkbox_values["OUTCOME"]) == "survived":
+                values.pop("DEATH_DATE", None)
+                values.pop("DEATH_CAUSE", None)
+                demo_blank_widgets.update({"DEATH_DATE", "DEATH_CAUSE"})
+
+            missing_fields_set = set(required_missing_fields or [])
+            for definition in TEXAS_MEASLES_FORM["fields"]:
+                if definition["field"] not in missing_fields_set:
+                    continue
+                source = definition.get("source", definition["field"])
+                if source in PDF_FIELD_MAP:
+                    demo_blank_widgets.add(PDF_FIELD_MAP[source])
+                checkbox = PDF_CHECKBOX_MAP.get(source)
+                if checkbox:
+                    demo_blank_widgets.add(checkbox["pdf_field"])
+                demo_blank_widgets.update(PDF_MULTI_CHECKBOX_MAP.get(source, {}).values())
+
+        def demo_text_value(name: str) -> str:
+            normalized = name.casefold()
+            case_suffix = re.sub(r"[^A-F0-9]", "", request.case_id.upper())[:8]
+            if normalized == "nbs patient id":
+                return f"DEMO-PAT-{case_suffix}"
+            if normalized == "nbs investigation id":
+                return f"DEMO-INV-{case_suffix}"
+            if "epi linked nbs case id" in normalized:
+                return "Not applicable"
+            if "first name" in normalized:
+                return "Taylor"
+            if "last name" in normalized:
+                return "Reed"
+            if "parent or guardian" in normalized:
+                return "Jordan Reed"
+            if "email" in normalized:
+                return "jordan.reed@example.com"
+            if "phone" in normalized:
+                return "512-555-0142"
+            if "address" in normalized or "street" in normalized:
+                return "100 Congress Avenue"
+            if "city" in normalized:
+                return "Austin"
+            if "county" in normalized:
+                return "Travis"
+            if "zip" in normalized or "postal" in normalized:
+                return "78701"
+            if "country" in normalized:
+                return "United States"
+            if "hospital" in normalized or "facility" in normalized:
+                return "Central Texas Medical Center"
+            if "physician" in normalized or "provider" in normalized or "doctor" in normalized:
+                return "Dr. Maya Patel"
+            if "agency" in normalized or "investigated by" in normalized or "reported by" in normalized:
+                return "Austin Public Health"
+            if "diagnosis" in normalized:
+                return "Measles"
+            if "pcr" in normalized or "igm" in normalized:
+                return "Positive"
+            if "igg" in normalized or "culture" in normalized:
+                return "Negative"
+            if "temperature" in normalized or "temp" in normalized:
+                return "101.2"
+            if "duration" in normalized or "age" in normalized or "length of time" in normalized:
+                return "3"
+            if "time" in normalized:
+                return "10:00 AM"
+            if "date" in normalized or normalized.endswith("_af_date"):
+                if "rash" in normalized or "fever" in normalized or "onset" in normalized:
+                    return "2026-09-29"
+                if "discharge" in normalized or "completed" in normalized:
+                    return "2026-10-04"
+                if "admit" in normalized or "start" in normalized:
+                    return "2026-10-01"
+                return "2026-10-02"
+            if "name" in normalized or "contact" in normalized:
+                return "Case Contact"
+            if "occupation" in normalized:
+                return "Teacher"
+            if "location" in normalized or "address" in normalized:
+                return "Austin, TX"
+            if "other" in normalized or "notes" in normalized or "specify" in normalized:
+                return "Not applicable"
+            return "Not applicable"
 
         rendered_fields: list[RenderedField] = []
         populated_fields: list[str] = []
@@ -195,6 +291,21 @@ class FormRenderingService:
                     "type": _field_type(widget),
                     "on_states": _on_states(widget),
                 })
+
+            if demo_fill:
+                for name, widgets in page_fields.items():
+                    text_widgets = [widget for widget in widgets if widget["type"] == "/Tx"]
+                    if text_widgets and name not in values and name not in demo_blank_widgets:
+                        values[name] = demo_text_value(name)
+                    button_widgets = [widget for widget in widgets if widget["type"] == "/Btn"]
+                    if (button_widgets and name not in checkbox_values and name not in demo_blank_widgets
+                            and name.casefold() != "clear form" and not name.startswith("RACE_")):
+                        first_choice = next(
+                            (state for widget in button_widgets for state in widget["on_states"]),
+                            None,
+                        )
+                        if first_choice:
+                            checkbox_values[name] = first_choice
 
             buffer = BytesIO()
             overlay = canvas.Canvas(buffer, pagesize=(float(page.mediabox.width), float(page.mediabox.height)))
@@ -221,7 +332,7 @@ class FormRenderingService:
                         populated_fields.append(name)
                         rendered_fields.append(RenderedField(
                             field=name, value=value_text,
-                            source="request.report_data" if name in request_value_fields else None,
+                            source="persisted_case" if name in request_value_fields else None,
                             confidence=1.0, status="POPULATED",
                         ))
 
@@ -244,7 +355,7 @@ class FormRenderingService:
                             populated_fields.append(name)
                             rendered_fields.append(RenderedField(
                                 field=name, value=selection,
-                                source="request.report_data" if name in request_value_fields else None,
+                                source="persisted_case" if name in request_value_fields else None,
                                 confidence=1.0, status="POPULATED",
                             ))
             overlay.save()

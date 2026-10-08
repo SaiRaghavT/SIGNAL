@@ -22,9 +22,15 @@ def case_has_current_attestation(db: Session, case) -> bool:
 
 
 def smart_fields_for_case(case):
-    from backend.app.case.report_fields import missing_report_fields
+    from backend.app.case.report_fields import (
+        available_case_report_fields,
+        missing_report_fields,
+    )
 
-    fields = getattr(case, "report_fields", {}) or {}
+    # Validate the same merged field values shown in Reporting Data. Values
+    # may come from patient/clinical/lab records even when no form edit saved
+    # them explicitly into case.report_fields yet.
+    fields = available_case_report_fields(case)
     missing, required_missing = missing_report_fields(fields)
     return SimpleNamespace(
         fields=fields,

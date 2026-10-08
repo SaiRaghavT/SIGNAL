@@ -35,31 +35,27 @@ class DeadlineEscalationService:
         if window is None:
             window = int(rule.get("severity_warning_minutes", 60))
 
-        reporting = rule.get("reporting", {})
-        timing = str(reporting.get("timing", "")).upper()
-        value = reporting.get("value")
-        minutes_per_unit = {"MINUTES": 1, "HOURS": 60, "DAYS": 1440}
-        rule_window_minutes = (
-            int(value) * minutes_per_unit[timing]
-            if timing in minutes_per_unit and isinstance(value, int)
-            else 0
-        )
-
         if minutes_remaining < 0:
             status = "OVERDUE"
             escalation_required = True
             message = f"Reporting deadline is overdue by {abs(minutes_remaining)} minutes."
-            urgency = "CRITICAL"
         elif minutes_remaining <= window:
             status = "UPCOMING"
             escalation_required = True
             message = f"Reporting deadline is approaching. {minutes_remaining} minutes remaining."
-            urgency = "HIGH"
         else:
             status = "WITHIN_WINDOW"
             escalation_required = False
             message = f"Reporting deadline is not yet approaching. {minutes_remaining} minutes remaining."
-            urgency = "MEDIUM" if minutes_remaining <= rule_window_minutes else "LOW"
+
+        if minutes_remaining <= 4 * 60:
+            urgency = "CRITICAL"
+        elif minutes_remaining <= 24 * 60:
+            urgency = "HIGH"
+        elif minutes_remaining <= 72 * 60:
+            urgency = "MEDIUM"
+        else:
+            urgency = "LOW"
 
         return {
             "status": status,

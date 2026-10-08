@@ -50,6 +50,7 @@ def test_list_patients_returns_real_related_fields_and_pagination():
     first = Patient(
         patient_id=uuid4(), source_patient_id="source-100", first_name="Ada",
         last_name="Lovelace", date_of_birth=date(1815, 12, 10),
+        state="TX",
         source="test", source_resource="Patient",
     )
     second = Patient(
@@ -99,6 +100,57 @@ def test_list_patients_returns_real_related_fields_and_pagination():
     assert filtered["items"][0]["last_encounter"].replace(tzinfo=timezone.utc) == datetime(2026, 1, 3, tzinfo=timezone.utc)
     assert "severity" not in filtered["items"][0]
     assert filtered["items"][0]["deadline"] is None
+    db.close()
+
+
+def test_measles_worklist_is_texas_only_and_returns_patient_display_fields():
+    db = _session()
+    texas_patient = Patient(
+        patient_id=uuid4(), source_patient_id="texas-source-id",
+        first_name="Taylor", last_name="Patient", date_of_birth=date(1990, 3, 4),
+        state="Texas", source="test", source_resource="Patient",
+    )
+    out_of_state_patient = Patient(
+        patient_id=uuid4(), source_patient_id="other-state-source-id",
+        first_name="Casey", last_name="Patient", state="CA",
+        source="test", source_resource="Patient",
+    )
+    non_measles_patient = Patient(
+        patient_id=uuid4(), source_patient_id="texas-non-measles-id",
+        state="TX", source="test", source_resource="Patient",
+    )
+    db.add_all([texas_patient, out_of_state_patient, non_measles_patient])
+    db.flush()
+    db.add_all([
+        Condition(
+            condition_id=uuid4(), source_condition_id=f"measles-{index}",
+            patient_id=patient.patient_id, condition_display="Measles",
+            onset_time=datetime(2026, 9, 30, tzinfo=timezone.utc),
+            source="test", source_resource="Condition",
+        )
+        for index, patient in enumerate((texas_patient, out_of_state_patient))
+    ])
+    db.add(Condition(
+        condition_id=uuid4(), source_condition_id="non-measles-condition",
+        patient_id=non_measles_patient.patient_id,
+        condition_display="Seasonal allergy", source="test", source_resource="Condition",
+    ))
+    db.commit()
+
+    result = list_patients(db, condition="measles")
+    assert result["total"] == 1
+    item = result["items"][0]
+    assert item["patient_id"] == str(texas_patient.patient_id)
+    assert item["first_name"] == "Taylor"
+    assert item["last_name"] == "Patient"
+    assert item["source_patient_id"] == "texas-source-id"
+    assert "mrn" not in item
+    assert item["date_of_birth"] == "1990-03-04"
+    assert item["jurisdiction"] == "TX"
+    assert item["deadline"] is not None
+    assert item["deadline_reason"] is None
+    assert str(out_of_state_patient.patient_id) not in {row["patient_id"] for row in result["items"]}
+    assert str(non_measles_patient.patient_id) not in {row["patient_id"] for row in result["items"]}
     db.close()
 
 
@@ -268,11 +320,11 @@ def test_candidate_explicit_clinical_event_time_is_used_without_using_created_at
 def test_measles_case_only_qualifies_and_preserves_deadline_rule_distinction():
     db = _session()
     patient_id = UUID("910b69db-2c7d-47c1-88d2-18558376601d")
-    deadline = datetime(2026, 10, 5, 21, 21, 32, 560284, tzinfo=timezone(timedelta(hours=5, minutes=30)))
-    event_time = datetime(2026, 10, 4, 15, 30, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+    deadline = datetime(2026, 10, 4, 15, 30, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+    event_time = datetime(2026, 10, 3, 15, 30, tzinfo=timezone(timedelta(hours=5, minutes=30)))
     patient = Patient(
-        patient_id=patient_id, source_patient_id="PAT-HL7-001", first_name="JOHN",
-        last_name="DOE", date_of_birth=date(1990, 1, 1), state="TX",
+        patient_id=patient_id, source_patient_id="TEST-MEASLES-001", first_name="SAMPLE",
+        last_name="PATIENT", date_of_birth=date(1985, 5, 5), state="TX",
         source="test", source_resource="Patient",
     )
     candidate_id = str(uuid4())
@@ -280,17 +332,17 @@ def test_measles_case_only_qualifies_and_preserves_deadline_rule_distinction():
     db.add(patient)
     db.flush()
     db.add(Candidate(
-        candidate_id=candidate_id, detection_key="john-doe-measles",
+        candidate_id=candidate_id, detection_key="sample-patient-measles",
         patient_id=str(patient_id), disease_id="measles", jurisdiction="TX",
         case_id=case_id, detection_source="LAB_RESULT", status="PROCESSED",
     ))
     observation = Observation(
-        observation_id=uuid4(), source_observation_id="john-doe-observation",
+        observation_id=uuid4(), source_observation_id="sample-patient-observation",
         patient_id=patient_id, observation_display="Measles IgM", value_text="Positive",
         effective_time=event_time, source="test", source_resource="Observation",
     )
     db.add_all([observation, LabResult(
-        lab_result_id=uuid4(), source_lab_result_id="john-doe-lab",
+        lab_result_id=uuid4(), source_lab_result_id="sample-patient-lab",
         patient_id=patient_id, test_display="Measles IgM", conclusion="Positive",
         effective_time=event_time, issued_time=event_time, source="test",
         source_resource="DiagnosticReport", observations=[observation],
@@ -314,7 +366,7 @@ def test_measles_case_only_qualifies_and_preserves_deadline_rule_distinction():
     assert result["total"] == 1
     assert len({item["patient_id"] for item in result["items"]}) == 1
     john = result["items"][0]
-    assert john["source_patient_id"] == "PAT-HL7-001"
+    assert john["source_patient_id"] == "TEST-MEASLES-001"
     assert john["condition"] == "Measles"
     assert john["deadline"]["deadline"] == deadline
     assert john["deadline"]["disease"] == "measles"

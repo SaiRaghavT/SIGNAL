@@ -9,7 +9,7 @@ from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
-from backend.app.models.workflow_records import CaseWorkflowRecord
+from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.ecr.builder import build_ecr
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
@@ -54,6 +54,7 @@ def _submission_data(submission: Submission) -> dict[str, Any]:
         "submission_id": submission.submission_id,
         "ecr_id": submission.ecr_id,
         "destination": submission.destination,
+        "channel": submission.channel,
         "status": submission.status,
         "errors": submission.errors or [],
         "warnings": submission.warnings or [],
@@ -130,6 +131,12 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         .order_by(FollowUp.created_at.asc())
         .all()
     )
+    reports = (
+        db.query(Report)
+        .filter(Report.case_id == case_id_text)
+        .order_by(Report.created_at.asc())
+        .all()
+    )
     audit_events = (
         db.query(AuditEvent)
         .filter(
@@ -178,11 +185,6 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
             case.jurisdiction_status,
         )
     )
-    reporting_events = [
-        event
-        for event in audit_events
-        if event.event_type == "CASE_MANUAL_REPORT_PREPARED"
-    ]
 
     validation_stage = _validation_stage(case)
     if validation_stage.status == "READY":
@@ -205,14 +207,21 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         ),
         JourneyStage(
             stage="DETECTION",
-            available=bool(detection_events),
-            status="COMPLETED" if detection_events else None,
-            occurred_at=detection_events[-1].event_timestamp if detection_events else None,
-            entity_reference=case.candidate_id if detection_events else None,
-            source=detection_events[-1].source_agent if detection_events else None,
-            data={"events": [_audit_data(event) for event in detection_events]},
-            limitations=[] if detection_events else [
-                "Detection results are transient; this journey does not rerun detection."
+            available=candidate is not None,
+            status="COMPLETED" if candidate is not None else "NOT_STARTED",
+            occurred_at=candidate.created_at if candidate is not None else None,
+            entity_reference=candidate.candidate_id if candidate is not None else None,
+            source="Persisted candidate record" if candidate is not None else None,
+            data={
+                "candidate_id": candidate.candidate_id,
+                "patient_id": candidate.patient_id,
+                "disease": candidate.disease_id,
+                "status": candidate.status,
+            } if candidate is not None else {},
+            limitations=[
+                "Detection status reflects the persisted candidate linked to this case; detection is not rerun when the journey is read."
+            ] if candidate is not None else [
+                "No persisted candidate is linked to this case."
             ],
         ),
         JourneyStage(
@@ -295,17 +304,23 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         ),
         JourneyStage(
             stage="REPORTING",
-            available=bool(reporting_events),
-            status="COMPLETED" if reporting_events else "PENDING",
-            occurred_at=reporting_events[-1].event_timestamp if reporting_events else None,
-            entity_reference=case_id_text if reporting_events else None,
-            source=reporting_events[-1].actor_type if reporting_events else None,
-            agent=reporting_events[-1].source_agent if reporting_events else None,
-            data={"events": [_audit_data(event) for event in reporting_events]},
+            available=bool(reports),
+            status="COMPLETED" if reports and reports[-1].status == "GENERATED" else "PENDING",
+            occurred_at=reports[-1].created_at if reports else None,
+            entity_reference=reports[-1].report_id if reports else None,
+            data={"reports": [{
+                "report_id": item.report_id,
+                "form_id": item.form_id,
+                "form_version": item.form_version,
+                "render_id": item.render_id,
+                "report_type": item.report_type,
+                "status": item.status,
+                "created_at": item.created_at,
+            } for item in reports]},
             limitations=(
-                ["The audit event records preparation only; current report fields are available in case detail, while rendered-document metadata is not retained as workflow history."]
-                if reporting_events
-                else ["No persisted manual-report preparation event was found; generated files alone are not treated as history."]
+                ["Current reporting state comes from persisted report records; audit events remain available separately as historical evidence."]
+                if reports
+                else ["No current report record exists; historical audit events are retained separately and do not mark reporting complete."]
             ),
         ),
         JourneyStage(
