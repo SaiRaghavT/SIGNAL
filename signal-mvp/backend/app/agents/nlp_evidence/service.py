@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import Any
 
@@ -18,6 +19,56 @@ class DocumentAIUnavailableError(RuntimeError):
 DOCUMENT_AI_UNAVAILABLE_MESSAGE = (
     "AI processing could not be performed because both models are unavailable."
 )
+
+_GROQ_RATE_LIMIT_RETRIES = 2
+_GROQ_MAX_RETRY_DELAY_SECONDS = 30.0
+
+
+def _groq_retry_delay(exc: Exception, attempt: int) -> float:
+    """Choose a bounded wait, honoring Groq's retry guidance when provided."""
+
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", {}) or {}
+    retry_after = headers.get("retry-after")
+    if retry_after:
+        try:
+            return min(float(retry_after), _GROQ_MAX_RETRY_DELAY_SECONDS)
+        except (TypeError, ValueError):
+            pass
+
+    reset = headers.get("x-ratelimit-reset-tokens")
+    if reset:
+        match = re.search(r"[0-9]+(?:\.[0-9]+)?", str(reset))
+        if match:
+            return min(float(match.group()), _GROQ_MAX_RETRY_DELAY_SECONDS)
+
+    # Groq sometimes puts the wait time only in the 429 error message.
+    match = re.search(r"try again in\s+([0-9]+(?:\.[0-9]+)?)\s*s", str(exc), re.IGNORECASE)
+    if match:
+        return min(float(match.group(1)), _GROQ_MAX_RETRY_DELAY_SECONDS)
+
+    return min(2.0 ** attempt, _GROQ_MAX_RETRY_DELAY_SECONDS)
+
+
+def _create_groq_completion(client: Any, request_options: dict[str, Any], *, run_id: str, document_id: Any) -> Any:
+    """Retry Groq rate-limit responses a small number of times."""
+
+    for attempt in range(_GROQ_RATE_LIMIT_RETRIES + 1):
+        try:
+            return client.chat.completions.create(**request_options)
+        except Exception as exc:
+            if getattr(exc, "status_code", None) != 429 or attempt >= _GROQ_RATE_LIMIT_RETRIES:
+                raise
+            delay = _groq_retry_delay(exc, attempt)
+            logger.warning(
+                "AI checkpoint run_id=%s stage=rate_limit_retry provider=groq document_id=%s attempt=%d/%d wait_seconds=%.2f",
+                run_id,
+                document_id,
+                attempt + 1,
+                _GROQ_RATE_LIMIT_RETRIES,
+                delay,
+            )
+            time.sleep(delay)
 
 
 def _short_error(exc: Exception, limit: int = 500) -> str:
@@ -503,7 +554,12 @@ def _extract_with_groq(
         )
 
         try:
-            response = client.chat.completions.create(**request_options)
+            response = _create_groq_completion(
+                client,
+                request_options,
+                run_id=run_id,
+                document_id=document.get("document_id"),
+            )
 
         except Exception as exc:
             if "json_validate_failed" in str(exc).casefold():
@@ -533,7 +589,12 @@ def _extract_with_groq(
                 retry_options.pop("response_format", None)
                 try:
                     retry_started = time.monotonic()
-                    response = client.chat.completions.create(**retry_options)
+                    response = _create_groq_completion(
+                        client,
+                        retry_options,
+                        run_id=run_id,
+                        document_id=document.get("document_id"),
+                    )
                     logger.info(
                         "AI checkpoint run_id=%s stage=json_mode_retry_succeeded provider=groq model=%s document_id=%s elapsed_seconds=%.2f",
                         run_id,

@@ -14,7 +14,7 @@ from .schemas import DashboardSummaryResponse
 
 
 def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
-    """Aggregate dashboard counts from the existing Measles worklist and workflow records."""
+    """Aggregate dashboard counts across all patients, conditions, and cases."""
 
     cases = db.query(Case.case_id).count()
     reportable_cases = (
@@ -46,12 +46,12 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         .count()
     )
 
-    # Reuse the canonical worklist service so this KPI and Priority Work use
-    # the same backend cohort and the exact deadline values exposed to Patients.
-    measles_worklist = list_patients(db, page=1, page_size=100_000, condition="measles")
+    # Reuse the unfiltered canonical patient list so dashboard KPIs cover all
+    # diseases and deadlines use the same calculations as the Patients page.
+    patient_worklist = list_patients(db, page=1, page_size=100_000)
     local_today = datetime.now().astimezone().date()
-    measles_patients_due_today = 0
-    for patient in measles_worklist["items"]:
+    patients_due_today = 0
+    for patient in patient_worklist["items"]:
         deadline_data = patient.get("deadline")
         deadline_value = deadline_data.get("deadline") if isinstance(deadline_data, dict) else deadline_data
         if isinstance(deadline_value, str):
@@ -64,19 +64,17 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         if deadline_value.tzinfo is None:
             deadline_value = deadline_value.replace(tzinfo=timezone.utc)
         if deadline_value.astimezone().date() == local_today:
-            measles_patients_due_today += 1
+            patients_due_today += 1
 
-    measles_case_filter = func.lower(Case.disease).like("%measles%")
     reported_case_ids = (
         db.query(Submission.case_id.label("case_id"))
         .filter(Submission.status.in_(("SUBMITTED", "ACKNOWLEDGED")))
         .distinct()
         .subquery()
     )
-    reported_measles_cases = (
+    reported_cases = (
         db.query(Case.case_id)
         .join(reported_case_ids, cast(Case.case_id, String) == reported_case_ids.c.case_id)
-        .filter(measles_case_filter)
         .distinct()
         .count()
     )
@@ -84,10 +82,9 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
     # The case workflow has no separate ACTIVE enum: its open action states are
     # NEEDS_REVIEW and REPORT. Exclude cases with an actual submitted/acknowledged
     # record; HOLD is not an open reporting action.
-    active_measles_cases = (
+    active_cases = (
         db.query(Case.case_id)
         .filter(
-            measles_case_filter,
             Case.status.in_(("NEEDS_REVIEW", "REPORT")),
             ~cast(Case.case_id, String).in_(select(reported_case_ids.c.case_id)),
         )
@@ -100,10 +97,10 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         needs_review=needs_review,
         submitted_cases=submitted_cases,
         upcoming_deadlines=upcoming_deadlines,
-        total_measles_patients=measles_worklist["total"],
-        active_measles_cases=active_measles_cases,
-        measles_patients_due_today=measles_patients_due_today,
-        reported_measles_cases=reported_measles_cases,
+        total_patients=patient_worklist["total"],
+        active_cases=active_cases,
+        patients_due_today=patients_due_today,
+        reported_cases=reported_cases,
     )
 
 

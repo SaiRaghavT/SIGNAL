@@ -116,6 +116,18 @@ def canonical_context_to_detection_input(
         for encounter in context.get("encounters", [])
     ]
 
+    # Keep each source note as a first-class detection signal. AI extraction
+    # adds clinical evidence from these notes, but should not replace the
+    # source-document record itself.
+    clinical_documents = [
+        {
+            **document,
+            "id": document.get("document_id"),
+            "patient_id": document.get("patient_id", patient_id),
+        }
+        for document in context.get("clinical_documents", [])
+    ]
+
     # ---------------------------------------------------------
     # Final normalized detection input
     # ---------------------------------------------------------
@@ -127,6 +139,7 @@ def canonical_context_to_detection_input(
         "conditions": conditions,
         "observations": observations,
         "diagnostic_reports": diagnostic_reports,
+        "clinical_documents": clinical_documents,
         "medications": [],
         "procedures": [],
         "encounters": encounters,
