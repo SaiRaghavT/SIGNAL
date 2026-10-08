@@ -177,7 +177,7 @@ function Login() {
                 <strong>Report</strong>
 
                 <small>
-                  Track reporting, acknowledgement and follow-up.
+                  Track reporting and acknowledgement.
                 </small>
               </div>
             </div>

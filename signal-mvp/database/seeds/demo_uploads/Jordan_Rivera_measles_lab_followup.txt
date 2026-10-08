@@ -1,0 +1,17 @@
+SYNTHETIC LAB FOLLOW-UP NOTE — FOR SIGNAL DEMONSTRATION ONLY
+Not a real patient record. Do not use for clinical care or public-health reporting.
+
+Patient: Jordan Rivera
+Patient ID: SIGNAL-DEMO-MEASLES-001
+Encounter date: October 7, 2026
+Document type: Laboratory follow-up
+
+Laboratory result:
+Measles virus RNA was detected in the respiratory specimen by nucleic acid
+amplification (PCR). Result: POSITIVE.
+
+Clinical interpretation:
+The positive measles PCR result is documented for clinician review and
+follow-up. This synthetic note does not record a public-health submission.
+
+End of synthetic note.

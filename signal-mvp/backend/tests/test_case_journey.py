@@ -8,7 +8,6 @@ from fastapi import HTTPException
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import Report
 from backend.app.workflow.router import read_case_journey
@@ -76,11 +75,11 @@ def stage(response, name):
     return next(item for item in response.journey if item.stage == name)
 
 
-def test_case_without_submission_or_followup_has_eleven_ordered_stages():
+def test_case_without_submission_has_ten_ordered_stages():
     case = make_case()
     result = journey_for(case)
 
-    assert len(result.journey) == 11
+    assert len(result.journey) == 10
     assert [item.stage for item in result.journey] == list(STAGE_ORDER)
     assert result.current_stage == "CASE"
     assert stage(result, "DATA_INGESTION").available is False
@@ -118,24 +117,6 @@ def test_submission_data_is_from_persisted_submission_record():
     assert submission_stage.available is True
     assert submission_stage.data["submissions"][0]["submission_id"] == "SUB-1"
     assert any("simulated" in item.lower() for item in submission_stage.limitations)
-
-
-def test_followup_data_is_from_persisted_followup_record():
-    case = make_case()
-    follow_up = SimpleNamespace(
-        followup_id="FOLLOWUP-1",
-        action="REQUEST_INFORMATION",
-        status="FOLLOWUP_PENDING",
-        notes="Need additional details",
-        created_at=case.created_at,
-        updated_at=case.updated_at,
-    )
-    result = journey_for(case, {FollowUp: [follow_up]})
-
-    followup_stage = stage(result, "PHA_FOLLOW_UP")
-    assert result.current_stage == "PHA_FOLLOW_UP"
-    assert followup_stage.available is True
-    assert followup_stage.data["follow_ups"][0]["action"] == "REQUEST_INFORMATION"
 
 
 def test_historical_reporting_audit_does_not_mark_current_reporting_complete():

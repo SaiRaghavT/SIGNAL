@@ -18,7 +18,6 @@ from backend.app.models.candidate import Candidate
 from backend.app.models.clinical_document import ClinicalDocument
 from backend.app.models.condition import Condition
 from backend.app.models.encounter import Encounter
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.lab_result import LabResult, lab_result_observations
 from backend.app.models.observation import Observation
 from backend.app.models.patient import Patient
@@ -48,7 +47,6 @@ def _session() -> Session:
         LabResult,
         ClinicalDocument,
         Candidate,
-        FollowUp,
     ):
         model.__table__.create(engine)
     lab_result_observations.create(engine)

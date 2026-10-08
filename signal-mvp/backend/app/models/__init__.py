@@ -6,7 +6,6 @@ from backend.app.models.case import Case
 from backend.app.models.lab_result import LabResult
 from backend.app.models.clinical_document import ClinicalDocument
 from backend.app.models.submissions import Submission
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.candidate import Candidate
@@ -28,7 +27,6 @@ __all__ = [
     "LabResult",
     "ClinicalDocument",
     "Submission",
-    "FollowUp",
     "AuditEvent",
     "DeadlineEscalation",
     "Candidate",

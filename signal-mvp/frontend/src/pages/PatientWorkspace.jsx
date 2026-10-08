@@ -1256,25 +1256,27 @@ function DetectionProgress({ activeStage }) {
 
 
 
-function MeaslesAnatomyCard({ patientName = "Patient", conditions = [], documents = [] }) {
-  if (!conditions.some(isMeaslesCondition)) return null;
-
+function PatientAnatomyCard({ patientName = "Patient", conditions = [], documents = [] }) {
   const documentedText = documents
     .map((document) => [document?.title, document?.extracted_text, document?.text, document?.content].filter(Boolean).join(" "))
     .join(" ")
     .toLowerCase();
+  const conditionName = getReadableConditionName(conditions) || "Clinical case";
   const findings = [
-    { id: "skin", label: "Face and upper trunk rash", terms: /rash|maculopapular/ },
-    { id: "eyes", label: "Bilateral eye redness", terms: /conjunctiv|red eyes|eye redness/ },
-    { id: "respiratory", label: "Cough and coryza", terms: /cough|coryza|nasal congestion|runny nose/ },
+    { id: "skin", label: "Rash or skin changes", terms: /rash|maculopapular|skin lesion|skin changes/ },
+    { id: "eyes", label: "Eye redness or irritation", terms: /conjunctiv|red eyes|eye redness|eye irritation/ },
+    { id: "respiratory", label: "Cough or respiratory symptoms", terms: /cough|coryza|nasal congestion|runny nose|shortness of breath|dyspnea/ },
+    { id: "fever", label: "Fever", terms: /\bfever\b|febrile|elevated temperature/ },
+    { id: "pain", label: "Pain or tenderness", terms: /\bpain\b|tenderness|soreness/ },
+    { id: "gastrointestinal", label: "Gastrointestinal symptoms", terms: /nausea|vomiting|diarrhea|abdominal pain/ },
   ].filter((finding) => finding.terms.test(documentedText));
 
   return (
     <section className="anatomy-card" aria-labelledby="anatomy-card-title">
       <div className="anatomy-card-copy">
         <span className="anatomy-card-kicker">PATIENT CASE · CLINICAL FINDINGS</span>
-        <h2 id="anatomy-card-title">{patientName} · Measles</h2>
-        <p className="anatomy-card-note">Case-linked findings documented for {patientName}. Red highlights show the affected areas</p>
+        <h2 id="anatomy-card-title">{patientName} · {conditionName}</h2>
+        <p className="anatomy-card-note">Generic anatomy view for this case. Findings appear when they are documented in the available clinical notes.</p>
         <div className="anatomy-findings" aria-label="Documented findings shown">
           {findings.length ? findings.map((finding) => (
             <div className="anatomy-finding" key={finding.id}>
@@ -1354,7 +1356,7 @@ function RecordSummary({
 
   return (
     <>
-    <MeaslesAnatomyCard
+    <PatientAnatomyCard
       patientName={getPatientName(patient?.patient || patient?.data || patient)}
       conditions={conditions}
       documents={documents}
@@ -1917,13 +1919,18 @@ function AiDocumentUploadCard({
       <div className="ai-document-upload-icon" aria-hidden="true">↑</div>
       <div className="ai-document-upload-copy">
         <div className="section-label">AI DETECTION INPUT</div>
-        <h2>Upload clinical documents <span>(Optional)</span></h2>
+        <div className="ai-document-upload-title">
+          <h2>Add clinical documents</h2>
+          <span className="ai-document-upload-optional">Optional</span>
+        </div>
         <p>
-          Upload a clinical note, lab report, or discharge summary if available. SIGNAL will
-          include it the next time you run detection.
+          Detection can use the patient’s existing records. Add a clinical note,
+          lab report, or discharge summary to include it in your next run.
         </p>
         <span className="ai-document-upload-meta">
-          {uploadedDocuments.length} uploaded document{uploadedDocuments.length === 1 ? "" : "s"}
+          {uploadedDocuments.length === 0
+            ? "No files added yet"
+            : `${uploadedDocuments.length} document${uploadedDocuments.length === 1 ? "" : "s"} added`}
           <span aria-hidden="true"> · </span>PDF, DOCX, or TXT up to 10 MB
         </span>
         {actionError && <p className="ai-document-action-error" role="alert">{actionError}</p>}
@@ -2659,11 +2666,39 @@ function getCandidateSignalEntries(candidate) {
   return Array.isArray(source) ? source.filter((signal) => signal && typeof signal === "object") : [];
 }
 
+function getVisibleDetectionCandidates(candidates) {
+  if (!Array.isArray(candidates)) return [];
+  return candidates.filter((candidate) => {
+    const identity = [
+      candidate?.disease_id,
+      candidate?.trigger_concept_key,
+      candidate?.trigger_key,
+      candidate?.disease,
+      candidate?.condition,
+    ].some((value) => {
+      const label = getReadableConditionName(value);
+      return label && !/^potential condition$/i.test(label);
+    });
+    const signals = getCandidateSignalEntries(candidate);
+    const documentOnly = signals.length > 0 && signals.every(
+      (signal) => getEvidenceCategory(signal) === "document"
+    );
+    return !(documentOnly && !identity);
+  });
+}
+
 function getCandidateDisplaySignals(candidate) {
   const entries = getCandidateSignalEntries(candidate);
+  const documentEntries = entries.filter(
+    (signal) => getEvidenceCategory(signal) === "document"
+  );
+  const clinicalEntries = entries.filter(
+    (signal) => getEvidenceCategory(signal) !== "document"
+  );
+  const entriesToDisplay = clinicalEntries.length > 0 ? clinicalEntries : entries;
   const seen = new Set();
 
-  return entries.filter((signal) => {
+  const visibleSignals = entriesToDisplay.filter((signal) => {
     const category = getEvidenceCategory(signal);
     if (category !== "laboratory") return true;
 
@@ -2683,6 +2718,50 @@ function getCandidateDisplaySignals(candidate) {
     seen.add(key);
     return true;
   });
+
+  if (documentEntries.length === 0) {
+    return visibleSignals;
+  }
+
+  const documentsBySource = new Map();
+  for (const signal of documentEntries) {
+    const evidence = signal?.evidence || {};
+    const sourceId = getSignalValue(signal, "evidence.source_id", "source_id");
+    const title = getSignalTitle(signal, "document");
+    const existing = sourceId ? documentsBySource.get(sourceId) : null;
+    const sourceRecord = evidence.evidence_role === "supporting_clinical_evidence";
+    const item = {
+      title,
+      text: sourceRecord
+        ? ""
+        : getSignalValue(
+          signal,
+          "evidence.evidence_text",
+          "evidence.concept",
+          "evidence_text",
+          "description"
+        ),
+      sourceId,
+      documentDate: evidence.document_date,
+    };
+    if (!existing || sourceRecord) {
+      documentsBySource.set(sourceId || `${title}-${documentsBySource.size}`, item);
+    }
+  }
+
+  const supportingDocumentEvidence = [...documentsBySource.values()];
+  const documentSignal = {
+    trigger_type: "DOCUMENT_EVIDENCE",
+    trigger_id: "clinical-document-sources",
+    title: `Clinical documents (${supportingDocumentEvidence.length})`,
+    evidence: {
+      source_type: "ClinicalDocument",
+      title: `Clinical documents (${supportingDocumentEvidence.length})`,
+    },
+    supporting_document_evidence: supportingDocumentEvidence,
+  };
+
+  return [...visibleSignals, documentSignal];
 }
 
 function getSignalValue(signal, ...keys) {
@@ -2973,6 +3052,9 @@ function DetectionSignal({ signal, category }) {
   const primaryValue = getSignalPrimaryValue(signal, category);
   const details = getSignalDetails(signal, category);
   const moreDetails = getSignalMoreDetails(signal);
+  const supportingDocumentEvidence = Array.isArray(signal?.supporting_document_evidence)
+    ? signal.supporting_document_evidence.filter((item) => item?.text || item?.title)
+    : [];
 
   const icon =
     category === "condition" ? "✦" : category === "laboratory" ? "⌁" : "▤";
@@ -3011,6 +3093,23 @@ function DetectionSignal({ signal, category }) {
                     : "Evidence"}
               </span>
               <strong>{formatSignalDetail(primaryValue)}</strong>
+            </div>
+          )}
+
+          {supportingDocumentEvidence.length > 0 && (
+            <div className="signal-evidence-callout">
+              <span>Supporting document evidence</span>
+              {supportingDocumentEvidence.map((item, index) => (
+                <p key={item.sourceId || `${item.title}-${index}`}>
+                  <strong>{item.title || "Clinical document"}</strong>
+                  {item.documentDate && (
+                    <time dateTime={item.documentDate}>
+                      {` · ${new Date(item.documentDate).toLocaleDateString()}`}
+                    </time>
+                  )}
+                  {item.text ? ` — ${item.text}` : ""}
+                </p>
+              ))}
             </div>
           )}
 
@@ -3139,6 +3238,7 @@ function DetectionCandidate({ candidate, onContinue, onRunAgain }) {
   });
 
   const signalCount = rawSignals.length;
+  const hasClinicalSignals = grouped.condition.length > 0 || grouped.laboratory.length > 0;
   const confidence = candidate?.confidence ?? candidate?.score;
   const name = getCandidateConditionName(candidate).replaceAll("_", " ");
   const confidenceValue = getConfidenceLabel(confidence);
@@ -3188,10 +3288,14 @@ function DetectionCandidate({ candidate, onContinue, onRunAgain }) {
       <section className="detection-support-section">
         <div className="detection-section-heading">
           <div>
-            <span className="detection-eyebrow">SUPPORTING SIGNALS</span>
+            <span className="detection-eyebrow">
+              {hasClinicalSignals ? "CLINICAL SIGNALS" : "SUPPORTING SIGNALS"}
+            </span>
             <h3>What SIGNAL found</h3>
           </div>
-          <span className="detection-section-note">{signalCount} signal{signalCount === 1 ? "" : "s"}</span>
+          <span className="detection-section-note">
+            {signalCount} {hasClinicalSignals ? "clinical " : "supporting "}signal{signalCount === 1 ? "" : "s"}
+          </span>
         </div>
 
         <div className="signal-accordion-list">
@@ -4214,9 +4318,10 @@ export default function PatientWorkspace() {
   const { patientId } = useParams();
   const navigate = useNavigate();
 
-  const [consentCheckPatientId, setConsentCheckPatientId] = useState(null);
-  const [consentedPatientId, setConsentedPatientId] = useState(null);
-  const [showMeaslesWarning, setShowMeaslesWarning] = useState(false);
+  // Immediate-reporting warning and consent gate are temporarily disabled.
+  // const [consentCheckPatientId, setConsentCheckPatientId] = useState(null);
+  // const [consentedPatientId, setConsentedPatientId] = useState(null);
+  // const [showMeaslesWarning, setShowMeaslesWarning] = useState(false);
 
 
 
@@ -4363,19 +4468,19 @@ export default function PatientWorkspace() {
 
 
 
-  const hasMeasles = conditions.some(isMeaslesCondition);
-  const consentChecked = consentCheckPatientId === patientId;
-  const consentAcknowledged = consentedPatientId === patientId;
+  // const hasMeasles = conditions.some(isMeaslesCondition);
+  // const consentChecked = consentCheckPatientId === patientId;
+  // const consentAcknowledged = consentedPatientId === patientId;
 
-  useEffect(() => {
-    if (!patientId || !hasMeasles || consentAcknowledged) return undefined;
-
-    const timer = window.setTimeout(() => {
-      setShowMeaslesWarning(true);
-    }, 5000);
-
-    return () => window.clearTimeout(timer);
-  }, [patientId, hasMeasles, consentAcknowledged]);
+  // useEffect(() => {
+  //   if (!patientId || !hasMeasles || consentAcknowledged) return undefined;
+  //
+  //   const timer = window.setTimeout(() => {
+  //     setShowMeaslesWarning(true);
+  //   }, 5000);
+  //
+  //   return () => window.clearTimeout(timer);
+  // }, [patientId, hasMeasles, consentAcknowledged]);
 
   const labs = useMemo(
 
@@ -4539,20 +4644,23 @@ export default function PatientWorkspace() {
   useEffect(() => {
     if (!patientId) return;
 
+    setDetectionResult(null);
+    setDetectionState("idle");
+    setDetectionError("");
     loadWorkspace();
   }, [patientId]);
 
-  useEffect(() => {
-    setShowMeaslesWarning(false);
-
-    if (!patientId || !hasMeasles) return undefined;
-
-    const warningTimer = window.setTimeout(() => {
-      setShowMeaslesWarning(true);
-    }, 5000);
-
-    return () => window.clearTimeout(warningTimer);
-  }, [patientId, hasMeasles]);
+  // useEffect(() => {
+  //   setShowMeaslesWarning(false);
+  //
+  //   if (!patientId || !hasMeasles) return undefined;
+  //
+  //   const warningTimer = window.setTimeout(() => {
+  //     setShowMeaslesWarning(true);
+  //   }, 5000);
+  //
+  //   return () => window.clearTimeout(warningTimer);
+  // }, [patientId, hasMeasles]);
 
   useEffect(() => {
     if (detectionState === "running") {
@@ -4978,6 +5086,7 @@ export default function PatientWorkspace() {
 
 
 
+      {/* Immediate-reporting warning and consent overlay temporarily disabled.
       {hasMeasles && showMeaslesWarning && !consentAcknowledged && (
         <div className="measles-consent-backdrop">
           <section
@@ -5032,10 +5141,10 @@ export default function PatientWorkspace() {
           </section>
         </div>
       )}
+      */}
 
       <div
         className="workspace-gated-content"
-        inert={hasMeasles && showMeaslesWarning && !consentAcknowledged}
       >
         <div className="workspace-tabs">
 
@@ -5418,31 +5527,35 @@ export default function PatientWorkspace() {
 
             {detectionState === "completed" && detectionResult && (
               <>
-                {detectionResult.document_evidence_status === "failed" &&
-                  Number(detectionResult.uploaded_document_count) > 0 && (
+                {detectionResult.document_evidence_status === "failed" && (
                   <section className="document-ai-warning" role="status">
-                    <strong>AI document analysis did not complete</strong>
+                    <strong>AI processing could not be performed</strong>
                     <p>
                       {detectionResult.document_evidence_error ||
-                        "Uploaded documents were not included in this detection run. Structured record detection may still have completed."}
+                        "Both AI models are unavailable. Your uploaded documents are saved, and structured record detection may still complete."}
                     </p>
+                    {detectionResult.diagnostics?.run_id && (
+                      <p>
+                        Backend log reference: <code>{detectionResult.diagnostics.run_id}</code>
+                      </p>
+                    )}
                   </section>
                 )}
-                {Array.isArray(detectionResult?.candidates) && detectionResult.candidates.length > 0 ? (
-                  detectionResult.candidates.length === 1 ? (
+                {getVisibleDetectionCandidates(detectionResult?.candidates).length > 0 ? (
+                  getVisibleDetectionCandidates(detectionResult?.candidates).length === 1 ? (
                     <DetectionCandidate
-                      candidate={detectionResult.candidates[0]}
+                      candidate={getVisibleDetectionCandidates(detectionResult?.candidates)[0]}
                       onContinue={handleReviewCandidate}
                       onRunAgain={handleDetection}
                     />
                   ) : (
                     <section className="candidate-section">
                       <div className="section-label">SIGNAL DETECTION</div>
-                      <h2>Multiple patient records identified</h2>
+                      <h2>Multiple potential reportable conditions identified</h2>
                       <p className="section-description">
-                        More than one patient record was returned. Review the records before continuing.
+                        Review each condition and its supporting evidence before continuing.
                       </p>
-                      {detectionResult.candidates.map((candidate, index) => (
+                      {getVisibleDetectionCandidates(detectionResult?.candidates).map((candidate, index) => (
                         <div key={candidate?.candidate_id || candidate?.id || index}>
                           <DetectionCandidate
                             candidate={candidate}
@@ -5456,9 +5569,10 @@ export default function PatientWorkspace() {
                 ) : (
                   <section className="no-candidate-panel">
                     <div className="section-label">DETECTION COMPLETE</div>
-                    <h2>No reportable patient condition identified</h2>
+                    <h2>No potential reportable condition identified</h2>
                     <p>
-                      No reportable condition was returned from the available patient evidence.
+                      No configured public health reporting trigger matched the available patient evidence.
+                      A condition may still need review if its diagnosis or test result is missing from the record.
                     </p>
                   </section>
                 )}

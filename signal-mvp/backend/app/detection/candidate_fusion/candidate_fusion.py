@@ -335,6 +335,25 @@ def fuse_candidate_signals(
         evidence = signal.get("evidence") or {}
         if not isinstance(evidence, dict):
             evidence = {}
+        signal_type = str(signal.get("trigger_type") or "").casefold()
+        source_type = str(evidence.get("source_type") or "").casefold()
+        has_disease_identity = any(
+            signal.get(key)
+            for key in ("disease_id", "trigger_concept_key", "trigger_key")
+        )
+        # A source-note record is useful for traceability, but it has no
+        # disease identity and must never become a standalone candidate.
+        if (
+            evidence.get("evidence_role") == "supporting_clinical_evidence"
+            or (
+                not has_disease_identity
+                and (
+                    source_type in {"document", "clinicaldocument"}
+                    or signal_type in {"document_evidence", "document_diagnosis"}
+                )
+            )
+        ):
+            continue
         refs = {
             str(value)
             for value in (evidence.get("source_id"), evidence.get("observation_id"))

@@ -28,7 +28,7 @@ INSERT INTO encounters (
   end_time = EXCLUDED.end_time,
   updated_at = EXCLUDED.updated_at;
 
--- Follow-up encounters: rash evaluation, then laboratory confirmation.
+-- Subsequent encounters: rash evaluation, then laboratory confirmation.
 INSERT INTO encounters (
   encounter_id, source_encounter_id, patient_id, facility_id, encounter_type,
   status, start_time, end_time, source, source_resource, created_at, updated_at
@@ -246,17 +246,6 @@ INSERT INTO acknowledgements (
   'PHA-SIGNAL-DEMO-MEASLES-001', 'ACKNOWLEDGED',
   '{"simulated":true,"status":"ACKNOWLEDGED","synthetic_demo":true}'::jsonb, '[]'::jsonb
 ) ON CONFLICT (acknowledgement_id) DO NOTHING;
-
-INSERT INTO follow_ups (
-  followup_id, case_id, action, status, notes, submission_id, patient_id,
-  disease, next_action, due_date
-) VALUES (
-  'FOLLOWUP-SIGNAL-DEMO-MEASLES-001', '47c36049-c05c-5cd0-9636-e870a6457597',
-  'ACKNOWLEDGEMENT_REVIEW', 'CLOSED',
-  'Synthetic demo: mock acknowledgement reviewed and follow-up closed.',
-  'SUB-SIGNAL-DEMO-MEASLES-001', 'bb06202b-79bc-58c9-a8d6-be96e0775fdb',
-  'measles', 'No further demo action.', CURRENT_TIMESTAMP - INTERVAL '5 minutes'
-) ON CONFLICT (followup_id) DO NOTHING;
 
 COMMIT;
 

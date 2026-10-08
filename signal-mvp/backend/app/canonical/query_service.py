@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.agents.deadline_calculation.schemas import DeadlineCalculationRequest
 from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
+from backend.app.agents.deadline_escalation.service import DeadlineEscalationService
 from backend.app.detection.adapter import canonical_context_to_detection_input
 from backend.app.detection.structured_trigger import detect_structured_triggers
 from backend.app.detection.structured_trigger import STRUCTURED_TRIGGERS
@@ -446,79 +447,12 @@ def _patient_deadline(
     jurisdiction = "TX" if jurisdiction.strip().casefold() == "texas" else jurisdiction
 
     persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
-    rule = None
-    selected_disease = None
-    for disease_candidate in disease_candidates:
-        try:
-            rule = deadline_calculation_service._load_rule(
-                disease=disease_candidate,
-                jurisdiction=jurisdiction,
-                rule_id=None,
-            )
-            selected_disease = disease_candidate
-            break
-        except ValueError:
-            continue
-
-    if rule is None and lab_results:
-        detection_input = canonical_context_to_detection_input(
-            {
-                "patient": _patient_to_dict(patient),
-                "conditions": [_condition_to_dict(item) for item in conditions],
-                "observations": [],
-                "lab_results": [_lab_result_to_dict(item) for item in lab_results],
-            }
+    if persisted_deadline is not None and last_encounter is None:
+        reporting = rule.get("reporting", {})
+        current_state = DeadlineEscalationService().evaluate_current_state(
+            persisted_deadline,
+            rule,
         )
-        for signal in detect_structured_triggers(detection_input):
-            signal_disease = str(signal.get("disease_id") or "")
-            source_id = str(signal.get("evidence", {}).get("source_id") or "")
-            if not signal_disease:
-                continue
-            try:
-                rule = deadline_calculation_service._load_rule(
-                    disease=signal_disease,
-                    jurisdiction=jurisdiction,
-                    rule_id=None,
-                )
-                selected_disease = signal_disease
-                matching_lab = next(
-                    (item for item in lab_results if str(item.lab_result_id) == source_id),
-                    None,
-                )
-                if matching_lab is not None:
-                    positive_lab_event_time = (
-                        matching_lab.effective_time
-                        or matching_lab.issued_time
-                        or next(
-                            (item.effective_time for item in matching_lab.observations if item.effective_time),
-                            None,
-                        )
-                    )
-                break
-            except ValueError:
-                continue
-
-    if rule is None:
-        if persisted_deadline is not None and last_encounter is None:
-            return {
-                "deadline": persisted_deadline,
-                "status": "PERSISTED",
-                "calculation_basis": "Existing workflow deadline.",
-                "disease": disease,
-                "jurisdiction": jurisdiction,
-                "rule_id": None,
-                "reporting_timing": None,
-                "reporting_method": None,
-                **_deadline_time_metadata(persisted_deadline),
-            }, None
-        if not disease:
-            return None, "No condition could be resolved from the patient's clinical or workflow data."
-        return None, f"No Texas 2026 reporting deadline rule applies to '{disease}' in {jurisdiction}."
-
-    disease = selected_disease or disease
-    reporting = rule.get("reporting", {})
-    rule_id = rule.get("rule_id")
-    if str(reporting.get("timing", "")).upper() == "SEE_RULES":
         return {
             "deadline": None,
             "status": "SEE_RULES",
@@ -528,10 +462,8 @@ def _patient_deadline(
             "rule_id": rule_id,
             "reporting_timing": "SEE_RULES",
             "reporting_method": reporting.get("method"),
-            "is_immediate": False,
-            "effective_year": rule.get("effective_year"),
-            "source_url": rule.get("source_url"),
-            "applicability": rule.get("applicability"),
+            "urgency": current_state["urgency"],
+            "minutes_remaining": current_state["minutes_remaining"],
         }, None
 
     event_time = None

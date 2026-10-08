@@ -11,7 +11,6 @@ from backend.app.main import app
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.encounter import Encounter
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 
 
@@ -83,14 +82,12 @@ class FakeSession:
         cases=None,
         encounters=None,
         submissions=None,
-        follow_ups=None,
         deadlines=None,
     ):
         self.rows = {
             Case: list(cases or []),
             Encounter: list(encounters or []),
             Submission: list(submissions or []),
-            FollowUp: list(follow_ups or []),
             DeadlineEscalation: list(deadlines or []),
         }
 
@@ -120,10 +117,6 @@ def test_dashboard_summary_aggregates_database_records():
             SimpleNamespace(case_id="case-1"),
             SimpleNamespace(case_id="case-2"),
         ],
-        follow_ups=[
-            SimpleNamespace(case_id="case-2"),
-            SimpleNamespace(case_id="case-2"),
-        ],
         deadlines=[
             SimpleNamespace(escalation_id="esc-1", status="UPCOMING"),
             SimpleNamespace(escalation_id="esc-2", status="UPCOMING"),
@@ -142,7 +135,6 @@ def test_dashboard_summary_aggregates_database_records():
         "reportable_cases": 1,
         "needs_review": 1,
         "submitted_cases": 2,
-        "follow_up_cases": 1,
         "upcoming_deadlines": 2,
     }
 
@@ -160,7 +152,6 @@ def test_dashboard_summary_returns_zero_for_empty_database():
         "reportable_cases": 0,
         "needs_review": 0,
         "submitted_cases": 0,
-        "follow_up_cases": 0,
         "upcoming_deadlines": 0,
     }
 

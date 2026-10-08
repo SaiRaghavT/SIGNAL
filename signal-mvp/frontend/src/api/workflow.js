@@ -24,7 +24,6 @@ const trackSubmission = (submissionId) => request("/api/agents/submission-tracki
 const acknowledge = (submissionId) => request("/api/agents/acknowledgement/process", { method: "POST", body: JSON.stringify({ submission_id: submissionId }) });
 const processAcknowledgement = acknowledge;
 const retrySubmission = (submissionId, reason) => request("/api/agents/retry-resubmission/retry", { method: "POST", body: JSON.stringify({ submission_id: submissionId, reason }) });
-const followUp = (body) => request("/api/agents/public-health-followup/process", { method: "POST", body: JSON.stringify(body) });
 const auditEvent = (body) => request("/api/agents/audit/events", { method: "POST", body: JSON.stringify(body) });
 const listAuditEvents = (entityType, entityId) => {
   const query = new URLSearchParams({ entity_type: entityType, entity_id: entityId });
@@ -41,7 +40,6 @@ export {
   documentIntelligence,
   evaluateDeadline,
   attestCase,
-  followUp,
   getCaseAttestation,
   getCaseReview,
   getSubmissionReadiness,

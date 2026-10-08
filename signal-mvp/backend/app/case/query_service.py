@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
-from backend.app.models.follow_up import FollowUp
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import CaseWorkflowRecord
 from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
@@ -44,12 +43,6 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
         .order_by(Submission.created_at.desc())
         .first()
     )
-    follow_up = (
-        db.query(FollowUp)
-        .filter(FollowUp.case_id == str(case.case_id))
-        .order_by(FollowUp.created_at.desc())
-        .first()
-    )
     return CaseDetailResponse(
         case_id=str(case.case_id),
         candidate_id=case.candidate_id,
@@ -84,16 +77,6 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
                 "updated_at": submission.updated_at,
             }
             if submission
-            else None
-        ),
-        follow_up=(
-            {
-                "followup_id": follow_up.followup_id,
-                "status": follow_up.status,
-                "next_action": follow_up.next_action,
-                "due_date": follow_up.due_date,
-            }
-            if follow_up
             else None
         ),
     )

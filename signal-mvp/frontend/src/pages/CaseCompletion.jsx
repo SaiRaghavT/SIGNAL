@@ -15,12 +15,12 @@ const readable = (value) => String(value || "").replaceAll("_", " ");
 const WORKFLOW_STAGES = [
   ["DATA_INGESTION", "Data Ingestion"], ["DETECTION", "Detection"],
   ["REPORTABILITY", "Reportability"], ["CASE", "Case"], ["VALIDATION", "Validation"],
-  ["REPORTING", "Reporting"], ["SUBMISSION", "Submission"], ["PHA_FOLLOW_UP", "PHA Follow-up"],
+  ["REPORTING", "Reporting"], ["SUBMISSION", "Submission"],
 ];
 
-function deriveStatus(stages, submission, followup, journeyAvailable) {
+function deriveStatus(stages, submission, journeyAvailable) {
   if (!journeyAvailable) return { label: "STATUS NOT FULLY DETERMINED", tone: "unknown", reason: "The case journey could not be loaded." };
-  if (!stages.REPORTABILITY || !stages.CASE || !stages.VALIDATION || !stages.REPORTING || !stages.SUBMISSION || !stages.PHA_FOLLOW_UP) {
+  if (!stages.REPORTABILITY || !stages.CASE || !stages.VALIDATION || !stages.REPORTING || !stages.SUBMISSION) {
     return { label: "STATUS NOT FULLY DETERMINED", tone: "unknown", reason: "One or more required workflow stages were not returned." };
   }
   const validation = stages.VALIDATION.status;
@@ -28,12 +28,12 @@ function deriveStatus(stages, submission, followup, journeyAvailable) {
   if (["INVALID", "NEEDS_COMPLETION", "FAILED"].includes(validation) || /REJECT|FAIL|ERROR/.test(submissionStatus) || array(submission?.errors).length > 0) {
     return { label: "ACTION REQUIRED", tone: "attention", reason: "A workflow stage or submission reports an issue that needs attention." };
   }
-  const requiredCompleted = ["REPORTABILITY", "CASE", "VALIDATION", "REPORTING", "SUBMISSION", "PHA_FOLLOW_UP"]
+  const requiredCompleted = ["REPORTABILITY", "CASE", "VALIDATION", "REPORTING", "SUBMISSION"]
     .every((name) => stages[name]?.status === "COMPLETED");
-  if (requiredCompleted && String(followup?.status || "").toUpperCase() === "CLOSED") {
-    return { label: "WORKFLOW COMPLETE", tone: "complete", reason: "The backend journey records reporting, submission, and follow-up as complete. This does not assert a separate case-resolution state." };
+  if (requiredCompleted) {
+    return { label: "REPORTING WORKFLOW COMPLETE", tone: "complete", reason: "The backend journey records reporting and submission as complete. This does not assert a separate case-resolution state." };
   }
-  const hasOperationalProgress = ["REPORTABILITY", "CASE", "VALIDATION", "REPORTING", "SUBMISSION", "PHA_FOLLOW_UP"]
+  const hasOperationalProgress = ["REPORTABILITY", "CASE", "VALIDATION", "REPORTING", "SUBMISSION"]
     .some((name) => stages[name]?.available || stages[name]?.status === "COMPLETED" || stages[name]?.status === "CURRENT");
   if (hasOperationalProgress) return { label: "WORKFLOW IN PROGRESS", tone: "progress", reason: "At least one required operational stage is still pending or current." };
   return { label: "STATUS NOT FULLY DETERMINED", tone: "unknown", reason: "The returned workflow data is insufficient to determine completion." };
@@ -79,7 +79,7 @@ export default function CaseCompletion() {
   const stages = useMemo(() => {
     const result = Object.fromEntries(WORKFLOW_STAGES.map(([name]) => [name, findStage(journey, name)]));
     if (!demo.active) return result;
-    const sessionKeys = { VALIDATION: "validation", REPORTING: "reporting", SUBMISSION: "submission", PHA_FOLLOW_UP: "followUp" };
+    const sessionKeys = { VALIDATION: "validation", REPORTING: "reporting", SUBMISSION: "submission" };
     for (const [name, key] of Object.entries(sessionKeys)) {
       if (!result[name]) continue;
       result[name] = { ...result[name], status: demo.stages[key] === "COMPLETED" ? "COMPLETED" : "PENDING", available: true };
@@ -89,14 +89,11 @@ export default function CaseCompletion() {
   const submissionList = array(stages.SUBMISSION?.data?.submissions);
   const persistedSubmission = latest(submissionList) || caseData?.submission || null;
   const submission = demo.active && demo.stages.submission !== "COMPLETED" ? null : persistedSubmission;
-  const followupList = array(stages.PHA_FOLLOW_UP?.data?.follow_ups);
-  const followup = demo.active && demo.stages.followUp !== "COMPLETED" ? null : latest(followupList) || caseData?.follow_up || null;
   const auditEvents = array(journey?.supporting_audit_events);
-  const finalStatus = deriveStatus(stages, submission, followup, Boolean(journey));
+  const finalStatus = deriveStatus(stages, submission, Boolean(journey));
   const destination = submission?.destination;
   const simulated = destination === "MOCK_PHA";
   const submissionStatus = submission?.status || stages.SUBMISSION?.status || "Not recorded";
-  const followupStatus = followup?.status || stages.PHA_FOLLOW_UP?.status || "Not recorded";
   const patient = caseData?.patient || {};
   const patientId = routePatientId || patient.patient_id || caseData?.patient_id || "";
   const patientPath = patientId ? `/patients/${encodeURIComponent(patientId)}` : "";
@@ -105,7 +102,6 @@ export default function CaseCompletion() {
     : `/cases/${encodeURIComponent(caseId)}`;
   const reportingFormPath = `${caseWorkspacePath}/reporting-form`;
   const submissionPath = `${caseWorkspacePath}/submission`;
-  const followupPath = `${caseWorkspacePath}/follow-up`;
   const eventList = auditEvents.slice().reverse().slice(0, 20);
 
   const next = (() => {
@@ -114,7 +110,6 @@ export default function CaseCompletion() {
     if (["INVALID", "NEEDS_COMPLETION", "FAILED"].includes(stages.VALIDATION?.status)) return { label: "Resolve case validation items", button: "View Case Workspace", path: caseWorkspacePath };
     if (stages.REPORTING?.status !== "COMPLETED") return { label: "Continue reporting preparation", button: "Return to Reporting Form", path: reportingFormPath };
     if (!submission) return { label: "Continue the submission workflow", button: "Return to Submission", path: submissionPath };
-    if (String(followupStatus).toUpperCase() !== "CLOSED") return { label: "Continue public-health follow-up", button: "Return to Follow-up", path: followupPath };
     return { label: "Review the case workspace", button: "View Case Workspace", path: caseWorkspacePath };
   })();
 
@@ -127,8 +122,8 @@ export default function CaseCompletion() {
   return <section className="case-completion-page">
     <header className="completion-header">
       <div>
-        <button className="completion-back" onClick={() => navigate(followupPath)}>← Back to Follow-up</button>
-        <nav className="completion-breadcrumb" aria-label="Workflow"><span>Case Workspace</span><i>›</i><span>Reporting Form</span><i>›</i><span>Submission</span><i>›</i><span>Follow-up</span><i>›</i><b>Completion</b></nav>
+        <button className="completion-back" onClick={() => navigate(submissionPath)}>← Back to Submission</button>
+        <nav className="completion-breadcrumb" aria-label="Workflow"><span>Case Workspace</span><i>›</i><span>Reporting Form</span><i>›</i><span>Submission</span><i>›</i><b>Completion</b></nav>
         <span className="completion-eyebrow">PUBLIC HEALTH CASE OPERATIONS</span>
         <h2>Case Completion &amp; Audit</h2>
         <p>Final workflow status, reporting outcome, and available audit information for this case.</p>
@@ -147,7 +142,6 @@ export default function CaseCompletion() {
       <article><span>FINAL WORKFLOW STATUS</span><strong className={`final-status-text ${finalStatus.tone}`}>{finalStatus.label}</strong><small>Derived from workflow stages</small></article>
       <article><span>REPORTABILITY</span><strong>{text(caseData.reportability_decision)}</strong><small>Rule: {text(caseData.rule_id)}</small></article>
       <article><span>REPORTING STATUS</span><strong>{text(submissionStatus)}</strong><small>{submission?.submission_id || "Submission ID not recorded"}</small></article>
-      <article><span>PHA FOLLOW-UP</span><strong>{text(followupStatus)}</strong><small>{followup?.action ? readable(followup.action) : "No follow-up action recorded"}</small></article>
     </div>
 
     <main className="completion-grid">
@@ -175,7 +169,7 @@ export default function CaseCompletion() {
       </div>
 
       <aside className="completion-aside">
-        <article className="completion-side-card"><span>CASE SUMMARY</span><div><label>Patient</label><strong>{patientName(patient)}</strong></div><div><label>Disease</label><strong>{text(disease)}</strong></div><div><label>Jurisdiction</label><strong>{text(jurisdiction)}</strong></div><div><label>Case status</label><strong>{text(caseData.status)}</strong></div><div><label>Reportability</label><strong>{text(caseData.reportability_decision)}</strong></div><div><label>Reporting rule</label><strong>{text(caseData.rule_id)}</strong></div><div><label>Submission</label><strong>{text(submissionStatus)}</strong></div><div><label>PHA follow-up</label><strong>{text(followupStatus)}</strong></div></article>
+        <article className="completion-side-card"><span>CASE SUMMARY</span><div><label>Patient</label><strong>{patientName(patient)}</strong></div><div><label>Disease</label><strong>{text(disease)}</strong></div><div><label>Jurisdiction</label><strong>{text(jurisdiction)}</strong></div><div><label>Case status</label><strong>{text(caseData.status)}</strong></div><div><label>Reportability</label><strong>{text(caseData.reportability_decision)}</strong></div><div><label>Reporting rule</label><strong>{text(caseData.rule_id)}</strong></div><div><label>Submission</label><strong>{text(submissionStatus)}</strong></div></article>
 
         <article className="completion-card audit-card">
           <header className="completion-card-header"><div><span className="completion-index">03</span><div><h3>Audit Information</h3><p>Events returned in supporting journey data.</p></div></div></header>
@@ -189,7 +183,6 @@ export default function CaseCompletion() {
         <article className="completion-side-card completion-next-card"><span>WHAT HAPPENS NEXT</span><label>Current</label><strong>{finalStatus.tone === "complete" ? "Case workflow complete" : next.label}</strong><label>Next</label><strong>{next.label}</strong><p>Workflow completion and case resolution are distinct; no resolution state is asserted here.</p><button onClick={() => navigate(next.path)}>{next.button}</button></article>
         <button className="completion-return" onClick={() => navigate("/cases")}>Return to Cases</button>
         <button className="completion-return secondary" onClick={() => navigate(caseWorkspacePath)}>View Case Workspace</button>
-        <button className="completion-return secondary" onClick={() => navigate(followupPath)}>Back to Follow-up</button>
         {patientPath && <button className="completion-return secondary" onClick={() => navigate(patientPath)}>Back to Patient</button>}
       </aside>
     </main>
