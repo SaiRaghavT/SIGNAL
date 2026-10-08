@@ -25,17 +25,11 @@
 .admin-immediate-alert.error { border: 1px solid #eccaca; background: #fff3f3; color: #963d3d; }
 .admin-immediate-alert.success { border: 1px solid #c0e0ca; background: #eff9f2; color: #247245; }
 .admin-immediate-alert ul { margin: 2px 0; padding-left: 20px; }
-.admin-immediate-summary { display: grid; grid-template-columns: minmax(190px, 1.5fr) repeat(4, minmax(110px, 1fr)); margin-bottom: 15px; border: 1px solid #dbe2e9; border-radius: 8px; background: #fff; overflow: hidden; }
-.admin-immediate-patient,.admin-immediate-summary-item { min-width: 0; min-height: 72px; padding: 11px 13px; border-right: 1px solid #e7ecf0; }
-.admin-immediate-summary-item:last-child { border-right: 0; }
-.admin-immediate-patient { display: flex; align-items: center; gap: 12px; }
-.admin-immediate-avatar { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #eef3f7; color: #254760; font-size: 13px; font-weight: 850; }
-.admin-immediate-patient strong { display: block; margin: 3px 0; color: #1d3952; font-size: 15px; }
-.admin-immediate-patient small { color: #71849a; font-size: 11px; overflow-wrap: anywhere; }
-.admin-immediate-summary-item { display: flex; flex-direction: column; justify-content: center; }
-.admin-immediate-summary-item > span { margin-bottom: 6px; color: #788ba0; font-size: 11px; }
-.admin-immediate-summary-item > strong { display: flex; align-items: center; gap: 5px; color: #203d56; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
-.severity-urgent { color: #b74736 !important; }
+.admin-immediate-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0 0 18px; }
+.admin-immediate-kpi { min-width: 0; min-height: 94px; padding: 13px 15px; border: 1px solid #dfe4e9; border-radius: 7px; background: #fff; }
+.admin-immediate-kpi > span { display: block; margin-bottom: 9px; color: #7a8595; font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+.admin-immediate-kpi > strong { display: block; overflow: hidden; color: #18253d; font-size: 21px; font-weight: 700; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.admin-immediate-kpi > small { display: block; margin-top: 5px; overflow: hidden; color: #7f8b99; font-size: 10px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 
 .admin-immediate-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); align-items: start; gap: 18px; }
 .admin-immediate-main { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
@@ -95,9 +89,7 @@
 .admin-immediate-error { margin: 15px 0; padding: 15px; border: 1px solid #eccaca; border-radius: 7px; background: #fff3f3; color: #963d3d; font-size: 13px; }
 
 @media (max-width: 1200px) {
-  .admin-immediate-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .admin-immediate-patient { grid-column: span 3; }
-  .admin-immediate-summary-item:nth-child(3) { border-right: 0; }
+  .admin-immediate-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1120px) {
@@ -109,19 +101,14 @@
   .admin-immediate-review-page { padding: 19px 14px 30px; }
   .admin-immediate-header { align-items: flex-start; flex-direction: column; }
   .admin-immediate-case-id { width: 100%; max-width: none; }
-  .admin-immediate-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .admin-immediate-patient { grid-column: 1 / -1; }
-  .admin-immediate-summary-item:nth-child(odd) { border-right: 0; }
-  .admin-immediate-summary-item:last-child { border-right: 0; }
+  .admin-immediate-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-immediate-evidence-grid { grid-template-columns: 1fr; }
   .admin-immediate-sidebar { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
   .admin-immediate-topbar { align-items: flex-start; flex-direction: column; gap: 8px; }
-  .admin-immediate-summary { grid-template-columns: 1fr; }
-  .admin-immediate-patient { grid-column: auto; }
-  .admin-immediate-summary-item { border-right: 0; }
+  .admin-immediate-kpis { grid-template-columns: 1fr; }
   .admin-immediate-fields { grid-template-columns: 1fr; }
   .admin-immediate-evidence-list > div,.admin-immediate-nested-item { grid-template-columns: minmax(0, 1fr); gap: 3px; }
 }

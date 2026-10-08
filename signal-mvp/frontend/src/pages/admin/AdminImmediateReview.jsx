@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, Clock3, FileCheck2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, CheckCircle2, FileCheck2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   dispatchCase,
@@ -33,6 +33,27 @@ function formatDate(value) {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function conditionValueLabel(value) {
+  if (Array.isArray(value)) {
+    return value.map(conditionValueLabel).find((label) => label !== "—") || "—";
+  }
+  if (typeof value === "number") return value === 14189004 ? "Measles" : "—";
+  if (value && typeof value === "object") {
+    for (const key of ["display", "name", "condition_name", "disease_name", "text", "label", "title", "description", "concept", "condition", "disease", "coding", "codeableConcept", "code", "value"]) {
+      const label = conditionValueLabel(value[key]);
+      if (label !== "—") return label;
+    }
+    return "—";
+  }
+  if (typeof value !== "string" || !value.trim()) return "—";
+
+  const candidate = value.trim();
+  const codeMatch = candidate.match(/(?:^|[|/])\s*(\d{5,})\s*$/);
+  if (codeMatch) return codeMatch[1] === "14189004" ? "Measles" : "—";
+  if (/^\d+$/.test(candidate) || /(?:snomed|^https?:\/\/)/i.test(candidate)) return "—";
+  return candidate;
 }
 
 function getObject(value) {
@@ -135,12 +156,18 @@ function normalizeCase(response) {
   const laboratoryEvidence = getEvidence(source.laboratory_evidence ?? caseData.laboratory_evidence);
   const aiEvidence = getEvidence(source.ai_evidence ?? caseData.ai_evidence);
   const reportFields = getEvidence(source.report_fields ?? caseData.report_fields);
-  const condition = valueOrDash(
-    source.disease || source.condition || caseData.disease || caseData.condition,
+  const condition = conditionValueLabel(
+    source.condition_name || source.disease_name || source.condition || source.disease ||
+      caseData.condition_name || caseData.disease_name || caseData.condition || caseData.disease,
   );
+  const patientNameValue = source.patient_name || source.patientName || patient.full_name || patient.name;
+  const patientNameObject = getObject(patientNameValue);
   const patientName = valueOrDash(
-    source.patient_name || source.patientName || patient.name ||
-      [patient.first_name, patient.last_name].filter(Boolean).join(" "),
+    typeof patientNameValue === "string"
+      ? patientNameValue
+      : patientNameObject.text || patientNameObject.display || patientNameObject.name ||
+        [patientNameObject.given, patientNameObject.family].filter(Boolean).join(" ") ||
+        [patient.first_name || patient.given_name, patient.last_name || patient.family_name].filter(Boolean).join(" "),
   );
 
   return {
@@ -184,8 +211,7 @@ function normalizeCase(response) {
       null,
 
     severity: valueOrDash(
-      source.severity ??
-        caseData.severity,
+      source.severity || caseData.severity || source.priority || caseData.priority,
     ),
 
     submissionMode: valueOrDash(
@@ -262,20 +288,6 @@ export default function AdminImmediateReview() {
   useEffect(() => {
     loadCase();
   }, [loadCase]);
-
-  const patientInitials = useMemo(() => {
-    if (!caseData?.patientName || caseData.patientName === "—") {
-      return "PT";
-    }
-
-    return caseData.patientName
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((name) => name[0])
-      .join("")
-      .toUpperCase();
-  }, [caseData]);
 
   async function handleAuthorizeAndSubmit() {
     try {
@@ -394,48 +406,20 @@ export default function AdminImmediateReview() {
         </div>
       )}
 
-      <section className="admin-immediate-summary">
-        <div className="admin-immediate-patient">
-          <div className="admin-immediate-avatar">
-            {patientInitials}
-          </div>
-
-          <div>
-            <span className="admin-immediate-label">
-              PATIENT
-            </span>
-
-            <strong>
-              {caseData.patientName}
-            </strong>
-
-          </div>
-        </div>
-
-        <div className="admin-immediate-summary-item">
-          <span>Condition</span>
-          <strong>{caseData.condition}</strong>
-        </div>
-
-        <div className="admin-immediate-summary-item">
-          <span>Jurisdiction</span>
-          <strong>{caseData.jurisdiction}</strong>
-        </div>
-
-        <div className="admin-immediate-summary-item">
-          <span>Severity</span>
-          <strong className="severity-urgent">
-            {caseData.severity}
-          </strong>
-        </div>
-
-        <div className="admin-immediate-summary-item">
-          <span>Deadline</span>
-          <strong>
-            <Clock3 size={14} />
-            {formatDate(caseData.deadline)}
-          </strong>
-        </div>
+      <section className="admin-immediate-kpis" aria-label="Case summary">
+        {[
+          { label: "PATIENT", value: caseData.patientName, subtitle: "Patient" },
+          { label: "CONDITION", value: caseData.condition, subtitle: "Reportable condition" },
+          { label: "JURISDICTION", value: caseData.jurisdiction, subtitle: "Reporting jurisdiction" },
+          { label: "SEVERITY", value: caseData.severity, subtitle: "Case priority" },
+          { label: "DEADLINE", value: formatDate(caseData.deadline), subtitle: "Reporting deadline" },
+        ].map(({ label, value, subtitle }) => (
+          <article className="admin-immediate-kpi" key={label}>
+            <span>{label}</span>
+            <strong title={value}>{value}</strong>
+            <small>{subtitle}</small>
+          </article>
+        ))}
       </section>
 
       <div className="admin-immediate-grid">
