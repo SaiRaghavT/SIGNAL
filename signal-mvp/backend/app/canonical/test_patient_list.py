@@ -36,7 +36,7 @@ def _session() -> Session:
                 jurisdiction_status VARCHAR(50) NOT NULL,
                 reportability_decision VARCHAR(50) NOT NULL,
                 reportability_evidence_status VARCHAR(100) NOT NULL,
-                status VARCHAR(50) NOT NULL, final_decision VARCHAR(50),
+                status VARCHAR(50) NOT NULL, submission_mode VARCHAR(20), final_decision VARCHAR(50),
                 rule_id VARCHAR(255), deadline DATETIME, severity VARCHAR(20),
                 warnings TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
