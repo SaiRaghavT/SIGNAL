@@ -31,6 +31,7 @@
       "source_url": "https://www.dshs.texas.gov/sites/default/files/IDCU/investigation/Reporting-forms/notifiable-conditions-2026-color.pdf",
       "conditions": [
         "Anthrax",
+        "Measles",
         "Measles (rubeola)",
         "http://snomed.info/sct|14189004",
         "Melioidosis",
