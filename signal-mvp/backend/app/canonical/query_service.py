@@ -203,36 +203,53 @@ def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
                     func.lower(LabResult.conclusion).like(pattern),
                 )
             )
-    if lab_match_predicates:
-        possible_positive_labs = (
-            db.query(LabResult)
-            .filter(or_(*lab_match_predicates))
-            .all()
-        )
-    else:
-        # Detection trigger definitions are loaded dynamically and may not be
-        # exposed through STRUCTURED_TRIGGERS. Keep the existing measles queue
-        # discoverable from its canonical test display in that case.
-        possible_positive_labs = (
-            db.query(LabResult)
-            .filter(
-                or_(
-                    func.lower(LabResult.test_display).like("%measles%"),
-                    func.lower(LabResult.test_code).like("%measles%"),
-                    func.lower(LabResult.conclusion).like("%measles%"),
-                )
+    # Include the canonical test name even when configured trigger terms are
+    # narrower (for example, a rule that lists IgM but the source says
+    # "Measles IgM").
+    lab_match_predicates.extend(
+        [
+            func.lower(LabResult.test_display).like("%measles%"),
+            func.lower(LabResult.test_code).like("%measles%"),
+            func.lower(LabResult.conclusion).like("%measles%"),
+        ]
+    )
+    possible_positive_labs = (
+        db.query(LabResult)
+        .filter(or_(*lab_match_predicates))
+        .all()
+    )
+    for lab_result in possible_positive_labs:
+        # Structured trigger detection is preferred, but canonical imported
+        # observations can carry the positive result separately from the
+        # DiagnosticReport conclusion. Recognize that established shape too.
+        lab_text = " ".join(
+            str(value or "")
+            for value in (
+                lab_result.test_display,
+                lab_result.test_code,
+                lab_result.conclusion,
+                *(observation.observation_display for observation in lab_result.observations),
             )
-            .all()
+        ).casefold()
+        result_values = [lab_result.conclusion]
+        result_values.extend(
+            observation.value_text for observation in lab_result.observations
         )
-    if lab_match_predicates or possible_positive_labs:
-        for lab_result in possible_positive_labs:
+        positive_result = any(
+            any(
+                marker in str(value or "").casefold()
+                for marker in ("positive", "detected", "reactive")
+            )
+            for value in result_values
+        )
+        is_positive_measles = "measles" in lab_text and positive_result
+        if not is_positive_measles:
             normalized = canonical_context_to_detection_input(
                 {
                     "patient": {"patient_id": str(lab_result.patient_id)},
                     "lab_results": [_lab_result_to_dict(lab_result)],
                 }
             )
-            is_positive_measles = False
             for signal in detect_structured_triggers(normalized):
                 if str(signal.get("evidence", {}).get("source_id", "")) != str(lab_result.lab_result_id):
                     continue
@@ -247,8 +264,8 @@ def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
                 is_positive_measles = resolved_rule.get("rule_id") == "MEASLES-TX"
                 if is_positive_measles:
                     break
-            if is_positive_measles:
-                patient_ids.add(lab_result.patient_id)
+        if is_positive_measles:
+            patient_ids.add(lab_result.patient_id)
 
     if not patient_ids:
         return set()
