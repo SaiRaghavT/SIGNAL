@@ -1654,9 +1654,9 @@ function DocumentsSection({
 
 
 
-          <h2>Clinical documents</h2>
+          <h2>Clinical documents <span className="document-optional-label">(Optional)</span></h2>
 
-          <p className="section-description">Clinical documentation available to support patient review.</p>
+          <p className="section-description">Upload clinical documentation if available. This is optional for patient review.</p>
 
 
 
@@ -1918,10 +1918,10 @@ function AiDocumentUploadCard({
     <section className="ai-document-upload-card">
       <div className="ai-document-upload-icon" aria-hidden="true">↑</div>
       <div className="ai-document-upload-copy">
-        <div className="section-label">AI DETECTION INPUT</div>
-        <div className="ai-document-upload-title">
-          <h2>Add clinical documents</h2>
-          <span className="ai-document-upload-optional">Optional</span>
+      <div className="section-label">AI DETECTION INPUT</div>
+      <div className="ai-document-upload-title">
+        <h2>Add clinical documents</h2>
+        <span className="ai-document-upload-optional">Optional</span>
         </div>
         <p>
           Detection can use the patient’s existing records. Add a clinical note,
@@ -3909,7 +3909,7 @@ function DocumentUploadModal({
 
 
 
-          Add a clinical document that SIGNAL can
+          Add an optional clinical document that SIGNAL can
 
 
 

@@ -154,10 +154,8 @@ def render_form(
                 report_data.setdefault(key, value)
         required_missing_fields = list(REPORTING_MISSING_INFO_FIELDS)
         demo_case = is_demo_case(case)
-        # These five workflow fields are browser-session values for every case.
-        # Ignore any legacy persisted copies and render only the current request.
-        for field in REPORTING_MISSING_INFO_FIELDS:
-            report_data.pop(field, None)
+        # Persisted report fields are authoritative. Explicit request values
+        # remain supported for callers that intentionally request a preview.
         transient_fields = {
             field: value for field, value in request.field_values.items()
             if field in REPORTING_MISSING_INFO_FIELDS and str(value or "").strip()

@@ -8,11 +8,22 @@ import CaseWorkspacePage from "./pages/CaseWorkspacePage.jsx";
 import { SubmissionsPage } from "./pages/SubmissionsPage.jsx";
 import { AnalyticsPage } from "./pages/AnalyticsPage.jsx";
 import { AuditPage } from "./pages/AuditPage.jsx";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminAudit from "./pages/admin/AdminAudit.jsx";
+import AdminDeadlines from "./pages/admin/AdminDeadlines.jsx";
+import AdminImmediateReview from "./pages/admin/AdminImmediateReview.jsx";
+import AdminIndividualReview from "./pages/admin/AdminIndividualReview.jsx";
+import AdminBatchReview from "./pages/admin/AdminBatchReview.jsx";
+import AdminQueue from "./pages/admin/AdminQueue.jsx";
 import Login from "./pages/Login.jsx";
+import AdminSubmissions from "./pages/admin/AdminSubmissions.jsx";
+import AdminSubmissionAcknowledgement from "./pages/admin/AdminSubmissionAcknowledgement.jsx";
+import AdminShell from "./components/layout/AdminShell.jsx";
 import ReportingFormPage from "./pages/ReportingFormPage.jsx";
 import SubmissionWorkspace from "./pages/SubmissionWorkspace.jsx";
 import CaseCompletion from "./pages/CaseCompletion.jsx";
 import QueueAcknowledgementPage from "./pages/QueueAcknowledgementPage.jsx";
+import AdminCaseReview from "./pages/admin/AdminCaseReview.jsx";
 import {
   AgentDetailPage,
   AgentGovernancePage,
@@ -77,6 +88,31 @@ export default function App() {
         <Route path="/governance/outcome-learning" element={<OutcomeLearningPage />} />
         <Route path="/governance/outcome-learning/:signalId" element={<LearningSignalDetail />} />
       </Route>
+      <Route element={<AdminShell />}>
+  <Route path="/admin/dashboard" element={<AdminDashboard />} />
+  <Route path="/admin/queue" element={<AdminQueue />} />
+  <Route path="/admin/deadlines" element={<AdminDeadlines />} />
+  <Route path="/admin/audit" element={<AdminAudit />} />
+  <Route path="/admin/batches/:batchId" element={<AdminBatchReview />} />
+
+  <Route
+    path="/admin/queue/:caseId/immediate"
+    element={<AdminImmediateReview />}
+  />
+
+  <Route
+    path="/admin/queue/:caseId/individual"
+    element={<AdminIndividualReview />}
+  />
+
+  <Route
+    path="/admin/queue/:caseId"
+    element={<AdminCaseReview />}
+  />
+
+  <Route path="/admin/submissions" element={<AdminSubmissions />} />
+  <Route path="/admin/submissions/:submissionId/acknowledgement" element={<AdminSubmissionAcknowledgement />} />
+</Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

@@ -1,0 +1,338 @@
+.admin-submissions-page {
+  min-height: 100%;
+  padding: 28px 32px 40px;
+  background: #f4f6f8;
+  color: #172033;
+}
+
+.admin-submissions-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.admin-page-eyebrow {
+  margin-bottom: 7px;
+  color: #7b8797;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.admin-submissions-header h1 {
+  margin: 0;
+  color: #16233b;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.admin-submissions-header p {
+  margin: 7px 0 0;
+  color: #697586;
+  font-size: 13px;
+}
+
+.admin-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #d5dbe3;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #24324a;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-refresh-button:hover:not(:disabled) {
+  border-color: #b8c0cc;
+  background: #fafbfc;
+}
+
+.admin-refresh-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-spin {
+  animation: admin-submission-spin 0.9s linear infinite;
+}
+
+@keyframes admin-submission-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.submission-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.submission-metric-card {
+  min-height: 86px;
+  padding: 15px 16px;
+  border: 1px solid #dfe3e8;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.submission-metric-card span {
+  display: block;
+  margin-bottom: 10px;
+  color: #7a8595;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.submission-metric-card strong {
+  display: block;
+  color: #18253d;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.submission-panel {
+  overflow: hidden;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.submission-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid #e4e7eb;
+  background: #fbfcfd;
+}
+
+.submission-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
+}
+
+.submission-search svg {
+  position: absolute;
+  left: 11px;
+  color: #8993a2;
+}
+
+.submission-search input,
+.submission-toolbar select {
+  height: 36px;
+  border: 1px solid #d5dbe3;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #253149;
+  font-size: 12px;
+  outline: none;
+}
+
+.submission-search input {
+  width: 100%;
+  padding: 0 12px 0 34px;
+}
+
+.submission-toolbar select {
+  min-width: 170px;
+  padding: 0 10px;
+}
+
+.submission-search input:focus,
+.submission-toolbar select:focus {
+  border-color: #8a98aa;
+}
+
+.submission-error {
+  margin: 14px;
+  padding: 11px 13px;
+  border: 1px solid #e8bcbc;
+  border-radius: 5px;
+  background: #fff5f5;
+  color: #a33636;
+  font-size: 12px;
+}
+
+.submission-state,
+.submission-empty {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  color: #788494;
+  font-size: 13px;
+}
+
+.submission-empty strong {
+  color: #29364c;
+  font-size: 14px;
+}
+
+.submission-empty span {
+  color: #8993a2;
+  font-size: 12px;
+}
+
+.submission-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.submission-table {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: collapse;
+}
+
+.submission-table th {
+  padding: 11px 14px;
+  border-bottom: 1px solid #dfe3e8;
+  background: #f8f9fa;
+  color: #717d8d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.submission-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid #edf0f3;
+  color: #3c485b;
+  font-size: 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.submission-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.submission-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.submission-table td strong {
+  color: #25324a;
+  font-weight: 700;
+}
+
+.mono {
+  color: #526075 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px !important;
+}
+
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  padding: 0 8px;
+  border: 1px solid #d7dee8;
+  border-radius: 4px;
+  background: #f6f8fa;
+  color: #46556a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  padding: 0 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-pill.success {
+  border: 1px solid #b8dec8;
+  background: #edf8f1;
+  color: #287348;
+}
+
+.status-pill.info {
+  border: 1px solid #bfd4e8;
+  background: #eff6fc;
+  color: #28638f;
+}
+
+.status-pill.danger {
+  border: 1px solid #e6bcbc;
+  background: #fff3f3;
+  color: #a53b3b;
+}
+
+.status-pill.neutral {
+  border: 1px solid #d7dce3;
+  background: #f5f6f8;
+  color: #697586;
+}
+
+.view-submission-button {
+  height: 29px;
+  padding: 0 11px;
+  border: 1px solid #d5dbe3;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #24324a;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 1200px) {
+  .submission-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-submissions-page {
+    padding: 20px 16px 30px;
+  }
+
+  .admin-submissions-header {
+    flex-direction: column;
+  }
+
+  .submission-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .submission-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .submission-search {
+    min-width: 0;
+  }
+
+  .submission-toolbar select {
+    width: 100%;
+  }
+}

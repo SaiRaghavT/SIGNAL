@@ -106,8 +106,8 @@ export default function SubmissionWorkspace() {
   }
 
   function submit() {
-    if (submission?.submission_id) return;
-    if (!window.confirm(`Submit the electronic case report for ${patientName}, ${display(caseData.disease)}, ${display(caseData.jurisdiction)}? Destination: ${destination}.`)) return;
+    const action = submission?.submission_id ? "Submit another electronic case report" : "Submit the electronic case report";
+    if (!window.confirm(`${action} for ${patientName}, ${display(caseData.disease)}, ${display(caseData.jurisdiction)}? Destination: ${destination}.`)) return;
     act("Submission", () => submitEcr(caseId), (result) => {
       setSubmission(result);
     });
@@ -168,7 +168,7 @@ export default function SubmissionWorkspace() {
           <div className="readiness-steps">{readiness.map(([title, ready, note]) => <div className={`readiness-step ${ready ? "complete" : "pending"}`} key={title}><span>{ready ? "✓" : "!"}</span><div><strong>{title}</strong><small>{display(note)}</small></div></div>)}</div>
           {!canSubmit && <p className="submission-block-note">The eCR service enforces approved review, current attestation, and a generated report. Resolve missing workflow steps in the Case Workspace or Reporting Form.</p>}
           <div className="submission-destination"><div className="destination-icon">eCR</div><div><strong>Electronic Submission</strong><p>Handled by eCR Submission Agent · Destination: {destination}</p></div></div>
-          {!submission?.submission_id && <button className="submit-button" disabled={working || !canSubmit} onClick={submit}>{working ? "Submitting…" : "Submit eCR"}</button>}
+          <button className="submit-button" disabled={working || !canSubmit} onClick={submit}>{working ? "Submitting…" : submission?.submission_id ? "Submit Again" : "Submit eCR"}</button>
         </article>
 
         {submission && <article className="submission-card-main">

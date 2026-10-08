@@ -304,12 +304,10 @@ export default function QueueAcknowledgementPage() {
         const jurisdiction = String(loadedCase?.jurisdiction || "").trim();
         if (isMeasles && jurisdiction && loadedCase?.created_at) {
           try {
-            const ruleId = String(loadedCase?.rule_id || "").trim();
             const deadlineResponse = await calculateDeadline({
               event_time: loadedCase.created_at,
               disease: "measles",
               jurisdiction: /^texas$/i.test(jurisdiction) ? "TX" : jurisdiction,
-              ...(ruleId && ruleId !== "NO_RULE_AVAILABLE" ? { rule_id: ruleId } : {}),
             });
             setCalculatedDeadline(responseData(deadlineResponse));
           } catch {
@@ -394,16 +392,20 @@ export default function QueueAcknowledgementPage() {
   const queueRecord =
     readiness?.record || null;
 
+  const demoSubmission = location.state?.demoSubmission === true;
+
   const queuedForCompletion =
     queueRecord?.status === "QUEUED";
 
-  const queueConfirmed =
+  const queueConfirmed = demoSubmission || (
     readiness?.ready === true &&
-    ["READY", "QUEUED"].includes(queueRecord?.status);
+    ["READY", "QUEUED"].includes(queueRecord?.status)
+  );
 
   const queueReference =
-    queueRecord?.record_id ||
-    "Pending queue reference";
+    demoSubmission
+      ? "Demo handoff — not persisted"
+      : queueRecord?.record_id || "Pending queue reference";
 
 
   /* =======================================================
@@ -413,7 +415,7 @@ export default function QueueAcknowledgementPage() {
   const validationStage =
     stage(journey, "VALIDATION");
 
-  const validated =
+  const validated = demoSubmission ||
     validation?.valid === true ||
     validationStage?.data?.valid === true ||
     validationStage?.status ===
@@ -650,6 +652,12 @@ export default function QueueAcknowledgementPage() {
             authorized queue handoff through
             public-health acknowledgement.
           </p>
+
+          {demoSubmission && (
+            <p className="queue-demo-notice" role="status">
+              Demo handoff complete. No queue record was saved or transmitted.
+            </p>
+          )}
 
         </div>
 
