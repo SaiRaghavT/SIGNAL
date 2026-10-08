@@ -257,6 +257,7 @@
 .cases-empty strong { display: block; color: var(--cases-text); font-size: 13px; }
 .cases-empty p { margin: 6px 0 0; }
 .cases-error { color: var(--cases-red); }
+.cases-load-note { margin-bottom: 12px; padding: 11px 14px; border: 1px solid #ead9a4; border-radius: 8px; background: #fffaf0; color: #765d22; font-size: 11px; line-height: 1.5; }
 
 .cases-pagination {
   display: flex;

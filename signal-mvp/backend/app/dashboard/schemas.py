@@ -8,12 +8,11 @@ class DashboardSummaryResponse(BaseModel):
     reportable_cases: int
     needs_review: int
     submitted_cases: int
-    follow_up_cases: int
     upcoming_deadlines: int
-    total_measles_patients: int
-    active_measles_cases: int
-    measles_patients_due_today: int
-    reported_measles_cases: int
+    total_patients: int
+    active_cases: int
+    patients_due_today: int
+    reported_cases: int
 
 
 class DashboardWorkItem(BaseModel):

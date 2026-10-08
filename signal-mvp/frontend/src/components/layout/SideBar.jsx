@@ -3,7 +3,6 @@ import {
   Users,
   FolderKanban,
   Send,
-  ClipboardCheck,
   ScrollText,
   Activity,
 } from "lucide-react";
@@ -14,7 +13,6 @@ const nav = [
   ["/patients", "Patients", Users],
   ["/cases", "Cases", FolderKanban],
   ["/submissions", "Submissions", Send],
-  ["/follow-ups", "PHA Follow-up", ClipboardCheck],
   ["/audit", "Audit", ScrollText],
 ];
 

@@ -57,7 +57,6 @@ class CaseDetailResponse(BaseModel):
     deadline: datetime | None = None
     severity: str | None = None
     submission: dict[str, Any] | None = None
-    follow_up: dict[str, Any] | None = None
 
 
 class CaseReportUpdateRequest(BaseModel):

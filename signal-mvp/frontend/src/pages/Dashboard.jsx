@@ -118,7 +118,7 @@ export default function Dashboard() {
       request("/api/dashboard/jurisdictions"),
       request("/api/dashboard/activity"),
       request("/api/dashboard/deadlines"),
-      listCanonicalPatients({ page: 1, page_size: WORKLIST_PAGE_SIZE, condition: "measles" }),
+      listCanonicalPatients({ page: 1, page_size: WORKLIST_PAGE_SIZE }),
     ]);
     setData({
       summary: summaryResult.status === "fulfilled" ? summaryResult.value : null,
@@ -159,15 +159,14 @@ export default function Dashboard() {
     { label: "Cases in registry", value: summary?.cases ?? EMPTY_VALUE, tone: "green" },
     { label: "Cases needing review", value: quality.cases_needing_review ?? summary?.needs_review ?? EMPTY_VALUE, tone: "orange" },
     { label: "Reportable cases", value: summary?.reportable_cases ?? EMPTY_VALUE, tone: "blue" },
-    { label: "Follow-ups recorded", value: summary?.follow_up_cases ?? EMPTY_VALUE, tone: "purple" },
     { label: "Cases with submission", value: summary?.submitted_cases ?? EMPTY_VALUE, tone: "green" },
   ];
   const maxCondition = Math.max(1, ...conditionRows.map((row) => Number(row.value) || 0));
   const metrics = [
-    { label: "Total Measles Patients", value: summary?.total_measles_patients ?? data?.patients?.total ?? EMPTY_VALUE, detail: "Patients in the Measles reporting worklist", tone: "total", Icon: Users },
-    { label: "Active Measles Cases", value: summary?.active_measles_cases ?? EMPTY_VALUE, detail: "Open Measles cases requiring action", tone: "active", Icon: ClipboardList },
-    { label: "Measles Patients Due Today", value: summary?.measles_patients_due_today ?? EMPTY_VALUE, detail: "Patient deadlines due today", tone: "due", Icon: Clock3 },
-    { label: "Reported Measles Cases", value: summary?.reported_measles_cases ?? EMPTY_VALUE, detail: "Measles cases with submitted or acknowledged record", tone: "reported", Icon: Send },
+    { label: "Total Patients", value: summary?.total_patients ?? data?.patients?.total ?? EMPTY_VALUE, detail: "Patients across all conditions", tone: "total", Icon: Users },
+    { label: "Active Cases", value: summary?.active_cases ?? EMPTY_VALUE, detail: "Open cases requiring action", tone: "active", Icon: ClipboardList },
+    { label: "Patients Due Today", value: summary?.patients_due_today ?? EMPTY_VALUE, detail: "Patient deadlines due today", tone: "due", Icon: Clock3 },
+    { label: "Reported Cases", value: summary?.reported_cases ?? EMPTY_VALUE, detail: "Cases with submitted or acknowledged records", tone: "reported", Icon: Send },
   ];
 
   if (loading && !data) {
@@ -185,7 +184,7 @@ export default function Dashboard() {
 
       {Object.values(data?.errors || {}).some(Boolean) && <div className="dashboard-error" role="status">Some Dashboard sections could not load. Their individual cards show the related error.</div>}
 
-      <section className="dashboard-kpis" aria-label="Measles worklist summary">
+      <section className="dashboard-kpis" aria-label="Patient and case summary">
         {metrics.map(({ label, value, detail, tone, Icon }) => (
           <article className={`dashboard-kpi tone-${tone}`} key={label}>
             <div className="dashboard-kpi-heading"><span className="dashboard-kpi-label">{label}</span><Icon size={16} aria-hidden="true" /></div>
@@ -196,7 +195,7 @@ export default function Dashboard() {
 
       <section className="dashboard-priority-card" aria-labelledby="priority-work-heading">
         <header className="dashboard-card-header">
-          <div><h2 id="priority-work-heading">Priority Work</h2><p>Top 5 Measles patients from the Patients page</p></div>
+          <div><h2 id="priority-work-heading">Priority Work</h2><p>Top 5 patients across all conditions</p></div>
           <button className="dashboard-view-all" type="button" onClick={() => navigate("/patients")}>View All Patients <ArrowRight size={14} aria-hidden="true" /></button>
         </header>
         {data?.errors?.patients ? <div className="dashboard-section-error" role="alert">{data.errors.patients}</div>
@@ -209,7 +208,7 @@ export default function Dashboard() {
                   const priority = patientPriority(patient);
                   const badgeClass = `priority-badge ${priority === EMPTY_VALUE ? "not-set" : priority.toLowerCase()}`;
                   return <tr key={patient.patient_id}>
-                    <td><strong>{patientName(patient)}</strong></td><td>Measles</td>
+                    <td><strong>{patientName(patient)}</strong></td><td>{patient.condition || "Patient review"}</td>
                     <td>{patient.jurisdiction || patient.deadline?.jurisdiction || EMPTY_VALUE}</td>
                     <td><span className={badgeClass}>{priority}</span></td><td>{formatDeadline(deadline)}</td>
                     <td><button className="row-action" type="button" onClick={() => navigate(`/patients/${encodeURIComponent(patient.patient_id)}`)}>View</button></td>
@@ -217,8 +216,8 @@ export default function Dashboard() {
                 })}</tbody>
               </table>
             </div>
-            <footer className="dashboard-priority-footer"><span>Showing {priorityPatients.length} of {data.patients.total} Measles patients</span><span>Patients in Patients page order</span></footer>
-          </> : <div className="dashboard-empty">No Measles patients are in the reporting worklist.</div>}
+            <footer className="dashboard-priority-footer"><span>Showing {priorityPatients.length} of {data.patients.total} patients</span><span>Patients in Patients page order</span></footer>
+          </> : <div className="dashboard-empty">No patients are currently in the reporting worklist.</div>}
       </section>
 
       <div className="dashboard-grid">
@@ -259,7 +258,7 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <footer className="dashboard-footer"><span><CheckCircle2 size={13} aria-hidden="true" /> Values shown are from available SIGNAL backend records.</span><span>{data?.patients ? `${data.patients.total} Measles patients in the worklist` : "Patient worklist unavailable"}</span></footer>
+      <footer className="dashboard-footer"><span><CheckCircle2 size={13} aria-hidden="true" /> Values shown are from available SIGNAL backend records.</span><span>{data?.patients ? `${data.patients.total} patients in the worklist` : "Patient worklist unavailable"}</span></footer>
     </section>
   );
 }

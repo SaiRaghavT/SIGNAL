@@ -141,6 +141,7 @@ async function withConcurrency(items, limit, mapper) {
 export function CasesPage() {
   const [cases, setCases] = useState([]);
   const [metrics, setMetrics] = useState({});
+  const [detailErrors, setDetailErrors] = useState(0);
   const [activeFilter, setActiveFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -153,12 +154,19 @@ export function CasesPage() {
       setError("");
       try {
         const caseResult = await getAllCases();
+        let failedDetails = 0;
         const enriched = await withConcurrency(caseResult.items, 8, async (item) => {
-          const detail = await getCase(item.case_id);
-          return { ...item, detail };
+          try {
+            const detail = await getCase(item.case_id);
+            return { ...item, detail };
+          } catch (detailError) {
+            failedDetails += 1;
+            return { ...item, detail: null, detailError: detailError?.message || "Case details could not be loaded." };
+          }
         });
         if (active) {
           setCases(enriched);
+          setDetailErrors(failedDetails);
           setMetrics({ ...caseResult.metrics, candidate_cases: caseResult.total });
           setPage(1);
         }
@@ -209,6 +217,9 @@ export function CasesPage() {
         <div className="cases-management"><div className="cases-error" role="alert">Unable to load cases. {error}</div></div>
       ) : (
         <>
+          {detailErrors > 0 && <div className="cases-load-note" role="status">
+            The case list loaded, but details could not be retrieved for {detailErrors} {detailErrors === 1 ? "case" : "cases"}. You can still open those case records.
+          </div>}
           <div className="cases-kpi-grid" aria-label="Case metrics">
             <article className="cases-kpi candidate">
               <span className="cases-kpi-label">PATIENT CASES</span>

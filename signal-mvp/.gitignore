@@ -12,4 +12,5 @@ frontend/.env.local
 frontend/.env.*.local
 frontend/vite-dev*.log
 backend/app/forms/generated/
+backend/logs/
 *.zip

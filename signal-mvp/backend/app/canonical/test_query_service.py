@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -6,6 +7,7 @@ import pytest
 from backend.app.canonical.query_service import (
     CanonicalPatientNotFoundError,
     get_patient_context,
+    _patient_deadline,
 )
 from backend.app.models.clinical_document import ClinicalDocument
 from backend.app.models.condition import Condition
@@ -16,6 +18,29 @@ from backend.app.models.patient import Patient
 
 
 PATIENT_ID = UUID("40ab7b04-1246-4fa3-8ae2-df520124b47a")
+
+
+def test_persisted_deadline_includes_current_urgency():
+    deadline = datetime.now(timezone.utc) + timedelta(hours=12)
+    case = SimpleNamespace(
+        disease="measles",
+        jurisdiction_status="RESOLVED",
+        jurisdiction="TX",
+        rule_id=None,
+        deadline=deadline,
+        severity=None,
+    )
+    result, reason = _patient_deadline(
+        patient=SimpleNamespace(state="TX", county="Travis"),
+        conditions=[],
+        lab_results=[],
+        candidate=None,
+        case=case,
+        disease_filter="measles",
+    )
+    assert reason is None
+    assert result["urgency"] == "HIGH"
+    assert 0 < result["minutes_remaining"] <= 24 * 60
 
 
 class FakeQuery:

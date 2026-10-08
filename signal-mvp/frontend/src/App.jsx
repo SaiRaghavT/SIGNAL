@@ -24,6 +24,7 @@ import { candidateForUi } from './services/candidateData.js'
 import { CasesPage } from './pages/CasesPage.jsx'
 import Patients from './pages/Patients.jsx'
 import PatientWorkspace from './pages/PatientWorkspace.jsx'
+import ClinicalDashboard from './pages/Dashboard.jsx'
 import { ReportingAdminDashboard, ReportingAdminQueue, ReportingAdminCaseReview, ReportingAdminSubmissions, ReportingAdminSubmissionDetail, ReportingAdminDeadlines, ReportingAdminSettings } from './pages/ReportingAdmin.jsx'
 import clinicalAnatomyReference from './assets/clinical-anatomy-reference.png'
 
@@ -110,7 +111,7 @@ function App() {
     <Route path="/login" element={<Login type="clinical" onLogin={setRole} />} />
     <Route path="/admin/login" element={<Login type="admin" onLogin={setRole} />} />
     <Route path="*" element={<Shell queue={queue} role={role}><Routes>
-      <Route path="/" element={<RoleGate role={role} required="clinical"><Dashboard caseStates={caseStates}/></RoleGate>} /><Route path="/dashboard" element={<RoleGate role={role} required="clinical"><Dashboard caseStates={caseStates}/></RoleGate>} />
+      <Route path="/" element={<RoleGate role={role} required="clinical"><ClinicalDashboard/></RoleGate>} /><Route path="/dashboard" element={<RoleGate role={role} required="clinical"><ClinicalDashboard/></RoleGate>} />
       <Route path="/admin/dashboard" element={<RoleGate role={role} required="admin"><ReportingAdminDashboard/></RoleGate>}/>
       <Route path="/patients" element={<RoleGate role={role} required="clinical"><Patients/></RoleGate>} />
       <Route path="/patients/:patientId" element={<RoleGate role={role} required="clinical"><PatientWorkspace/></RoleGate>} />

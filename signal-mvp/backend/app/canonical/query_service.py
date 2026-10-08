@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.agents.deadline_calculation.schemas import DeadlineCalculationRequest
 from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
+from backend.app.agents.deadline_escalation.service import DeadlineEscalationService
 from backend.app.detection.adapter import canonical_context_to_detection_input
 from backend.app.detection.structured_trigger import detect_structured_triggers
 from backend.app.detection.structured_trigger import STRUCTURED_TRIGGERS
@@ -387,6 +388,10 @@ def _patient_deadline(
     persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
     if persisted_deadline is not None and last_encounter is None:
         reporting = rule.get("reporting", {})
+        current_state = DeadlineEscalationService().evaluate_current_state(
+            persisted_deadline,
+            rule,
+        )
         return {
             "deadline": persisted_deadline,
             "status": "PERSISTED",
@@ -396,6 +401,8 @@ def _patient_deadline(
             "rule_id": rule_id,
             "reporting_timing": reporting.get("timing"),
             "reporting_method": reporting.get("method"),
+            "urgency": current_state["urgency"],
+            "minutes_remaining": current_state["minutes_remaining"],
         }, None
 
     # Imported conditions can carry a DOB as onset_time. Do not treat that as

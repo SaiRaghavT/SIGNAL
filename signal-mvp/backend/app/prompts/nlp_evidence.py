@@ -14,6 +14,11 @@ Identify relevant:
 - exposures
 - epidemiological information
 
+Extract every distinct diagnosis, suspected condition, and disease-related
+laboratory finding that is explicitly documented, regardless of disease name.
+Do not limit extraction to a predefined disease list. Preserve each condition
+as its own evidence item when the document supports it.
+
 Rules:
 
 1. Extract only information explicitly supported by the document.
