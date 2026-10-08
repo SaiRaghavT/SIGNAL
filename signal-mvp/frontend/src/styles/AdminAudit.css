@@ -1,0 +1,263 @@
+.admin-audit-page,
+.admin-deadlines-page {
+  min-height: 100%;
+  padding: 28px 32px 40px;
+  background: #f5f7f9;
+  color: #17324d;
+}
+
+.admin-audit-header,
+.admin-deadlines-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.admin-audit-eyebrow,
+.admin-deadlines-eyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: #7a8b9b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+
+.admin-audit-header h1,
+.admin-deadlines-header h1 {
+  margin: 0;
+  color: #153a5b;
+  font-size: 28px;
+}
+
+.admin-audit-header p,
+.admin-deadlines-header p {
+  margin: 8px 0 0;
+  color: #6b7f93;
+  font-size: 13px;
+}
+
+.admin-audit-refresh,
+.admin-deadlines-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #d5dfe6;
+  border-radius: 6px;
+  background: #fff;
+  color: #153a5b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-audit-refresh:disabled,
+.admin-deadlines-refresh:disabled { opacity: .6; cursor: not-allowed; }
+.admin-audit-spin,
+.admin-deadlines-spin { animation: admin-audit-rotate .9s linear infinite; }
+@keyframes admin-audit-rotate { to { transform: rotate(360deg); } }
+
+.admin-audit-error,
+.admin-deadlines-error {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #efcaca;
+  border-radius: 6px;
+  background: #fdf0f0;
+  color: #a63838;
+}
+
+.admin-audit-error button,
+.admin-deadlines-error button {
+  padding: 6px 11px;
+  border: 1px solid #dcaeae;
+  border-radius: 4px;
+  background: #fff;
+  color: #a63838;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-audit-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 13px;
+  margin-bottom: 18px;
+}
+
+.admin-audit-metric,
+.admin-deadlines-metric {
+  min-height: 94px;
+  padding: 16px 18px;
+  border: 1px solid #dce4ea;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.admin-audit-metric span,
+.admin-deadlines-metric > span {
+  display: block;
+  color: #77899b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .07em;
+}
+
+.admin-audit-metric strong,
+.admin-deadlines-metric strong {
+  display: block;
+  margin-top: 8px;
+  color: #153a5b;
+  font-size: 25px;
+}
+
+.admin-audit-panel,
+.admin-deadlines-panel {
+  overflow: hidden;
+  border: 1px solid #dce4ea;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.admin-audit-filters,
+.admin-deadlines-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid #e1e7ec;
+}
+
+.admin-audit-filters select,
+.admin-audit-search,
+.admin-deadlines-filters select,
+.admin-deadlines-filters input {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #d8e0e7;
+  border-radius: 5px;
+  background: #fff;
+  color: #304b65;
+  font: inherit;
+  font-size: 12px;
+}
+
+.admin-audit-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+  color: #8495a5;
+}
+
+.admin-audit-search input { width: 100%; border: 0; outline: 0; color: #304b65; }
+.admin-deadlines-filters input { flex: 1 1 220px; }
+
+.admin-audit-table-wrap,
+.admin-deadlines-table-wrap { overflow-x: auto; }
+
+.admin-audit-table,
+.admin-deadlines-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12px;
+}
+
+.admin-audit-table th,
+.admin-deadlines-table th {
+  padding: 12px 13px;
+  background: #f8fafb;
+  color: #74879a;
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-audit-table td,
+.admin-deadlines-table td {
+  padding: 13px;
+  border-top: 1px solid #e8edf1;
+  color: #38536c;
+  vertical-align: middle;
+}
+
+.admin-audit-mono,
+.admin-deadlines-mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+
+.admin-audit-pill,
+.admin-deadlines-status,
+.admin-deadlines-priority {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef2f5;
+  color: #617487;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-audit-pill.success,
+.admin-deadlines-status.track { background: #e8f6ef; color: #218052; }
+.admin-audit-pill.warning,
+.admin-deadlines-status.today,
+.admin-deadlines-status.soon { background: #fff4df; color: #996513; }
+.admin-audit-pill.danger,
+.admin-deadlines-status.overdue,
+.admin-deadlines-priority.urgent { background: #ffeded; color: #b33e3e; }
+.admin-audit-pill.info { background: #eaf2fb; color: #3d6fa5; }
+.admin-deadlines-priority.high { background: #fff0e8; color: #bf5a2d; }
+.admin-deadlines-priority.medium { background: #eef3fb; color: #4c70a0; }
+.admin-deadlines-priority.low { background: #eef6f0; color: #4b7958; }
+
+.admin-audit-view,
+.admin-deadlines-view {
+  padding: 6px 10px;
+  border: 1px solid #d7e0e7;
+  border-radius: 4px;
+  background: #fff;
+  color: #315a7b;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-audit-detail-row td { padding: 0 14px 14px; background: #fbfcfd; }
+.admin-audit-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 14px; }
+.admin-audit-details > div { min-width: 0; }
+.admin-audit-details dt { color: #788b9d; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.admin-audit-details dd { overflow-wrap: anywhere; margin: 4px 0 0; color: #304b65; font-size: 12px; }
+.admin-audit-state,
+.admin-deadlines-state { padding: 48px 20px; color: #7a8d9f; text-align: center; font-size: 13px; }
+.admin-audit-state strong,
+.admin-deadlines-state strong { color: #284966; }
+
+.admin-deadlines-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin-bottom: 18px; }
+.admin-deadlines-metric { position: relative; padding-left: 55px; }
+.admin-deadlines-metric > div { position: absolute; left: 16px; top: 17px; display: grid; place-items: center; width: 27px; height: 27px; border-radius: 6px; background: #eef2f6; color: #58718a; }
+.admin-deadlines-metric.overdue > div { background: #ffeded; color: #b33e3e; }
+.admin-deadlines-metric.today > div { background: #fff4df; color: #996513; }
+.admin-deadlines-metric.soon > div { background: #eaf2fb; color: #3d6fa5; }
+.admin-deadlines-metric.track > div { background: #e8f6ef; color: #218052; }
+
+@media (max-width: 900px) {
+  .admin-audit-page, .admin-deadlines-page { padding: 22px 18px 32px; }
+  .admin-audit-metrics, .admin-deadlines-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-audit-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .admin-audit-header, .admin-deadlines-header { flex-direction: column; }
+  .admin-audit-metrics, .admin-deadlines-metrics { grid-template-columns: 1fr 1fr; }
+  .admin-audit-details { grid-template-columns: 1fr; }
+}

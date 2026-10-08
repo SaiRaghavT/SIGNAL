@@ -19,11 +19,26 @@ import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import "../styles/dashboard.css";
 
 const EMPTY_VALUE = "—";
-const PATIENT_LIMIT = 5;
-const WORKLIST_PAGE_SIZE = 100;
+const PATIENT_PAGE_SIZE = 100;
 
 function responseItems(response) {
   return Array.isArray(response?.items) ? response.items : [];
+}
+
+async function listAllCanonicalPatients() {
+  const firstPage = await listCanonicalPatients({ page: 1, page_size: PATIENT_PAGE_SIZE });
+  const pages = Number(firstPage?.pages) || 1;
+  if (pages <= 1) return firstPage;
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: pages - 1 }, (_, index) =>
+      listCanonicalPatients({ page: index + 2, page_size: PATIENT_PAGE_SIZE }),
+    ),
+  );
+  return {
+    ...firstPage,
+    items: [...responseItems(firstPage), ...remainingPages.flatMap(responseItems)],
+  };
 }
 
 function countRows(counts) {
@@ -118,7 +133,7 @@ export default function Dashboard() {
       request("/api/dashboard/jurisdictions"),
       request("/api/dashboard/activity"),
       request("/api/dashboard/deadlines"),
-      listCanonicalPatients({ page: 1, page_size: WORKLIST_PAGE_SIZE }),
+      listAllCanonicalPatients(),
     ]);
     setData({
       summary: summaryResult.status === "fulfilled" ? summaryResult.value : null,
@@ -150,7 +165,7 @@ export default function Dashboard() {
   const deadlineRiskRows = useMemo(() => countRows(data?.deadlines?.by_status), [data]);
   const conditionRows = useMemo(() => countRows(data?.reporting?.case_conditions), [data]);
   const jurisdictionRows = useMemo(() => countRows(data?.jurisdictions), [data]);
-  const priorityPatients = useMemo(() => responseItems(data?.patients).slice(0, PATIENT_LIMIT), [data]);
+  const priorityPatients = useMemo(() => responseItems(data?.patients), [data]);
   const activityItems = activityVisible ? data?.activity?.slice(0, 5) || [] : [];
   const deadlineItems = data?.deadlines?.slice(0, 3) || [];
   const summary = data?.summary;
@@ -164,9 +179,9 @@ export default function Dashboard() {
   const maxCondition = Math.max(1, ...conditionRows.map((row) => Number(row.value) || 0));
   const metrics = [
     { label: "Total Patients", value: summary?.total_patients ?? data?.patients?.total ?? EMPTY_VALUE, detail: "Patients across all conditions", tone: "total", Icon: Users },
-    { label: "Active Cases", value: summary?.active_cases ?? EMPTY_VALUE, detail: "Open cases requiring action", tone: "active", Icon: ClipboardList },
-    { label: "Patients Due Today", value: summary?.patients_due_today ?? EMPTY_VALUE, detail: "Patient deadlines due today", tone: "due", Icon: Clock3 },
-    { label: "Reported Cases", value: summary?.reported_cases ?? EMPTY_VALUE, detail: "Cases with submitted or acknowledged records", tone: "reported", Icon: Send },
+    { label: "Active Cases", value: summary?.active_cases ?? summary?.active_measles_cases ?? EMPTY_VALUE, detail: "Open cases requiring action", tone: "active", Icon: ClipboardList },
+    { label: "Patients Due Today", value: summary?.patients_due_today ?? summary?.measles_patients_due_today ?? EMPTY_VALUE, detail: "Patient deadlines due today", tone: "due", Icon: Clock3 },
+    { label: "Reported Cases", value: summary?.reported_cases ?? summary?.reported_measles_cases ?? EMPTY_VALUE, detail: "Cases with submitted or acknowledged records", tone: "reported", Icon: Send },
   ];
 
   if (loading && !data) {
@@ -195,7 +210,7 @@ export default function Dashboard() {
 
       <section className="dashboard-priority-card" aria-labelledby="priority-work-heading">
         <header className="dashboard-card-header">
-          <div><h2 id="priority-work-heading">Priority Work</h2><p>Top 5 patients across all conditions</p></div>
+          <div><h2 id="priority-work-heading">All Patients</h2><p>Patients from the full clinical registry</p></div>
           <button className="dashboard-view-all" type="button" onClick={() => navigate("/patients")}>View All Patients <ArrowRight size={14} aria-hidden="true" /></button>
         </header>
         {data?.errors?.patients ? <div className="dashboard-section-error" role="alert">{data.errors.patients}</div>
@@ -208,7 +223,7 @@ export default function Dashboard() {
                   const priority = patientPriority(patient);
                   const badgeClass = `priority-badge ${priority === EMPTY_VALUE ? "not-set" : priority.toLowerCase()}`;
                   return <tr key={patient.patient_id}>
-                    <td><strong>{patientName(patient)}</strong></td><td>{patient.condition || "Patient review"}</td>
+                    <td><strong>{patientName(patient)}</strong></td><td>{patient.condition ? titleCase(patient.condition) : "Patient review"}</td>
                     <td>{patient.jurisdiction || patient.deadline?.jurisdiction || EMPTY_VALUE}</td>
                     <td><span className={badgeClass}>{priority}</span></td><td>{formatDeadline(deadline)}</td>
                     <td><button className="row-action" type="button" onClick={() => navigate(`/patients/${encodeURIComponent(patient.patient_id)}`)}>View</button></td>
@@ -216,8 +231,8 @@ export default function Dashboard() {
                 })}</tbody>
               </table>
             </div>
-            <footer className="dashboard-priority-footer"><span>Showing {priorityPatients.length} of {data.patients.total} patients</span><span>Patients in Patients page order</span></footer>
-          </> : <div className="dashboard-empty">No patients are currently in the reporting worklist.</div>}
+            <footer className="dashboard-priority-footer"><span>Showing all {priorityPatients.length} of {data.patients.total} patients</span><span>Patients in Patients page order</span></footer>
+          </> : <div className="dashboard-empty">No patients are currently available.</div>}
       </section>
 
       <div className="dashboard-grid">

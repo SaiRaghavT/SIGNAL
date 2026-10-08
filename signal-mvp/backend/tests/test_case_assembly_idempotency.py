@@ -71,3 +71,4 @@ def test_reprocessing_candidate_returns_existing_case_without_creating_another()
     assert first.case_id == second.case_id
     assert len(db.cases) == 1
     assert db.commit_count == 1
+    assert db.cases[0].submission_mode is None

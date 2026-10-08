@@ -27,6 +27,17 @@ import PatientWorkspace from './pages/PatientWorkspace.jsx'
 import ClinicalDashboard from './pages/Dashboard.jsx'
 import { ReportingAdminDashboard, ReportingAdminQueue, ReportingAdminCaseReview, ReportingAdminSubmissions, ReportingAdminSubmissionDetail, ReportingAdminDeadlines, ReportingAdminSettings } from './pages/ReportingAdmin.jsx'
 import clinicalAnatomyReference from './assets/clinical-anatomy-reference.png'
+import AdminShell from './components/layout/AdminShell.jsx'
+import AdminAudit from './pages/admin/AdminAudit.jsx'
+import AdminDeadlines from './pages/admin/AdminDeadlines.jsx'
+import AdminImmediateReview from './pages/admin/AdminImmediateReview.jsx'
+import AdminIndividualReview from './pages/admin/AdminIndividualReview.jsx'
+import AdminBatchReview from './pages/admin/AdminBatchReview.jsx'
+import AdminQueue from './pages/admin/AdminQueue.jsx'
+import BranchAdminDashboard from './pages/admin/AdminDashboard.jsx'
+import AdminSubmissions from './pages/admin/AdminSubmissions.jsx'
+import AdminSubmissionAcknowledgement from './pages/admin/AdminSubmissionAcknowledgement.jsx'
+import AdminCaseReview from './pages/admin/AdminCaseReview.jsx'
 
 const CandidateContext = createContext(null)
 const getSavedRole = () => {
@@ -112,7 +123,7 @@ function App() {
     <Route path="/admin/login" element={<Login type="admin" onLogin={setRole} />} />
     <Route path="*" element={<Shell queue={queue} role={role}><Routes>
       <Route path="/" element={<RoleGate role={role} required="clinical"><ClinicalDashboard/></RoleGate>} /><Route path="/dashboard" element={<RoleGate role={role} required="clinical"><ClinicalDashboard/></RoleGate>} />
-      <Route path="/admin/dashboard" element={<RoleGate role={role} required="admin"><ReportingAdminDashboard/></RoleGate>}/>
+      <Route path="/admin/dashboard" element={<RoleGate role={role} required="admin"><BranchAdminDashboard/></RoleGate>}/>
       <Route path="/patients" element={<RoleGate role={role} required="clinical"><Patients/></RoleGate>} />
       <Route path="/patients/:patientId" element={<RoleGate role={role} required="clinical"><PatientWorkspace/></RoleGate>} />
       <Route path="/patients/:patientId/case/:caseId" element={<RoleGate role={role} required="clinical"><CaseWorkspacePage/></RoleGate>} />
@@ -135,13 +146,19 @@ function App() {
       <Route path="/admin/reporting-queue" element={<RoleGate role={role} required="admin"><ReportingAdminQueue/></RoleGate>}/>
       <Route path="/admin/reporting-queue/batch" element={<Navigate to="/admin/submission-batches" replace/>}/>
       <Route path="/admin/reporting-queue/:id" element={<RoleGate role={role} required="admin"><ReportingAdminCaseReview/></RoleGate>}/>
+      <Route path="/admin/queue" element={<RoleGate role={role} required="admin"><AdminQueue/></RoleGate>}/>
+      <Route path="/admin/queue/:caseId/immediate" element={<RoleGate role={role} required="admin"><AdminImmediateReview/></RoleGate>}/>
+      <Route path="/admin/queue/:caseId/individual" element={<RoleGate role={role} required="admin"><AdminIndividualReview/></RoleGate>}/>
+      <Route path="/admin/queue/:caseId" element={<RoleGate role={role} required="admin"><AdminCaseReview/></RoleGate>}/>
       <Route path="/admin/submission-batches" element={<RoleGate role={role} required="admin"><AdminBatches/></RoleGate>}/>
       <Route path="/admin/submission-batches/:batchId" element={<RoleGate role={role} required="admin"><AdminBatchDetail/></RoleGate>}/>
-      <Route path="/admin/submissions" element={<RoleGate role={role} required="admin"><ReportingAdminSubmissions/></RoleGate>}/>
+      <Route path="/admin/batches/:batchId" element={<RoleGate role={role} required="admin"><AdminBatchReview/></RoleGate>}/>
+      <Route path="/admin/submissions" element={<RoleGate role={role} required="admin"><AdminSubmissions/></RoleGate>}/>
+      <Route path="/admin/submissions/:submissionId/acknowledgement" element={<RoleGate role={role} required="admin"><AdminSubmissionAcknowledgement/></RoleGate>}/>
       <Route path="/admin/submissions/:batchId" element={<RoleGate role={role} required="admin"><ReportingAdminSubmissionDetail/></RoleGate>}/>
-      <Route path="/admin/deadlines" element={<RoleGate role={role} required="admin"><ReportingAdminDeadlines/></RoleGate>}/>
+      <Route path="/admin/deadlines" element={<RoleGate role={role} required="admin"><AdminDeadlines/></RoleGate>}/>
       <Route path="/admin/settings" element={<RoleGate role={role} required="admin"><ReportingAdminSettings/></RoleGate>}/>
-      <Route path="/admin/follow-ups" element={<RoleGate role={role} required="admin"><FollowUpsPage/></RoleGate>}/><Route path="/admin/audit" element={<RoleGate role={role} required="admin"><AuditPage/></RoleGate>}/>
+      <Route path="/admin/follow-ups" element={<RoleGate role={role} required="admin"><FollowUpsPage/></RoleGate>}/><Route path="/admin/audit" element={<RoleGate role={role} required="admin"><AdminAudit/></RoleGate>}/>
       <Route path="/follow-ups" element={<FollowUpsPage/>}/><Route path="/analytics" element={<AnalyticsPage/>}/><Route path="/audit" element={<AuditPage/>}/>
       <Route path="/reporting-queue" element={<RoleGate role={role} required="admin"><FinalAdminQueue queue={queue} caseStates={caseStates}/></RoleGate>} />
       <Route path="/reporting-queue/:id/verify" element={<RoleGate role={role} required="admin"><Navigate to="/admin/reporting-queue" replace/></RoleGate>} />
@@ -160,6 +177,7 @@ function RoleGate({role,required,children}) {
 
 function Shell({ children, queue, role }) {
   const [open, setOpen] = useState(false)
+  if (role === 'admin') return <AdminShell>{children}</AdminShell>
   const nav = role==='admin'?[['Dashboard','/admin/dashboard',LayoutDashboard],['Queue','/admin/reporting-queue',ClipboardList],['Batches','/admin/submission-batches',FileCheck2],['Submissions','/admin/submissions',FileCheck2],['Audit','/admin/audit',ShieldCheck]]:[['Dashboard','/dashboard',LayoutDashboard],['Patients','/patients',Users],['Cases','/cases',BriefcaseBusiness],['Submissions','/submissions',FileCheck2],['Follow-ups','/follow-ups',Clock3],['Analytics','/analytics',Activity],['Technical / Audit','/audit',ClipboardList]]
   return <div className="app-shell"><aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
     <Link className="brand" to={role==='admin'?'/admin/dashboard':'/dashboard'}><div className="brand-logo">S</div><div><b>SIGNAL</b><small>INTELLIGENCE LAYER</small></div></Link>

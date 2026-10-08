@@ -23,6 +23,9 @@ class Submission(Base):
         index=True,
     )
 
+    # Historical routing choice for this specific submission.
+    submission_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     report_id: Mapped[str | None] = mapped_column(
         String(36),
         nullable=True,

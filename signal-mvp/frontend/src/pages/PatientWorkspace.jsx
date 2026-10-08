@@ -1654,9 +1654,9 @@ function DocumentsSection({
 
 
 
-          <h2>Clinical documents</h2>
+          <h2>Clinical documents <span className="document-optional-label">(Optional)</span></h2>
 
-          <p className="section-description">Clinical documentation available to support patient review.</p>
+          <p className="section-description">Upload clinical documentation if available. This is optional for patient review.</p>
 
 
 
@@ -3909,7 +3909,7 @@ function DocumentUploadModal({
 
 
 
-          Add a clinical document that SIGNAL can
+          Add an optional clinical document that SIGNAL can
 
 
 

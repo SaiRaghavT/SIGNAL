@@ -105,7 +105,9 @@ export default function Patients() {
     <section className="patients-page">
       <PageHeader
         title="Patients"
-        subtitle={`${result?.total ?? 0} patients from canonical clinical data.`}
+        subtitle={result
+          ? `${result.total} patients from canonical clinical data.`
+          : "Manage and review patients from canonical clinical data."}
       >
         <button
           className="patients-refresh"
