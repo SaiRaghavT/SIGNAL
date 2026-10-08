@@ -174,9 +174,8 @@ export default function AdminSubmissionJourney() {
     <section className="asj-card asj-journey-card" aria-labelledby="asj-journey-title">
       <header className="asj-section-header"><div><span>SUBMISSION STATUS</span><h2 id="asj-journey-title">Submission Journey</h2></div></header>
       <div className="asj-journey-track">
-        {stages.map((item, index) => <div className="asj-stage-slot" key={item.title}>
+        {stages.map((item, index) => <div className={`asj-stage-slot ${item.state}`} key={item.title}>
           <JourneyStage number={index + 1} {...item} />
-          {index < stages.length - 1 && <span className="asj-connector" aria-hidden="true">→</span>}
         </div>)}
       </div>
     </section>
