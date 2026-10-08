@@ -99,7 +99,7 @@ def test_list_patients_returns_real_related_fields_and_pagination():
     assert filtered["condition_filter"] == "Measles"
     assert filtered["items"][0]["last_encounter"].replace(tzinfo=timezone.utc) == datetime(2026, 1, 3, tzinfo=timezone.utc)
     assert "severity" not in filtered["items"][0]
-    assert filtered["items"][0]["deadline"] is None
+    assert filtered["items"][0]["deadline"]["deadline"] == datetime(2026, 1, 3, tzinfo=timezone.utc)
     db.close()
 
 
@@ -368,7 +368,7 @@ def test_measles_case_only_qualifies_and_preserves_deadline_rule_distinction():
     john = result["items"][0]
     assert john["source_patient_id"] == "TEST-MEASLES-001"
     assert john["condition"] == "Measles"
-    assert john["deadline"]["deadline"] == deadline
+    assert john["deadline"]["deadline"] == event_time.astimezone(timezone.utc)
     assert john["deadline"]["disease"] == "measles"
     assert john["deadline"]["jurisdiction"] == "TX"
     assert john["deadline"]["rule_id"] == "MEASLES-TX"
@@ -459,7 +459,7 @@ def test_list_patients_does_not_calculate_measles_deadline_for_other_condition()
     result = list_patients(db)
 
     assert result["items"][0]["deadline"] is None
-    assert "No disease" in result["items"][0]["deadline_reason"]
+    assert "No Texas 2026 reporting deadline rule" in result["items"][0]["deadline_reason"]
     filtered = list_patients(db, condition="measles")
     assert filtered["total"] == 0
     assert filtered["items"] == []
