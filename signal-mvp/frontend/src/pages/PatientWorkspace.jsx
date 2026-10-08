@@ -1919,13 +1919,18 @@ function AiDocumentUploadCard({
       <div className="ai-document-upload-icon" aria-hidden="true">↑</div>
       <div className="ai-document-upload-copy">
         <div className="section-label">AI DETECTION INPUT</div>
-        <h2>Upload clinical documents</h2>
+        <div className="ai-document-upload-title">
+          <h2>Add clinical documents</h2>
+          <span className="ai-document-upload-optional">Optional</span>
+        </div>
         <p>
-          Add a clinical note, lab report, or discharge summary. SIGNAL will
-          include it the next time you run detection.
+          Detection can use the patient’s existing records. Add a clinical note,
+          lab report, or discharge summary to include it in your next run.
         </p>
         <span className="ai-document-upload-meta">
-          {uploadedDocuments.length} uploaded document{uploadedDocuments.length === 1 ? "" : "s"}
+          {uploadedDocuments.length === 0
+            ? "No files added yet"
+            : `${uploadedDocuments.length} document${uploadedDocuments.length === 1 ? "" : "s"} added`}
           <span aria-hidden="true"> · </span>PDF, DOCX, or TXT up to 10 MB
         </span>
         {actionError && <p className="ai-document-action-error" role="alert">{actionError}</p>}
@@ -4313,9 +4318,10 @@ export default function PatientWorkspace() {
   const { patientId } = useParams();
   const navigate = useNavigate();
 
-  const [consentCheckPatientId, setConsentCheckPatientId] = useState(null);
-  const [consentedPatientId, setConsentedPatientId] = useState(null);
-  const [showMeaslesWarning, setShowMeaslesWarning] = useState(false);
+  // Immediate-reporting warning and consent gate are temporarily disabled.
+  // const [consentCheckPatientId, setConsentCheckPatientId] = useState(null);
+  // const [consentedPatientId, setConsentedPatientId] = useState(null);
+  // const [showMeaslesWarning, setShowMeaslesWarning] = useState(false);
 
 
 
@@ -4462,19 +4468,19 @@ export default function PatientWorkspace() {
 
 
 
-  const hasMeasles = conditions.some(isMeaslesCondition);
-  const consentChecked = consentCheckPatientId === patientId;
-  const consentAcknowledged = consentedPatientId === patientId;
+  // const hasMeasles = conditions.some(isMeaslesCondition);
+  // const consentChecked = consentCheckPatientId === patientId;
+  // const consentAcknowledged = consentedPatientId === patientId;
 
-  useEffect(() => {
-    if (!patientId || !hasMeasles || consentAcknowledged) return undefined;
-
-    const timer = window.setTimeout(() => {
-      setShowMeaslesWarning(true);
-    }, 5000);
-
-    return () => window.clearTimeout(timer);
-  }, [patientId, hasMeasles, consentAcknowledged]);
+  // useEffect(() => {
+  //   if (!patientId || !hasMeasles || consentAcknowledged) return undefined;
+  //
+  //   const timer = window.setTimeout(() => {
+  //     setShowMeaslesWarning(true);
+  //   }, 5000);
+  //
+  //   return () => window.clearTimeout(timer);
+  // }, [patientId, hasMeasles, consentAcknowledged]);
 
   const labs = useMemo(
 
@@ -4644,17 +4650,17 @@ export default function PatientWorkspace() {
     loadWorkspace();
   }, [patientId]);
 
-  useEffect(() => {
-    setShowMeaslesWarning(false);
-
-    if (!patientId || !hasMeasles) return undefined;
-
-    const warningTimer = window.setTimeout(() => {
-      setShowMeaslesWarning(true);
-    }, 5000);
-
-    return () => window.clearTimeout(warningTimer);
-  }, [patientId, hasMeasles]);
+  // useEffect(() => {
+  //   setShowMeaslesWarning(false);
+  //
+  //   if (!patientId || !hasMeasles) return undefined;
+  //
+  //   const warningTimer = window.setTimeout(() => {
+  //     setShowMeaslesWarning(true);
+  //   }, 5000);
+  //
+  //   return () => window.clearTimeout(warningTimer);
+  // }, [patientId, hasMeasles]);
 
   useEffect(() => {
     if (detectionState === "running") {
@@ -5080,6 +5086,7 @@ export default function PatientWorkspace() {
 
 
 
+      {/* Immediate-reporting warning and consent overlay temporarily disabled.
       {hasMeasles && showMeaslesWarning && !consentAcknowledged && (
         <div className="measles-consent-backdrop">
           <section
@@ -5134,10 +5141,10 @@ export default function PatientWorkspace() {
           </section>
         </div>
       )}
+      */}
 
       <div
         className="workspace-gated-content"
-        inert={hasMeasles && showMeaslesWarning && !consentAcknowledged}
       >
         <div className="workspace-tabs">
 
