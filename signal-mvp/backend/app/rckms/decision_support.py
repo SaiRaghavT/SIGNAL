@@ -72,7 +72,7 @@ def evaluate_decision_support(
     evaluator = rule["evaluator"]
 
     rule_result = evaluator(
-        disease=disease,
+        disease=rule.get("disease") or disease,
         laboratory_evidence=laboratory_evidence,
         clinical_evidence=clinical_evidence,
     )
@@ -80,7 +80,7 @@ def evaluate_decision_support(
     result = DecisionSupportResult(
         candidate_id=candidate_id,
         decision=rule_result.decision,
-        rule_id=rule_result.rule_id,
+        rule_id=rule.get("rule_id") or rule_result.rule_id,
         reasons=list(rule_result.reasons),
         warnings=list(rule_result.warnings),
     )
