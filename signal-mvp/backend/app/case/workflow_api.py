@@ -22,11 +22,13 @@ from backend.app.case.report_fields import available_case_report_fields, missing
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
 from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
+from backend.app.admin.schemas import QueueRequest
 
 router = APIRouter(tags=["Case Workflow"])
 
 RECORD_TYPES = {"notification": "IMMEDIATE_NOTIFICATION", "investigation": "INVESTIGATION", "validation": "VALIDATION", "review": "REVIEW", "attestation": "ATTESTATION"}
 SUBMISSION_READINESS_TYPE = "SUBMISSION_READINESS"
+ADMIN_QUEUE_TYPE = "ADMIN_QUEUE"
 audit = AuditLedgerService()
 
 
@@ -49,6 +51,8 @@ class ReviewRequest(BaseModel):
     reviewer_role: str = Field(min_length=1, max_length=100)
     decision: str
     comments: str | None = None
+    review_confirmed: bool = False
+    draft_decision: str | None = None
 
 
 class AttestationBody(BaseModel):
@@ -67,6 +71,24 @@ class SubmissionReadinessRequest(BaseModel):
 
 class DemoWorkflowResetRequest(BaseModel):
     reset_scope: str = Field(pattern="^REPORTING_WORKFLOW$")
+
+
+@router.post("/api/cases/{case_id}/queue", status_code=201)
+def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
+    case = _case(db, case_id)
+    if request.submission_mode is not None and request.submission_mode != case.submission_mode:
+        raise HTTPException(status_code=409, detail="Queue submission mode must match the Case submission mode.")
+    review = _latest(db, case_id, RECORD_TYPES["review"])
+    attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
+    if review is None or review.status != "APPROVE":
+        raise HTTPException(status_code=409, detail="An approved review is required before queueing.")
+    if attestation is None or attestation.status != "ATTESTED":
+        raise HTTPException(status_code=409, detail="A persisted attestation is required before queueing.")
+    latest = _latest(db, case_id, ADMIN_QUEUE_TYPE)
+    if latest and latest.status in {"QUEUED", "READY_FOR_SUBMISSION"}:
+        return {"case_id": str(case_id), "queue_status": latest.status, "submission_mode": case.submission_mode}
+    row = _record(db, case_id, ADMIN_QUEUE_TYPE, "QUEUED", {"submission_mode": case.submission_mode}, request.actor_id.strip())
+    return {"case_id": str(case_id), "queue_status": row.status, "submission_mode": case.submission_mode, "queued_at": row.created_at}
 
 
 class WorkflowRecordResponse(BaseModel):
@@ -279,7 +301,7 @@ def get_review(case_id: UUID, db: Session = Depends(get_db)) -> CaseWorkflowReco
 def create_review(case_id: UUID, request: ReviewRequest, db: Session = Depends(get_db)) -> CaseWorkflowRecord:
     case = _case(db, case_id)
     decision = request.decision.upper()
-    if decision not in {"APPROVE", "REQUEST_INFORMATION", "REJECT"}:
+    if decision not in {"DRAFT", "APPROVE", "REQUEST_INFORMATION", "REJECT"}:
         raise HTTPException(status_code=422, detail="Unsupported review decision.")
     validation = _validation(case)
     if decision == "APPROVE" and not validation["valid"]:
