@@ -206,6 +206,22 @@ def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
             .filter(or_(*lab_match_predicates))
             .all()
         )
+    else:
+        # Detection trigger definitions are loaded dynamically and may not be
+        # exposed through STRUCTURED_TRIGGERS. Keep the existing measles queue
+        # discoverable from its canonical test display in that case.
+        possible_positive_labs = (
+            db.query(LabResult)
+            .filter(
+                or_(
+                    func.lower(LabResult.test_display).like("%measles%"),
+                    func.lower(LabResult.test_code).like("%measles%"),
+                    func.lower(LabResult.conclusion).like("%measles%"),
+                )
+            )
+            .all()
+        )
+    if lab_match_predicates or possible_positive_labs:
         for lab_result in possible_positive_labs:
             normalized = canonical_context_to_detection_input(
                 {
@@ -285,7 +301,11 @@ def _condition_disease(condition: Condition) -> str | None:
         )
         if code_match or disease.casefold() in display:
             return disease
-    return condition.condition_display.strip() if condition.condition_display else None
+    if condition.condition_display and condition.condition_display.strip():
+        return condition.condition_display.strip()
+    if condition.condition_system and condition.condition_code:
+        return f"{condition.condition_system}|{condition.condition_code}"
+    return None
 
 
 def _not_patient_birth_date(patient: Patient, event_time: datetime | None) -> bool:
@@ -340,6 +360,40 @@ def _patient_deadline(
     ]
     disease_candidates = [value for value in disease_candidates if value]
     disease = disease_candidates[0] if disease_candidates else None
+    positive_lab_event_time = None
+    if not disease and lab_results:
+        detection_input = canonical_context_to_detection_input(
+            {
+                "patient": _patient_to_dict(patient),
+                "conditions": [_condition_to_dict(item) for item in conditions],
+                "observations": [],
+                "lab_results": [_lab_result_to_dict(item) for item in lab_results],
+            }
+        )
+        for signal in detect_structured_triggers(detection_input):
+            signal_disease = str(signal.get("disease_id") or "")
+            source_id = str(signal.get("evidence", {}).get("source_id") or "")
+            if not signal_disease:
+                continue
+            disease_candidates.append(signal_disease)
+            disease = signal_disease
+            matching_lab = next(
+                (item for item in lab_results if str(item.lab_result_id) == source_id),
+                None,
+            )
+            if matching_lab is not None:
+                positive_lab_event_time = (
+                    matching_lab.effective_time
+                    or matching_lab.issued_time
+                    or next(
+                        (item.effective_time for item in matching_lab.observations if item.effective_time),
+                        None,
+                    )
+                )
+            break
+    if not disease:
+        return None, "No disease could be resolved from the patient's condition or workflow data."
+
     jurisdiction = None
     if case and case.jurisdiction_status == "RESOLVED":
         jurisdiction = case.jurisdiction
@@ -360,11 +414,11 @@ def _patient_deadline(
             jurisdiction = jurisdiction_result.jurisdiction
     if not jurisdiction:
         return None, "Jurisdiction could not be resolved from patient, facility, or workflow data."
+    jurisdiction = "TX" if jurisdiction.strip().casefold() == "texas" else jurisdiction
 
     persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
     rule = None
     selected_disease = None
-    positive_lab_event_time = None
     for disease_candidate in disease_candidates:
         try:
             rule = deadline_calculation_service._load_rule(
