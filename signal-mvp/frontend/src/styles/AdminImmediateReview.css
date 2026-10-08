@@ -37,7 +37,7 @@
 .admin-immediate-summary-item > strong { display: flex; align-items: center; gap: 5px; color: #203d56; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
 .severity-urgent { color: #b74736 !important; }
 
-.admin-immediate-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 14px; }
+.admin-immediate-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); align-items: start; gap: 18px; }
 .admin-immediate-main { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
 .admin-immediate-section-row { display: flex; min-width: 0; min-height: 62px; align-items: center; gap: 12px; padding: 10px 15px; border: 1px solid #dbe2e9; border-radius: 7px; background: #fff; }
 .admin-immediate-section-check { display: grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #e8f4ec; color: #398357; font-size: 12px; font-weight: 800; line-height: 1; }
@@ -81,8 +81,8 @@
 .validation-icon { display: flex; flex: 0 0 auto; color: #247749; }
 .admin-immediate-validation strong { display: block; margin-bottom: 4px; color: #286a43; font-size: 12px; }
 .admin-immediate-validation span { color: #5d7e68; font-size: 11px; }
-.admin-immediate-sidebar { position: static; display: grid; gap: 12px; min-width: 0; }
-.admin-immediate-action-card { width: 100%; max-width: 560px; padding: 16px; border: 1px solid #dbe2e9; border-radius: 8px; background: #fff; }
+.admin-immediate-sidebar { position: sticky; top: 78px; display: grid; gap: 12px; min-width: 0; }
+.admin-immediate-action-card { width: 100%; padding: 16px; border: 1px solid #dbe2e9; border-radius: 8px; background: #fff; }
 .admin-immediate-action-icon { display: grid; width: 34px; height: 34px; place-items: center; margin-bottom: 10px; border-radius: 7px; background: #fff1e9; color: #d45e32; }
 .admin-immediate-action-card h2 { margin: 5px 0 9px; color: #153b5b; font-size: 19px; line-height: 1.35; }
 .admin-immediate-action-card > p { margin: 0 0 19px; color: #647a90; font-size: 13px; line-height: 1.6; }
@@ -102,6 +102,7 @@
 
 @media (max-width: 1120px) {
   .admin-immediate-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-immediate-sidebar { position: static; }
 }
 
 @media (max-width: 700px) {
