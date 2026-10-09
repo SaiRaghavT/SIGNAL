@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { cleanPatientName } from "../utils/patientNames.js";
 import {
   getCase,
   getFormDefinition,
@@ -116,7 +117,7 @@ function FieldEditor({ field, definition, value, onChange }) {
 }
 
 function patientName(patient) {
-  return [patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name || "Patient";
+  return cleanPatientName([patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name) || "Patient";
 }
 
 export default function ReportingFormPage() {

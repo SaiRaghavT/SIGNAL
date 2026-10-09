@@ -12,6 +12,7 @@ import {
   getAdminBatches,
   getAdminQueue,
 } from "../../services/adminService";
+import { cleanPatientName } from "../../utils/patientNames.js";
 import "../../styles/AdminQueue.css";
 
 const MODES = {
@@ -151,7 +152,7 @@ function formatModeLabel(mode) {
 }
 
 function getPatientName(item) {
-  return (
+  return cleanPatientName(
     item?.patient_name ||
     item?.patientName ||
     [item?.patient?.first_name, item?.patient?.last_name].filter(Boolean).join(" ") ||

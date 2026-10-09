@@ -1,39 +1,39 @@
 .patients-page {
   color: var(--signal-text);
 }
-
+ 
 .patients-shell {
   background: var(--signal-bg);
 }
-
+ 
 .patients-shell .sidebar {
   background: #163B5B;
 }
-
+ 
 .patients-shell .brand-mark,
 .patients-shell .nav-item.active {
   background: #FF693B;
   color: #fff;
 }
-
+ 
 .patients-shell .main > section {
   background: var(--signal-bg);
 }
-
+ 
 .patients-shell .topbar {
   border-color: var(--signal-border);
 }
-
+ 
 .patients-shell .role-chip {
   border-color: var(--signal-border);
   background: var(--signal-bg);
   color: var(--signal-success);
 }
-
+ 
 .patients-page .page-header {
   align-items: center;
 }
-
+ 
 .patients-refresh,
 .patients-view,
 .patients-pagination button,
@@ -46,7 +46,7 @@
   font-size: 12px;
   padding: 9px 13px;
 }
-
+ 
 .patients-refresh:hover,
 .patients-view:hover,
 .patients-pagination button:not(:disabled):hover,
@@ -54,33 +54,40 @@
   border-color: var(--signal-orange);
   color: var(--signal-danger);
 }
-
+ 
 .patients-refresh:disabled,
 .patients-pagination button:disabled {
   cursor: not-allowed;
   opacity: .55;
 }
-
+ 
 .patients-card {
   overflow: hidden;
   border: 1px solid var(--signal-border);
   border-radius: 10px;
   background: var(--signal-card);
 }
-
+ 
 .patients-filter-section {
   border-bottom: 1px solid var(--signal-border);
   background: var(--signal-card);
 }
-
+ 
 .patients-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 94px 94px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 94px;
   align-items: end;
   gap: 18px;
   padding: 22px;
 }
-
+ 
+.patients-filter-status {
+  display: block;
+  padding: 0 22px 12px;
+  color: var(--signal-text-secondary);
+  font-size: 11px;
+}
+ 
 .patients-search,
 .patients-condition {
   display: flex;
@@ -88,7 +95,7 @@
   flex-direction: column;
   gap: 9px;
 }
-
+ 
 .patients-search > span,
 .patients-condition > span {
   color: var(--signal-text-secondary);
@@ -96,7 +103,7 @@
   font-weight: 700;
   letter-spacing: .035em;
 }
-
+ 
 .patients-search input,
 .patients-condition input {
   width: 100%;
@@ -109,20 +116,19 @@
   font: inherit;
   font-size: 14px;
 }
-
+ 
 .patients-search input::placeholder,
 .patients-condition input::placeholder {
   color: var(--signal-text-secondary);
   opacity: .8;
 }
-
+ 
 .patients-search input:focus,
 .patients-condition input:focus {
   outline: 2px solid rgb(255 105 59 / 18%);
   border-color: #FF693B;
 }
-
-.patients-search-button,
+ 
 .patients-clear-filters {
   width: 94px;
   height: 42px;
@@ -132,38 +138,28 @@
   font-size: 12px;
   font-weight: 700;
 }
-
-.patients-search-button {
-  border: 1px solid #FF693B;
-  background: #FF693B;
-  color: #fff;
-}
-
-.patients-search-button:hover {
-  filter: brightness(.96);
-}
-
+ 
 .patients-clear-filters {
   border: 1px solid var(--signal-border);
   background: #fff;
   color: var(--signal-navy);
 }
-
+ 
 .patients-clear-filters:hover {
   border-color: var(--signal-navy);
   background: var(--signal-surface);
 }
-
+ 
 .patients-table-scroll {
   overflow-x: auto;
 }
-
+ 
 .patients-table {
   width: 100%;
   min-width: 680px;
   border-collapse: collapse;
 }
-
+ 
 .patients-table th {
   height: 43px;
   padding: 0 16px;
@@ -175,7 +171,7 @@
   text-align: left;
   text-transform: uppercase;
 }
-
+ 
 .patients-table td {
   padding: 13px 16px;
   border-bottom: 1px solid var(--signal-border);
@@ -183,44 +179,44 @@
   font-size: 12px;
   vertical-align: middle;
 }
-
+ 
 .patients-table tbody tr:last-child td {
   border-bottom: 0;
 }
-
+ 
 .patient-name,
 .patient-source-id {
   display: block;
 }
-
+ 
 .patient-name {
   color: #163B5B;
   font-weight: 600;
 }
-
+ 
 .patient-source-id {
   margin-top: 4px;
   color: var(--signal-text-secondary);
   font-family: ui-monospace, monospace;
   font-size: 10px;
 }
-
+ 
 .patient-name-missing {
   color: var(--signal-text-secondary);
   font-weight: 400;
 }
-
+ 
 .patient-deadline-value,
 .patient-deadline-urgency {
   display: block;
 }
-
+ 
 .patient-deadline-urgency {
   margin-top: 4px;
   color: var(--signal-text-secondary);
   font-size: 10px;
 }
-
+ 
 .patient-deadline-state {
   display: block;
   max-width: 280px;
@@ -229,12 +225,16 @@
   font-size: 10px;
   line-height: 1.4;
 }
-
+ 
 .patients-view {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 7px 11px;
+  text-decoration: none;
   white-space: nowrap;
 }
-
+ 
 .patients-empty,
 .patients-error,
 .patients-state {
@@ -249,33 +249,33 @@
   font-size: 12px;
   text-align: center;
 }
-
+ 
 .patients-empty strong {
   color: var(--signal-text);
   font-size: 14px;
 }
-
+ 
 .patients-empty p,
 .patients-error p {
   margin: 0;
 }
-
+ 
 .patients-error {
   border: 1px solid var(--signal-border);
   background: var(--signal-surface);
   color: var(--signal-text-secondary);
 }
-
+ 
 .patients-error button {
   margin-top: 4px;
 }
-
+ 
 .patients-state {
   border: 1px solid var(--signal-border);
   border-radius: 10px;
   background: var(--signal-card);
 }
-
+ 
 .patients-pagination {
   display: flex;
   align-items: center;
@@ -286,53 +286,53 @@
   color: var(--signal-text-secondary);
   font-size: 11px;
 }
-
+ 
 .patients-page-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-
+ 
 .patients-pagination button {
   min-width: 34px;
   padding: 7px 9px;
   font-size: 11px;
 }
-
+ 
 .patients-pagination button.active {
   border-color: var(--signal-text);
   background: var(--signal-text);
   color: var(--signal-card);
 }
-
+ 
 .patient-skeleton {
   display: block;
   height: 12px;
   border-radius: 6px;
   background: var(--signal-border);
 }
-
+ 
 .patient-skeleton-name {
   width: 110px;
 }
-
+ 
 .patient-skeleton-date {
   width: 85px;
 }
-
+ 
 .patient-skeleton-condition {
   width: 125px;
 }
-
+ 
 .patient-skeleton-deadline {
   width: 110px;
 }
-
+ 
 .patient-skeleton-action {
   width: 52px;
   height: 28px;
 }
-
+ 
 .sr-only {
   position: absolute;
   width: 1px;
@@ -342,34 +342,30 @@
   white-space: nowrap;
   clip-path: inset(50%);
 }
-
+ 
 @keyframes patient-skeleton-shimmer {
   to {
     background-position: -200% 0;
   }
 }
-
+ 
 @media (max-width: 520px) {
   .patients-page .page-header {
     align-items: flex-start;
     gap: 12px;
   }
-
+ 
   .patients-pagination {
     align-items: flex-start;
     flex-direction: column;
   }
 }
-
+ 
 @media (max-width: 720px) {
   .patients-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .patients-search-button {
-    width: 100%;
-  }
-
+ 
   .patients-clear-filters {
     width: 100%;
   }

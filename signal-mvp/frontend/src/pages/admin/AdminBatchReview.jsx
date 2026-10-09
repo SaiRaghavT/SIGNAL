@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, ChevronDown, Clock3, FileCheck2, Layers3, RefreshCw } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { dispatchAdminBatch, getAdminBatch, getAdminQueueCase } from "../../services/adminService.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
 import "../../styles/AdminBatchReview.css";
 
 const DASH = "—";
@@ -38,7 +39,7 @@ function caseIdOf(item) {
 
 function patientNameOf(item) {
   const patient = objectValue(item?.patient);
-  return item?.patient_name || item?.patientName || patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" ") || DASH;
+  return cleanPatientName(item?.patient_name || item?.patientName || patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" ")) || DASH;
 }
 
 function caseIdsOf(batch) {

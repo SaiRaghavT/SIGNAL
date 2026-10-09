@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { getCase, getJourney, getCaseReview, getCaseAttestation, submitEcr, trackSubmission, processAcknowledgement, retrySubmission } from "../api/signal.js";
+import { cleanPatientName } from "../utils/patientNames.js";
 import "../styles/submission-workspace.css";
 
 const list = (value) => Array.isArray(value) ? value : [];
@@ -9,7 +10,7 @@ const display = (value) => value === null || value === undefined || value === ""
 const getStage = (journey, name) => list(journey?.journey).find((item) => item.stage === name);
 const tone = (value) => /REJECT|FAIL|ERROR/i.test(value || "") ? "bad" : /ACKNOWLEDG|COMPLETE|SUBMITTED|APPROV|ATTEST|READY/i.test(value || "") ? "good" : /PENDING|CURRENT|PROCESS|NEEDS|INVALID/i.test(value || "") ? "wait" : "unknown";
 const latestSubmission = (journey) => list(getStage(journey, "SUBMISSION")?.data?.submissions).at(-1) || null;
-const patientLabel = (patient) => [patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name || "Patient name not returned";
+const patientLabel = (patient) => cleanPatientName([patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name) || "Patient name not returned";
 
 function Detail({ label, value }) { return <div className="submission-detail"><span>{label}</span><strong>{display(value)}</strong></div>; }
 function ResponseItems({ title, items }) {

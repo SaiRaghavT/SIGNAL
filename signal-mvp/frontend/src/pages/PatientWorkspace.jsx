@@ -39,6 +39,7 @@ import {
 
 
 import { deletePatientDocument, uploadPatientDocument } from "../api/documents.js";
+import { cleanPatientName } from "../utils/patientNames.js";
 
 
 
@@ -321,12 +322,7 @@ function removePatientNameNumbers(value) {
       ? getPatientName({ name: value })
       : String(value || "");
 
-  return rawName
-    .replace(/\d+/g, " ")
-    .replace(/[|#,:;]+/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/^[\s_-]+|[\s_-]+$/g, "")
-    .trim();
+  return cleanPatientName(rawName);
 }
 
 function getDocuments(context) {
@@ -1356,11 +1352,6 @@ function RecordSummary({
 
   return (
     <>
-    <PatientAnatomyCard
-      patientName={getPatientName(patient?.patient || patient?.data || patient)}
-      conditions={conditions}
-      documents={documents}
-    />
     <section className="patient-records-section">
       <div className="patient-records-heading">
         <span className="patient-records-kicker">
@@ -5315,6 +5306,12 @@ export default function PatientWorkspace() {
 
 
           <div className="workspace-content">
+
+            <PatientAnatomyCard
+              patientName={cleanPatientName(getPatientName(context?.patient || context?.data || context))}
+              conditions={conditions}
+              documents={documents}
+            />
 
             {detectionState !== "completed" && !showDocumentModal && (
               <AiDocumentUploadCard

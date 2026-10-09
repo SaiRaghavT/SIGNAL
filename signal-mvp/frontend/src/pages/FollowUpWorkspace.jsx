@@ -5,6 +5,7 @@ import { useDemoWorkflow } from "../hooks/useDemoWorkflow.js";
 import { listFollowUps } from "../api/followups.js";
 import { getSubmissionAcknowledgement } from "../api/submissions.js";
 import { getCase, getJourney, processFollowup } from "../api/signal.js";
+import { cleanPatientName } from "../utils/patientNames.js";
 import "../styles/follow-up-workspace.css";
 
 const items = (value) => Array.isArray(value) ? value : [];
@@ -12,7 +13,7 @@ const valueText = (value) => value === null || value === undefined || value === 
 const stage = (journey, name) => items(journey?.journey).find((item) => item.stage === name) || null;
 const followupRecords = (journey) => items(stage(journey, "PHA_FOLLOW_UP")?.data?.follow_ups);
 const latest = (records) => records.length ? records[records.length - 1] : null;
-const patientName = (patient) => [patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name || "Patient name not returned";
+const patientName = (patient) => cleanPatientName([patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name) || "Patient name not returned";
 
 const ACTIONS = [
   ["REQUEST_INFORMATION", "Request Additional Information", "Record a request for additional case information."],

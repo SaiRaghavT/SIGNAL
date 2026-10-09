@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getCase, listCases } from "../api/cases.js";
 import { PageHeader } from "../components/ui/PageHeader.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { cleanPatientName } from "../utils/patientNames.js";
 import "../styles/cases.css";
 
 const API_PAGE_SIZE = 100;
@@ -38,17 +39,17 @@ function formatDate(value) {
 }
 
 function patientName(patient = {}) {
-  const direct = text(patient.name || patient.full_name || patient.patient_name);
+  const direct = cleanPatientName(patient.name || patient.full_name || patient.patient_name);
   if (direct) return direct;
   const first = text(patient.first_name || patient.given_name || patient.given);
   const last = text(patient.last_name || patient.family_name || patient.family);
-  if (first || last) return [first, last].filter(Boolean).join(" ");
+  if (first || last) return cleanPatientName([first, last].filter(Boolean).join(" "));
   const name = Array.isArray(patient.name) ? patient.name[0] : null;
   if (name && typeof name === "object") {
-    return [
+    return cleanPatientName([
       ...(Array.isArray(name.given) ? name.given : [name.given]),
       name.family,
-    ].map(text).filter(Boolean).join(" ");
+    ].map(text).filter(Boolean).join(" "));
   }
   return EMPTY_VALUE;
 }

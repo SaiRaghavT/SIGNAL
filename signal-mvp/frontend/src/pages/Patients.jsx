@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { listCanonicalPatients } from "../api/canonical.js";
 import { PageHeader } from "../components/ui/PageHeader.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { useDailyRefresh } from "../hooks/useDailyRefresh.js";
 import "../styles/patients.css";
-
+ 
 const PAGE_SIZE = 10;
 const EMPTY_VALUE = "—";
-
+ 
 function formatDate(value) {
   if (!value) return EMPTY_VALUE;
   const [year, month, day] = String(value).slice(0, 10).split("-").map(Number);
@@ -25,7 +25,7 @@ function formatDate(value) {
   const part = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]));
   return `${part.day} ${part.month} ${part.year}`;
 }
-
+ 
 function formatDeadline(value) {
   const deadline = typeof value === "string" ? value : value?.deadline;
   if (typeof deadline !== "string" || !deadline.trim()) return EMPTY_VALUE;
@@ -42,88 +42,86 @@ function formatDeadline(value) {
   const part = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]));
   return `${part.day} ${part.month} ${part.year}, ${part.hour}:${part.minute} ${part.dayPeriod?.toUpperCase() || ""}`.trim();
 }
-
+ 
 function formatPatientName(patient) {
   return [patient.first_name, patient.last_name]
     .map((name) => String(name || "").replace(/\d+/g, "").replace(/\s+/g, " ").trim())
     .filter(Boolean)
     .join(" ");
 }
-
+ 
 function formatCondition(value) {
   return String(value || "")
     .replace(/\s*\(disorder\)$/i, "")
     .trim();
 }
-
+ 
 function visiblePages(currentPage, totalPages) {
   const first = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
   return Array.from({ length: Math.min(5, totalPages) }, (_, index) => first + index);
 }
-
+ 
 export default function Patients() {
-  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [condition, setCondition] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedCondition, setAppliedCondition] = useState("");
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const hasLoadedOnce = useRef(false);
   const currentDay = useDailyRefresh();
-
+ 
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
-
+ 
     async function loadPatients() {
-      setLoading(true);
+      if (hasLoadedOnce.current) setSearching(true);
+      else setLoading(true);
       setError(null);
       try {
         const response = await listCanonicalPatients({
           page,
           page_size: PAGE_SIZE,
-          search: appliedSearch || undefined,
-          condition: appliedCondition || undefined,
+          search: search.trim() || undefined,
+          condition: condition.trim() || undefined,
           signal: controller.signal,
         });
-        if (active) setResult(response);
+        if (active) {
+          setResult(response);
+          hasLoadedOnce.current = true;
+        }
       } catch (requestError) {
         if (active && requestError.name !== "AbortError") setError(requestError);
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setSearching(false);
+        }
       }
     }
-
-    loadPatients();
+ 
+    const debounceTimer = window.setTimeout(loadPatients, 200);
     return () => {
       active = false;
+      window.clearTimeout(debounceTimer);
       controller.abort();
     };
-  }, [page, appliedSearch, appliedCondition, refreshKey, currentDay]);
-
-  function applyFilters(event) {
-    event.preventDefault();
-    setAppliedSearch(search.trim());
-    setAppliedCondition(condition.trim());
-    setPage(1);
-  }
-
+  }, [page, search, condition, refreshKey, currentDay]);
+ 
   function clearFilters() {
     setSearch("");
     setCondition("");
-    setAppliedSearch("");
-    setAppliedCondition("");
     setPage(1);
   }
-
+ 
   const visiblePatients = Array.isArray(result?.items) ? result.items : [];
   const totalPages = result?.pages || 0;
   const firstVisiblePatient = result?.total ? (page - 1) * PAGE_SIZE + 1 : 0;
   const lastVisiblePatient = Math.min(page * PAGE_SIZE, result?.total || 0);
-
+ 
   return (
     <section className="patients-page">
       <PageHeader
@@ -134,21 +132,24 @@ export default function Patients() {
           className="patients-refresh"
           type="button"
           onClick={() => setRefreshKey((key) => key + 1)}
-          disabled={loading}
+          disabled={loading || searching}
         >
           {loading ? "Refreshing…" : "Refresh"}
         </button>
       </PageHeader>
-
+ 
       <div className="patients-card">
-        <form className="patients-filter-section" onSubmit={applyFilters}>
+        <div className="patients-filter-section">
           <div className="patients-toolbar">
             <label className="patients-search">
               <span>SEARCH PATIENTS</span>
               <input
                 type="search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="Name or patient ID"
               />
             </label>
@@ -157,15 +158,18 @@ export default function Patients() {
               <input
                 type="search"
                 value={condition}
-                onChange={(event) => setCondition(event.target.value)}
+                onChange={(event) => {
+                  setCondition(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="Type a condition"
               />
             </label>
-            <button className="patients-search-button" type="submit">Search</button>
             <button className="patients-clear-filters" type="button" onClick={clearFilters}>Clear</button>
           </div>
-        </form>
-        {loading ? (
+          {searching && <span className="patients-filter-status" role="status">Updating results...</span>}
+        </div>
+        {loading && !result ? (
           <SignalLoading title="Loading patients..." message="Retrieving patient records." />
         ) : error ? (
           <div className="patients-error" role="alert">
@@ -176,7 +180,7 @@ export default function Patients() {
         ) : visiblePatients.length === 0 ? (
           <div className="patients-empty">
             <strong>No patients found</strong>
-            {(appliedSearch || appliedCondition) && <p>No patients match the current search filters.</p>}
+            {(search.trim() || condition.trim()) && <p>No patients match the current search filters.</p>}
           </div>
         ) : (
           <>
@@ -217,13 +221,12 @@ export default function Patients() {
                           )}
                         </td>
                         <td>
-                          <button
+                          <Link
                             className="patients-view"
-                            type="button"
-                            onClick={() => navigate(`/patients/${encodeURIComponent(patient.patient_id)}`)}
+                            to={`/patients/${encodeURIComponent(patient.patient_id)}`}
                           >
                             View Patient
-                          </button>
+                          </Link>
                         </td>
                       </tr>
                     );
@@ -231,7 +234,7 @@ export default function Patients() {
                 </tbody>
               </table>
             </div>
-
+ 
             <nav className="patients-pagination" aria-label="Patient pages">
               <span className="patients-count">
                 Showing {firstVisiblePatient}–{lastVisiblePatient} of {result?.total || 0} patients
@@ -258,3 +261,4 @@ export default function Patients() {
     </section>
   );
 }
+ 

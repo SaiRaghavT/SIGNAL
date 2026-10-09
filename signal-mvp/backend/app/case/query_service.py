@@ -39,6 +39,11 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
         db.refresh(case)
 
     report_fields = available_case_report_fields(case)
+    laboratory_evidence = case.laboratory_evidence
+    if isinstance(laboratory_evidence, dict):
+        laboratory_evidence = [laboratory_evidence]
+    elif not isinstance(laboratory_evidence, list):
+        laboratory_evidence = []
     missing_fields, required_missing_fields = missing_report_fields(report_fields)
     warnings = [
         warning for warning in (case.warnings or [])
@@ -77,7 +82,7 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
         facility=case.facility,
         provider=case.provider,
         clinical_evidence=case.clinical_evidence,
-        laboratory_evidence=case.laboratory_evidence,
+        laboratory_evidence=laboratory_evidence,
         ai_evidence=case.ai_evidence,
         report_fields=report_fields,
         missing_report_fields=missing_fields,

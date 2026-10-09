@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import { getAdminAudit } from "../../services/adminService.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
 import "../../styles/AdminAudit.css";
 
 const DASH = "\u2014";
@@ -18,14 +19,14 @@ function firstValue(...values) {
 }
 
 function patientLabel(value) {
-  if (typeof value === "string") return value.trim() || DASH;
+  if (typeof value === "string") return cleanPatientName(value) || DASH;
   if (!value || typeof value !== "object") return DASH;
-  return firstValue(
+  const name = firstValue(
     value.name,
     value.full_name,
     [value.first_name, value.last_name].filter(Boolean).join(" "),
-    value.patient_id,
-  ) || DASH;
+  );
+  return cleanPatientName(name) || value.patient_id || DASH;
 }
 
 function normalizeAuditEvent(item, index) {
