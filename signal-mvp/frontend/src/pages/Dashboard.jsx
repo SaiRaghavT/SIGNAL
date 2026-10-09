@@ -19,26 +19,11 @@ import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import "../styles/dashboard.css";
 
 const EMPTY_VALUE = "—";
-const PATIENT_PAGE_SIZE = 100;
+const PATIENT_LIMIT = 5;
+const WORKLIST_PAGE_SIZE = 100;
 
 function responseItems(response) {
   return Array.isArray(response?.items) ? response.items : [];
-}
-
-async function listAllCanonicalPatients() {
-  const firstPage = await listCanonicalPatients({ page: 1, page_size: PATIENT_PAGE_SIZE });
-  const pages = Number(firstPage?.pages) || 1;
-  if (pages <= 1) return firstPage;
-
-  const remainingPages = await Promise.all(
-    Array.from({ length: pages - 1 }, (_, index) =>
-      listCanonicalPatients({ page: index + 2, page_size: PATIENT_PAGE_SIZE }),
-    ),
-  );
-  return {
-    ...firstPage,
-    items: [...responseItems(firstPage), ...remainingPages.flatMap(responseItems)],
-  };
 }
 
 function countRows(counts) {
@@ -133,7 +118,7 @@ export default function Dashboard() {
       request("/api/dashboard/jurisdictions"),
       request("/api/dashboard/activity"),
       request("/api/dashboard/deadlines"),
-      listAllCanonicalPatients(),
+      listCanonicalPatients({ page: 1, page_size: WORKLIST_PAGE_SIZE }),
     ]);
     setData({
       summary: summaryResult.status === "fulfilled" ? summaryResult.value : null,
@@ -165,7 +150,7 @@ export default function Dashboard() {
   const deadlineRiskRows = useMemo(() => countRows(data?.deadlines?.by_status), [data]);
   const conditionRows = useMemo(() => countRows(data?.reporting?.case_conditions), [data]);
   const jurisdictionRows = useMemo(() => countRows(data?.jurisdictions), [data]);
-  const priorityPatients = useMemo(() => responseItems(data?.patients), [data]);
+  const priorityPatients = useMemo(() => responseItems(data?.patients).slice(0, PATIENT_LIMIT), [data]);
   const activityItems = activityVisible ? data?.activity?.slice(0, 5) || [] : [];
   const deadlineItems = data?.deadlines?.slice(0, 3) || [];
   const summary = data?.summary;
@@ -210,7 +195,7 @@ export default function Dashboard() {
 
       <section className="dashboard-priority-card" aria-labelledby="priority-work-heading">
         <header className="dashboard-card-header">
-          <div><h2 id="priority-work-heading">All Patients</h2><p>Patients from the full clinical registry</p></div>
+          <div><h2 id="priority-work-heading">Priority Work</h2><p>Top {PATIENT_LIMIT} patients across all conditions</p></div>
           <button className="dashboard-view-all" type="button" onClick={() => navigate("/patients")}>View All Patients <ArrowRight size={14} aria-hidden="true" /></button>
         </header>
         {data?.errors?.patients ? <div className="dashboard-section-error" role="alert">{data.errors.patients}</div>
@@ -231,8 +216,8 @@ export default function Dashboard() {
                 })}</tbody>
               </table>
             </div>
-            <footer className="dashboard-priority-footer"><span>Showing all {priorityPatients.length} of {data.patients.total} patients</span><span>Patients in Patients page order</span></footer>
-          </> : <div className="dashboard-empty">No patients are currently available.</div>}
+            <footer className="dashboard-priority-footer"><span>Showing {priorityPatients.length} of {data.patients.total} patients</span><span>Patients in Patients page order</span></footer>
+          </> : <div className="dashboard-empty">No patients are currently in the reporting worklist.</div>}
       </section>
 
       <div className="dashboard-grid">
