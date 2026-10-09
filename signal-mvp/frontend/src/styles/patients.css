@@ -75,10 +75,17 @@
 
 .patients-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 94px 94px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 94px;
   align-items: end;
   gap: 18px;
   padding: 22px;
+}
+
+.patients-filter-status {
+  display: block;
+  padding: 0 22px 12px;
+  color: var(--signal-text-secondary);
+  font-size: 11px;
 }
 
 .patients-search,
@@ -122,7 +129,6 @@
   border-color: #FF693B;
 }
 
-.patients-search-button,
 .patients-clear-filters {
   width: 94px;
   height: 42px;
@@ -131,16 +137,6 @@
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
-}
-
-.patients-search-button {
-  border: 1px solid #FF693B;
-  background: #FF693B;
-  color: #fff;
-}
-
-.patients-search-button:hover {
-  filter: brightness(.96);
 }
 
 .patients-clear-filters {
@@ -231,7 +227,11 @@
 }
 
 .patients-view {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 7px 11px;
+  text-decoration: none;
   white-space: nowrap;
 }
 
@@ -364,10 +364,6 @@
 @media (max-width: 720px) {
   .patients-toolbar {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .patients-search-button {
-    width: 100%;
   }
 
   .patients-clear-filters {

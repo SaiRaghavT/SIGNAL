@@ -79,12 +79,31 @@ def _is_measles_condition(condition: Condition) -> bool:
 
 
 def _condition_patient_filter(db: Session, condition: str):
-    term = condition.strip().casefold()
-    return (
-        db.query(Condition.patient_id)
-        .filter(func.lower(Condition.condition_display).like(f"%{term}%"))
-        .distinct()
+    pattern = f"%{condition.strip()}%"
+    condition_patient_ids = db.query(Condition.patient_id).filter(
+        or_(
+            Condition.condition_display.ilike(pattern),
+            Condition.condition_code.ilike(pattern),
+        )
     )
+    lab_patient_ids = db.query(LabResult.patient_id).filter(
+        or_(
+            LabResult.test_display.ilike(pattern),
+            LabResult.test_code.ilike(pattern),
+            LabResult.conclusion.ilike(pattern),
+        )
+    )
+    candidate_patient_ids = db.query(Candidate.patient_id).filter(
+        Candidate.disease_id.ilike(pattern)
+    )
+
+    return db.query(Patient.patient_id).filter(
+        or_(
+            Patient.patient_id.in_(condition_patient_ids),
+            Patient.patient_id.in_(lab_patient_ids),
+            cast(Patient.patient_id, String).in_(candidate_patient_ids),
+        )
+    ).distinct()
 
 
 def _case_patient_id(case: Case) -> UUID | None:

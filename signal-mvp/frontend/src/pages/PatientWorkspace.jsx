@@ -886,6 +886,13 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
 
 
+      {reportingDeadline?.reporting_timeline && (
+        <div className="patient-reporting-deadline">
+          <span>Reporting deadline</span>
+          <strong>{reportingDeadline.reporting_timeline}</strong>
+          {deadlineDateLabel && <small>Due {deadlineDateLabel}</small>}
+        </div>
+      )}
     </header>
 
   );
@@ -5587,14 +5594,6 @@ export default function PatientWorkspace() {
 
 
               />
-          )}
-
-          {reportingDeadline?.reporting_timeline && (
-            <div className="patient-reporting-deadline">
-              <span>Reporting deadline</span>
-              <strong>{reportingDeadline.reporting_timeline}</strong>
-              {deadlineDateLabel && <small>Due {deadlineDateLabel}</small>}
-            </div>
           )}
 
         </div>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { listCanonicalPatients } from "../api/canonical.js";
 import { PageHeader } from "../components/ui/PageHeader.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
@@ -62,16 +62,15 @@ function visiblePages(currentPage, totalPages) {
 }
 
 export default function Patients() {
-  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [condition, setCondition] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedCondition, setAppliedCondition] = useState("");
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const hasLoadedOnce = useRef(false);
   const currentDay = useDailyRefresh();
 
   useEffect(() => {
@@ -79,43 +78,42 @@ export default function Patients() {
     let active = true;
 
     async function loadPatients() {
-      setLoading(true);
+      if (hasLoadedOnce.current) setSearching(true);
+      else setLoading(true);
       setError(null);
       try {
         const response = await listCanonicalPatients({
           page,
           page_size: PAGE_SIZE,
-          search: appliedSearch || undefined,
-          condition: appliedCondition || undefined,
+          search: search.trim() || undefined,
+          condition: condition.trim() || undefined,
           signal: controller.signal,
         });
-        if (active) setResult(response);
+        if (active) {
+          setResult(response);
+          hasLoadedOnce.current = true;
+        }
       } catch (requestError) {
         if (active && requestError.name !== "AbortError") setError(requestError);
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setSearching(false);
+        }
       }
     }
 
-    loadPatients();
+    const debounceTimer = window.setTimeout(loadPatients, 200);
     return () => {
       active = false;
+      window.clearTimeout(debounceTimer);
       controller.abort();
     };
-  }, [page, appliedSearch, appliedCondition, refreshKey, currentDay]);
-
-  function applyFilters(event) {
-    event.preventDefault();
-    setAppliedSearch(search.trim());
-    setAppliedCondition(condition.trim());
-    setPage(1);
-  }
+  }, [page, search, condition, refreshKey, currentDay]);
 
   function clearFilters() {
     setSearch("");
     setCondition("");
-    setAppliedSearch("");
-    setAppliedCondition("");
     setPage(1);
   }
 
@@ -134,21 +132,24 @@ export default function Patients() {
           className="patients-refresh"
           type="button"
           onClick={() => setRefreshKey((key) => key + 1)}
-          disabled={loading}
+          disabled={loading || searching}
         >
           {loading ? "Refreshing…" : "Refresh"}
         </button>
       </PageHeader>
 
       <div className="patients-card">
-        <form className="patients-filter-section" onSubmit={applyFilters}>
+        <div className="patients-filter-section">
           <div className="patients-toolbar">
             <label className="patients-search">
               <span>SEARCH PATIENTS</span>
               <input
                 type="search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="Name or patient ID"
               />
             </label>
@@ -157,15 +158,18 @@ export default function Patients() {
               <input
                 type="search"
                 value={condition}
-                onChange={(event) => setCondition(event.target.value)}
+                onChange={(event) => {
+                  setCondition(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="Type a condition"
               />
             </label>
-            <button className="patients-search-button" type="submit">Search</button>
             <button className="patients-clear-filters" type="button" onClick={clearFilters}>Clear</button>
           </div>
-        </form>
-        {loading ? (
+          {searching && <span className="patients-filter-status" role="status">Updating results...</span>}
+        </div>
+        {loading && !result ? (
           <SignalLoading title="Loading patients..." message="Retrieving patient records." />
         ) : error ? (
           <div className="patients-error" role="alert">
@@ -176,7 +180,7 @@ export default function Patients() {
         ) : visiblePatients.length === 0 ? (
           <div className="patients-empty">
             <strong>No patients found</strong>
-            {(appliedSearch || appliedCondition) && <p>No patients match the current search filters.</p>}
+            {(search.trim() || condition.trim()) && <p>No patients match the current search filters.</p>}
           </div>
         ) : (
           <>
@@ -217,13 +221,12 @@ export default function Patients() {
                           )}
                         </td>
                         <td>
-                          <button
+                          <Link
                             className="patients-view"
-                            type="button"
-                            onClick={() => navigate(`/patients/${encodeURIComponent(patient.patient_id)}`)}
+                            to={`/patients/${encodeURIComponent(patient.patient_id)}`}
                           >
                             View Patient
-                          </button>
+                          </Link>
                         </td>
                       </tr>
                     );
