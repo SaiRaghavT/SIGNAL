@@ -3565,7 +3565,9 @@ function EvidenceTab({
       </div>
 
       {groups.length ? (
-        groups.map((group) => <EvidenceGroup key={group.title} groupKey={group.key} {...group} />)
+        groups.map(({ key: groupKey, ...group }) => (
+          <EvidenceGroup key={group.title} groupKey={groupKey} {...group} />
+        ))
       ) : (
         <p className="evidence-empty">No patient evidence is available.</p>
       )}

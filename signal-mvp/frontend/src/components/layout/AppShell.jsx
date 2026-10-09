@@ -1,5 +1,6 @@
 import { Activity, BarChart3, FolderKanban, LayoutDashboard, ScrollText, Send, ShieldCheck, Users } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import ChatWidget from "../assistant/ChatWidget.jsx";
 
 const nav = [
   ["/dashboard", "Dashboard", LayoutDashboard],
@@ -54,6 +55,7 @@ export function AppShell() {
         </header>
         <Outlet />
       </main>
+      <ChatWidget />
     </div>
   );
 }

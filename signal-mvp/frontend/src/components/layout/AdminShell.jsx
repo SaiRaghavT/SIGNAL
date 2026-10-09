@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
+import ChatWidget from "../assistant/ChatWidget.jsx";
 import {
   clearAdminSessionSubmissions,
   getAdminSubmissions,
@@ -259,6 +260,7 @@ export default function AdminShell() {
           <Outlet />
         </div>
       </div>
+      <ChatWidget />
     </div>
   );
 }
