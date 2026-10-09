@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     # Destructive demo workflow reset is disabled unless explicitly opted in.
     demo_mode: bool = False
+    # Allows synthetic source records to be staged in Admin Queue for demos.
+    # Demo queue entries are tagged and cannot be dispatched externally.
+    demo_queue_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

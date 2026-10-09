@@ -15,3 +15,8 @@ export function listClinicalSubmissionTracking({ page = 1, page_size = 100 } = {
   });
   return request(`/api/clinical/submissions?${query.toString()}`);
 }
+
+export function getSubmissionAcknowledgement(submissionId) {
+  if (!submissionId) throw new Error("submissionId is required");
+  return request(`/api/submissions/${encodeURIComponent(submissionId)}/acknowledgement`);
+}

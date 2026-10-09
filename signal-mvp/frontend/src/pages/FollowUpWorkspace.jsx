@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { useDemoWorkflow } from "../hooks/useDemoWorkflow.js";
+import { listFollowUps } from "../api/followups.js";
+import { getSubmissionAcknowledgement } from "../api/submissions.js";
 import { getCase, getJourney, processFollowup } from "../api/signal.js";
 import "../styles/follow-up-workspace.css";
 
 const items = (value) => Array.isArray(value) ? value : [];
-const valueText = (value) => value === null || value === undefined || value === "" ? "Not recorded" : String(value);
+const valueText = (value) => value === null || value === undefined || value === "" ? "Not available" : typeof value === "object" ? JSON.stringify(value) : String(value);
 const stage = (journey, name) => items(journey?.journey).find((item) => item.stage === name) || null;
 const followupRecords = (journey) => items(stage(journey, "PHA_FOLLOW_UP")?.data?.follow_ups);
 const latest = (records) => records.length ? records[records.length - 1] : null;
@@ -30,6 +32,24 @@ function DataPoint({ label, children }) {
   return <div className="fu-data-point"><span>{label}</span><strong>{valueText(children)}</strong></div>;
 }
 
+function FlowNode({ title, state, details, note }) {
+  const displayValue = (label, value) => {
+    if (value === null || value === undefined || value === "") return "Not available";
+    if (/time|created|received|updated|due date/i.test(label)) {
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    }
+    return valueText(value);
+  };
+  return <article className={`fu-submission-step ${state}`}>
+    <span className="fu-journey-marker" aria-hidden="true">{state === "complete" ? "✓" : state === "failed" ? "!" : state === "current" ? "◷" : "•"}</span>
+    <strong className="fu-journey-title">{title}</strong>
+    <small className="fu-journey-state">{state === "complete" ? "Complete" : state === "failed" ? "Failed" : state === "current" ? "Current" : "Pending"}</small>
+    <dl>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd title={value === null || value === undefined ? undefined : String(value)}>{displayValue(label, value)}</dd></div>)}</dl>
+    {note && <small className="fu-journey-note">{note}</small>}
+  </article>;
+}
+
 function ApiResult({ result }) {
   if (!result) return null;
   const fields = [
@@ -50,6 +70,8 @@ export default function FollowUpWorkspace() {
   const demo = useDemoWorkflow(caseId);
   const [caseData, setCaseData] = useState(null);
   const [journey, setJourney] = useState(null);
+  const [persistedFollowups, setPersistedFollowups] = useState([]);
+  const [acknowledgement, setAcknowledgement] = useState(null);
   const [action, setAction] = useState("INVESTIGATION");
   const [notes, setNotes] = useState("");
   const [result, setResult] = useState(null);
@@ -63,9 +85,24 @@ export default function FollowUpWorkspace() {
     setLoading(true);
     setError("");
     try {
-      const [caseResponse, journeyResponse] = await Promise.all([getCase(caseId), getJourney(caseId)]);
+      const [caseResponse, journeyResponse, followupResponse] = await Promise.all([
+        getCase(caseId),
+        getJourney(caseId),
+        listFollowUps({ search: caseId, page_size: 100 }).catch(() => null),
+      ]);
+      const journeyData = journeyResponse?.data || journeyResponse;
+      const submissionRows = items(stage(journeyData, "SUBMISSION")?.data?.submissions);
+      const latestSubmission = submissionRows[submissionRows.length - 1] || null;
+      const matchingFollowups = items(followupResponse?.items)
+        .filter((record) => record.case_id === caseId)
+        .sort((left, right) => Date.parse(left.created_at || 0) - Date.parse(right.created_at || 0));
+      const acknowledgementData = latestSubmission?.submission_id
+        ? await getSubmissionAcknowledgement(latestSubmission.submission_id).catch(() => null)
+        : null;
       setCaseData(caseResponse?.data || caseResponse);
-      setJourney(journeyResponse?.data || journeyResponse);
+      setJourney(journeyData);
+      setPersistedFollowups(matchingFollowups);
+      setAcknowledgement(acknowledgementData?.data || acknowledgementData);
     } catch (err) {
       setError(err?.message || err?.response?.data?.detail || "Unable to load case follow-up workspace.");
     } finally { setLoading(false); }
@@ -83,6 +120,7 @@ export default function FollowUpWorkspace() {
     return followupRecords(journey);
   }, [demo.active, demo.stages.followUp, journey]);
   const currentFollowup = latest(followups);
+  const persistedCurrentFollowup = persistedFollowups[persistedFollowups.length - 1] || currentFollowup;
   const followupStage = stage(journey, "PHA_FOLLOW_UP");
   const submissionStage = stage(journey, "SUBMISSION");
   const submissions = items(submissionStage?.data?.submissions);
@@ -90,7 +128,7 @@ export default function FollowUpWorkspace() {
   const visibleSubmission = demo.active && demo.stages.submission !== "COMPLETED" ? null : submission;
   const submissionStatus = visibleSubmission?.status || "No submission recorded";
   const destination = visibleSubmission?.destination;
-  const acknowledged = /ACKNOWLEDGED/i.test(submissionStatus);
+  const acknowledged = /ACKNOWLEDGED/i.test(acknowledgement?.status || submissionStatus);
   const followupStatus = demo.active && demo.stages.followUp !== "COMPLETED"
     ? "NOT STARTED IN THIS DEMO"
     : currentFollowup?.status || (visibleSubmission ? "FOLLOW-UP NOT PROCESSED" : "REPORTING NOT RECORDED");
@@ -103,6 +141,60 @@ export default function FollowUpWorkspace() {
   const canViewCompletion = demo.active
     ? demo.stages.followUp === "COMPLETED"
     : Boolean(result) || followupStage?.status === "COMPLETED";
+
+  const caseStage = stage(journey, "CASE");
+  const reviewStage = stage(journey, "REVIEW");
+  const attestationStage = stage(journey, "ATTESTATION");
+  const reviewData = reviewStage?.data || {};
+  const caseReady = Boolean(caseData?.case_id && caseStage?.available);
+  const reviewAuthorized = /^(APPROVE|APPROVED)$/i.test(reviewStage?.status || "")
+    && /^ATTESTED$/i.test(attestationStage?.status || "");
+  const submissionFailed = /FAIL|ERROR|REJECT/i.test(submission?.status || "");
+  const submissionSent = Boolean(submission) && !submissionFailed && /SUBMITTED|ACKNOWLEDGED/i.test(submission.status || "");
+  const acknowledgementRecorded = Boolean(acknowledgement)
+    || /ACKNOWLEDGED/i.test(submission?.status || "");
+  const followupCurrentStatus = String(persistedCurrentFollowup?.status || "").toUpperCase();
+  const followupFailed = /FAIL|ERROR|REJECT/i.test(followupCurrentStatus);
+  const followupComplete = /CLOSED|COMPLETED/i.test(followupCurrentStatus);
+  const reviewActor = reviewData.reviewer_name || reviewData.reviewer_id || reviewData.actor_id;
+  const journeyNodes = [
+    {
+      title: "Case Ready", state: caseReady ? "complete" : "current",
+      details: [["Case ID", caseData?.case_id || caseId], ["Patient", patientName(patient)], ["Condition", caseData?.disease], ["Status", caseData?.status]],
+    },
+    {
+      title: "Admin Review",
+      state: /REJECT|REQUEST_INFORMATION/i.test(reviewStage?.status || "") ? "failed" : reviewAuthorized ? "complete" : reviewStage?.available ? "current" : "pending",
+      details: [["Authorization", `${valueText(reviewStage?.status)} / ${valueText(attestationStage?.status)}`], ["Administrator", reviewActor], ["Review time", reviewStage?.occurred_at]],
+    },
+    {
+      title: "Submission Created",
+      state: submissionFailed ? "failed" : submission ? "complete" : reviewAuthorized ? "current" : "pending",
+      details: [["Submission ID", submission?.submission_id], ["Status", submission?.status], ["Created", submission?.created_at]],
+    },
+    {
+      title: submissionSimulated ? "PHA Transmission" : "Sent to PHA",
+      state: submissionFailed ? "failed" : submissionSent ? "complete" : submission ? "current" : "pending",
+      details: [["Destination", destination], ["Transmission", submission?.status], ["Sent time", submission?.sent_at || submission?.transmitted_at]],
+      note: submissionSimulated ? "Simulated transmission. No external PHA delivery is confirmed." : undefined,
+    },
+    {
+      title: submissionSimulated ? "PHA Processing" : "PHA Receives",
+      state: submissionFailed ? "failed" : acknowledgementRecorded && !submissionSimulated ? "complete" : submissionSent ? "current" : "pending",
+      details: [["Destination", destination], ["Receipt / processing", submissionSimulated ? "Not confirmed (simulated)" : acknowledgement?.status]],
+      note: submissionSimulated ? "PHA receipt is not confirmed by the mock destination." : undefined,
+    },
+    {
+      title: "Acknowledgement",
+      state: submissionFailed ? "failed" : acknowledgementRecorded ? "complete" : submissionSent ? "current" : "pending",
+      details: [["Status", acknowledgement?.status || (acknowledgementRecorded ? submission?.status : null)], ["Received", acknowledgement?.received_at], ["Reference ID", acknowledgement?.acknowledgement_id], ["Response", acknowledgement?.response]],
+    },
+    {
+      title: "Follow-up",
+      state: followupFailed ? "failed" : followupComplete ? "complete" : persistedCurrentFollowup ? "current" : acknowledgementRecorded ? "current" : "pending",
+      details: [["Status", persistedCurrentFollowup?.status], ["Next action", persistedCurrentFollowup?.next_action], ["Due date", persistedCurrentFollowup?.due_date], ["Last updated", persistedCurrentFollowup?.updated_at]],
+    },
+  ];
 
   async function process() {
     if (!action || working) return;
@@ -117,8 +209,14 @@ export default function FollowUpWorkspace() {
       }
       setMessage("Follow-up response received from the Public Health Follow-up Agent.");
       setNotes("");
-      const journeyResponse = await getJourney(caseId);
+      const [journeyResponse, followupResponse] = await Promise.all([
+        getJourney(caseId),
+        listFollowUps({ search: caseId, page_size: 100 }).catch(() => null),
+      ]);
       setJourney(journeyResponse?.data || journeyResponse);
+      setPersistedFollowups(items(followupResponse?.items)
+        .filter((record) => record.case_id === caseId)
+        .sort((left, right) => Date.parse(left.created_at || 0) - Date.parse(right.created_at || 0)));
     } catch (err) {
       setError(err?.response?.data?.detail || err?.message || "Follow-up could not be processed.");
     } finally { setWorking(false); setProcessingAction(false); }
@@ -133,7 +231,7 @@ export default function FollowUpWorkspace() {
         <button className="fu-back-link" onClick={() => navigate(`${caseWorkspacePath}/submission`)}>← Back to Submission</button>
         <nav className="fu-breadcrumb" aria-label="Workflow"><span>Case Workspace</span><i>›</i><span>Reporting Form</span><i>›</i><span>Submission</span><i>›</i><b>Follow-up</b></nav>
         <span className="fu-eyebrow">PUBLIC HEALTH CASE OPERATIONS</span>
-        <h2>Public Health Follow-up</h2>
+        <h2>PHA Follow Up</h2>
         <p>Coordinate the next public-health action for this reported case.</p>
       </div>
       <div className="fu-header-badges"><span>{valueText(caseData.jurisdiction)}</span><strong>{valueText(caseData.disease)}</strong>{acknowledged && <small>Acknowledged</small>}</div>
@@ -146,6 +244,13 @@ export default function FollowUpWorkspace() {
     <div className="fu-context">
       <DataPoint label="Patient">{patientName(patient)}</DataPoint><DataPoint label="MRN">{patient.source_patient_id || patient.patient_id}</DataPoint><DataPoint label="DOB">{patient.date_of_birth}</DataPoint><DataPoint label="Case">{caseData.case_id || caseId}</DataPoint><DataPoint label="Disease">{caseData.disease}</DataPoint><DataPoint label="Jurisdiction">{caseData.jurisdiction}</DataPoint>
     </div>
+
+    <section className="fu-submission-journey" aria-labelledby="fu-submission-journey-title">
+      <header><div><span>PHA FOLLOW UP</span><h3 id="fu-submission-journey-title">Submission Journey</h3><p>Track how this reporting case moves from SIGNAL to the Public Health Authority and how the acknowledgement is returned to SIGNAL.</p></div></header>
+      <div className="fu-submission-track">
+        {journeyNodes.map((node) => <FlowNode key={node.title} {...node} />)}
+      </div>
+    </section>
 
     <div className="fu-summary">
       <article><span>PUBLIC HEALTH JURISDICTION</span><strong>{valueText(caseData.jurisdiction)}</strong><small>Case jurisdiction</small></article>

@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 from typing import List
 import json
 
-from backend.app.rules.Measles_rules import evaluate_measles_rules
 from backend.app.llm.gemini import generate_json
+from backend.app.rules.resolver import RuleResolutionError, resolve_rule
 
 
 @dataclass
@@ -30,10 +30,45 @@ def evaluate_decision_support(
     # 1. Deterministic RCKMS/rules evaluation
     # ---------------------------------------------------------
 
-    result = evaluate_measles_rules(
-        disease=disease,
+    try:
+        rule = resolve_rule(
+            disease=disease,
+            jurisdiction=jurisdiction,
+        )
+
+    except RuleResolutionError as exc:
+        return DecisionSupportResult(
+            candidate_id=candidate_id,
+            decision="NEEDS_REVIEW",
+            rule_id="NO_RULE_AVAILABLE",
+            reasons=[
+                "No applicable reporting rule could be resolved."
+            ],
+            warnings=[
+                str(exc),
+                "Human review is required.",
+            ],
+            human_review_required=True,
+        )
+
+    # ---------------------------------------------------------
+    # 2. Evaluate the resolved deterministic rule
+    # ---------------------------------------------------------
+
+    evaluator = rule["evaluator"]
+
+    rule_result = evaluator(
+        disease=rule.get("disease") or disease,
         laboratory_evidence=laboratory_evidence,
         clinical_evidence=clinical_evidence,
+    )
+
+    result = DecisionSupportResult(
+        candidate_id=candidate_id,
+        decision=rule_result.decision,
+        rule_id=rule.get("rule_id") or rule_result.rule_id,
+        reasons=list(rule_result.reasons),
+        warnings=list(rule_result.warnings),
     )
 
     # ---------------------------------------------------------

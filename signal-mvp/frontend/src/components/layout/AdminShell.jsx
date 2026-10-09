@@ -9,7 +9,6 @@ import {
   LogOut,
   ShieldCheck,
 } from "lucide-react";
-import { clearAdminQueueEntries } from "../../utils/adminQueueLocalStorage.js";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
 import {
   clearAdminSessionSubmissions,
@@ -145,11 +144,13 @@ export default function AdminShell({ children }) {
       return;
     }
 
-    clearAdminQueueEntries();
     clearClinicalInformationRequests();
     clearTemporaryWorkflowValues();
-    sessionStorage.clear();
-    localStorage.clear();
+    sessionStorage.removeItem("signal-auth");
+    sessionStorage.removeItem("signal-user");
+    sessionStorage.removeItem(ADMIN_SESSION_SUBMISSION_BASELINE);
+    localStorage.removeItem("signal-auth");
+    localStorage.removeItem("signal-user");
 
     navigate("/login", { replace: true });
   };
@@ -187,6 +188,7 @@ export default function AdminShell({ children }) {
               <NavLink
                 key={item.path}
                 to={item.path}
+                end={item.path === "/admin/submissions"}
                 className={({ isActive }) =>
                   `admin-nav-item ${
                     isActive ? "active" : ""

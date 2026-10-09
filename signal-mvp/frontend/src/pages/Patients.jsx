@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { listCanonicalPatients } from "../api/canonical.js";
 import { PageHeader } from "../components/ui/PageHeader.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { useDailyRefresh } from "../hooks/useDailyRefresh.js";
 import "../styles/patients.css";
 
 const PAGE_SIZE = 10;
@@ -62,11 +63,16 @@ function visiblePages(currentPage, totalPages) {
 
 export default function Patients() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [condition, setCondition] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedCondition, setAppliedCondition] = useState("");
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const currentDay = useDailyRefresh();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -79,6 +85,8 @@ export default function Patients() {
         const response = await listCanonicalPatients({
           page,
           page_size: PAGE_SIZE,
+          search: appliedSearch || undefined,
+          condition: appliedCondition || undefined,
           signal: controller.signal,
         });
         if (active) setResult(response);
@@ -94,7 +102,22 @@ export default function Patients() {
       active = false;
       controller.abort();
     };
-  }, [page, refreshKey]);
+  }, [page, appliedSearch, appliedCondition, refreshKey, currentDay]);
+
+  function applyFilters(event) {
+    event.preventDefault();
+    setAppliedSearch(search.trim());
+    setAppliedCondition(condition.trim());
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setCondition("");
+    setAppliedSearch("");
+    setAppliedCondition("");
+    setPage(1);
+  }
 
   const visiblePatients = Array.isArray(result?.items) ? result.items : [];
   const totalPages = result?.pages || 0;
@@ -120,6 +143,30 @@ export default function Patients() {
       </PageHeader>
 
       <div className="patients-card">
+        <form className="patients-filter-section" onSubmit={applyFilters}>
+          <div className="patients-toolbar">
+            <label className="patients-search">
+              <span>SEARCH PATIENTS</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Name or patient ID"
+              />
+            </label>
+            <label className="patients-condition">
+              <span>CONDITION</span>
+              <input
+                type="search"
+                value={condition}
+                onChange={(event) => setCondition(event.target.value)}
+                placeholder="Type a condition"
+              />
+            </label>
+            <button className="patients-search-button" type="submit">Search</button>
+            <button className="patients-clear-filters" type="button" onClick={clearFilters}>Clear</button>
+          </div>
+        </form>
         {loading ? (
           <SignalLoading title="Loading patients..." message="Retrieving patient records." />
         ) : error ? (
@@ -131,6 +178,7 @@ export default function Patients() {
         ) : visiblePatients.length === 0 ? (
           <div className="patients-empty">
             <strong>No patients found</strong>
+            {(appliedSearch || appliedCondition) && <p>No patients match the current search filters.</p>}
           </div>
         ) : (
           <>
@@ -155,8 +203,12 @@ export default function Patients() {
                         <td>{formatDate(patient.date_of_birth)}</td>
                         <td>{formatCondition(patient.condition) || EMPTY_VALUE}</td>
                         <td>{formatDate(patient.last_encounter)}</td>
-                        <td title={patient.deadline_reason || undefined}>
-                          <span className="patient-deadline-value">{formatDeadline(patient.deadline?.deadline)}</span>
+                        <td>
+                          <span className="patient-deadline-value">
+                            {patient.deadline?.deadline
+                              ? formatDeadline(patient.deadline.deadline)
+                              : "-"}
+                          </span>
                           {patient.deadline?.deadline_status && (
                             <span className="patient-deadline-state">
                               {patient.deadline.deadline_status}

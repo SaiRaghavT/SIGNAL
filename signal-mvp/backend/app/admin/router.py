@@ -2,26 +2,34 @@ from datetime import datetime, time, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from backend.app.agents.acknowledgement.schemas import AcknowledgementRequest
 from backend.app.agents.acknowledgement.service import AcknowledgementService
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
+from backend.app.config.settings import settings
 from backend.app.agents.retry_resubmission.schemas import RetryResubmissionRequest
 from backend.app.agents.retry_resubmission.service import RetryResubmissionService
-from backend.app.case.workflow_api import ReviewRequest, create_review
+from backend.app.case.workflow_api import ReviewRequest, _has_immediate_reporting_rule, create_review
+from backend.app.case.report_fields import available_case_report_fields
 from backend.app.database import get_db
 from backend.app.ecr.builder import build_ecr
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.case import Case
+from backend.app.models.candidate import Candidate
+from backend.app.models.condition import Condition
+from backend.app.models.encounter import Encounter
+from backend.app.models.lab_result import LabResult
+from backend.app.models.patient import Patient
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import Acknowledgement, CaseWorkflowRecord, Report, SubmissionAttempt
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
 from backend.app.agents.ecr_submission.schemas import ECRSubmissionRequest
 from backend.app.agents.ecr_submission.service import ECRSubmissionService
+from backend.app.canonical.query_service import _case_patient_id, _patient_deadline
 
 from .schemas import (
     AdminReviewRequest,
@@ -70,6 +78,64 @@ def _validation(case: Case) -> dict:
             "missing_information": list(result.completion_required), "warnings": result.warnings}
 
 
+def _persist_case_deadline_priority(db: Session, case: Case) -> None:
+    """Resolve the case deadline from canonical clinical evidence and its reporting rule."""
+    patient_id = _case_patient_id(case)
+    if patient_id is None:
+        return
+    patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
+    if patient is None:
+        return
+
+    conditions = db.query(Condition).filter(Condition.patient_id == patient_id).all()
+    lab_results = db.query(LabResult).filter(LabResult.patient_id == patient_id).all()
+    last_encounter = db.query(
+        func.max(func.coalesce(Encounter.end_time, Encounter.start_time))
+    ).filter(
+        Encounter.patient_id == patient_id,
+        func.coalesce(Encounter.end_time, Encounter.start_time).isnot(None),
+    ).scalar()
+    candidate = db.query(Candidate).filter(Candidate.candidate_id == case.candidate_id).first()
+
+    deadline_data, _reason = _patient_deadline(
+        patient=patient,
+        conditions=conditions,
+        lab_results=lab_results,
+        candidate=candidate,
+        case=case,
+        last_encounter=last_encounter,
+    )
+    if not deadline_data or deadline_data.get("status") == "NO_RULE":
+        # A stale placeholder such as NO_RULE_AVAILABLE should not prevent the
+        # configured jurisdiction/disease catalog rule from being resolved.
+        from copy import copy
+
+        case_without_placeholder_rule = copy(case)
+        case_without_placeholder_rule.rule_id = None
+        deadline_data, _reason = _patient_deadline(
+            patient=patient,
+            conditions=conditions,
+            lab_results=lab_results,
+            candidate=candidate,
+            case=case_without_placeholder_rule,
+            last_encounter=last_encounter,
+        )
+
+    if not deadline_data:
+        return
+    changed = False
+    resolved_deadline = deadline_data.get("deadline")
+    resolved_priority = deadline_data.get("urgency")
+    if resolved_deadline is not None and case.deadline != resolved_deadline:
+        case.deadline = resolved_deadline
+        changed = True
+    if not case.severity and resolved_priority:
+        case.severity = resolved_priority
+        changed = True
+    if changed:
+        db.commit()
+
+
 def _condition_display(case: Case) -> str | None:
     """Prefer the stored human-readable diagnosis for Admin display."""
     clinical_evidence = case.clinical_evidence or {}
@@ -84,39 +150,52 @@ def _condition_display(case: Case) -> str | None:
 
 
 def _submission_mode(case: Case, queue: CaseWorkflowRecord | None = None) -> str:
+    if _has_immediate_reporting_rule(case):
+        return "IMMEDIATE"
     report_fields = case.report_fields if isinstance(case.report_fields, dict) else {}
     payload = queue.payload if queue and isinstance(queue.payload, dict) else {}
     raw_mode = case.submission_mode or payload.get("submission_mode") or report_fields.get("submission_mode")
     normalized = str(raw_mode or "INDIVIDUAL").strip().replace("-", "_").replace(" ", "_").upper()
     if normalized in {"PER_CASE", "PERCASE"}:
         return "INDIVIDUAL"
-    return normalized if normalized in {"IMMEDIATE", "INDIVIDUAL", "BATCH"} else "INDIVIDUAL"
+    if normalized in {"IMMEDIATE", "INDIVIDUAL", "BATCH"}:
+        return normalized
+    return "INDIVIDUAL" if queue and _is_active_queue_status(queue.status) else ""
 
 
 def _case_payload(db: Session, case: Case) -> dict:
+    _persist_case_deadline_priority(db, case)
     case_id = str(case.case_id)
     queue = _latest(db, case_id, "ADMIN_QUEUE")
     review = _latest(db, case_id, "REVIEW")
     attestation = _latest(db, case_id, "ATTESTATION")
+    demo_simulation = _latest(db, case_id, "ADMIN_DEMO_SUBMISSION")
     validation = _validation(case)
+    demo_submission = bool(queue and (queue.payload or {}).get("demo_submission"))
     report = (db.query(Report).filter(Report.case_id == case_id, Report.status == "GENERATED")
               .order_by(Report.created_at.desc()).first())
     submission = (db.query(Submission).filter(Submission.case_id == case_id)
                   .order_by(Submission.created_at.desc()).first())
     latest_submission = submission.status if submission else None
     queued = bool(queue and _is_active_queue_status(queue.status))
+    submission_mode = _submission_mode(case, queue)
     return {
         "case_id": case_id, "patient": case.patient or {}, "condition": _condition_display(case),
         "jurisdiction": case.jurisdiction, "deadline": case.deadline, "priority": case.severity,
         "case_status": case.status, "reportability": case.reportability_decision,
         "review_status": review.status if review else "PENDING",
         "attestation_status": attestation.status if attestation else "PENDING",
-        "submission_mode": _submission_mode(case, queue),
+        "submission_mode": submission_mode,
         "queue_status": queue.status if queue else "NOT_QUEUED",
+        "demo_submission": demo_submission,
+        "demo_simulation_available": bool(settings.demo_queue_enabled),
+        "demo_simulation_status": demo_simulation.status if demo_simulation else None,
+        "demo_submission_record_id": demo_simulation.record_id if demo_simulation else None,
+        "demo_submission_created_at": demo_simulation.created_at if demo_simulation else None,
         "submission_status": latest_submission,
         "missing_information": validation["missing_information"],
         "available_actions": (["review"] if review is None or review.status != "APPROVE" else [])
-            + (["dispatch"] if queued and report and validation["valid"] and attestation and attestation.status == "ATTESTED" else [])
+            + (["dispatch"] if queued and not demo_submission and report and validation["valid"] and attestation and attestation.status == "ATTESTED" else [])
             + (["retry"] if latest_submission in {"FAILED", "ERROR", "REJECTED"} else []),
         "report_id": report.report_id if report else None,
         "submission_id": submission.submission_id if submission else None,
@@ -136,7 +215,7 @@ def _case_detail_payload(db: Session, case: Case) -> dict:
         "clinical_evidence": case.clinical_evidence or {},
         "laboratory_evidence": case.laboratory_evidence or [],
         "ai_evidence": case.ai_evidence or {},
-        "report_fields": case.report_fields or {},
+        "report_fields": available_case_report_fields(case),
         "validation": validation,
         "review": ({"status": review.status, "payload": review.payload, "created_at": review.created_at} if review else None),
         "attestation": ({"status": attestation.status, "payload": attestation.payload, "created_at": attestation.created_at} if attestation else None),
@@ -144,6 +223,10 @@ def _case_detail_payload(db: Session, case: Case) -> dict:
 
 
 def _eligible_for_dispatch(db: Session, case: Case) -> None:
+    queue = _latest(db, str(case.case_id), "ADMIN_QUEUE")
+    if queue is not None and (queue.payload or {}).get("demo_submission"):
+        raise HTTPException(status_code=409, detail="Synthetic demo queue entries cannot be dispatched externally.")
+    case.submission_mode = _submission_mode(case, queue)
     payload = _case_payload(db, case)
     if not _is_active_queue_status(payload["queue_status"]):
         raise HTTPException(status_code=409, detail="Case is not queued for Admin dispatch.")
@@ -163,14 +246,18 @@ def admin_dashboard(db: Session = Depends(get_db)) -> dict:
     today = datetime.now(timezone.utc).date()
     due_soon = today + timedelta(days=3)
     counts = {"ready_for_submission": 0, "immediate_reports": 0, "individual_reports": 0,
+              "dispatched_reports": 0, "completed_submissions": 0,
               "pending_batches": 0, "submitted_today": 0, "awaiting_acknowledgement": 0,
               "failed": 0, "retry_required": 0, "overdue": 0, "due_today": 0, "due_soon": 0}
     for case in cases:
         payload = _case_payload(db, case)
         if _is_active_queue_status(payload["queue_status"]):
-            counts["ready_for_submission"] += 1
-            key = {"IMMEDIATE": "immediate_reports", "INDIVIDUAL": "individual_reports"}.get(case.submission_mode)
-            if key: counts[key] += 1
+            key = {"IMMEDIATE": "immediate_reports", "INDIVIDUAL": "individual_reports"}.get(payload["submission_mode"])
+            if key:
+                counts["ready_for_submission"] += 1
+                counts[key] += 1
+        elif payload["queue_status"] == "DISPATCHED":
+            counts["dispatched_reports"] += 1
         deadline = case.deadline
         if deadline is not None:
             date_value = deadline.astimezone(timezone.utc).date() if deadline.tzinfo else deadline.date()
@@ -181,6 +268,12 @@ def admin_dashboard(db: Session = Depends(get_db)) -> dict:
                 elif date_value <= due_soon: counts["due_soon"] += 1
     batches = db.query(CaseWorkflowRecord).filter(CaseWorkflowRecord.record_type == "ADMIN_BATCH", CaseWorkflowRecord.status == "PENDING").count()
     counts["pending_batches"] = batches
+    counts["completed_submissions"] = (
+        db.query(Submission.case_id)
+        .filter(Submission.status == "ACKNOWLEDGED")
+        .distinct()
+        .count()
+    )
     start = datetime.combine(today, time.min, tzinfo=timezone.utc)
     counts["submitted_today"] = db.query(Submission.submission_id).filter(Submission.created_at >= start, Submission.status.in_(("SUBMITTED", "ACKNOWLEDGED"))).count()
     counts["awaiting_acknowledgement"] = db.query(Submission.submission_id).filter(Submission.status == "SUBMITTED").count()
@@ -195,13 +288,78 @@ def admin_queue(db: Session = Depends(get_db)) -> dict:
     for case in db.query(Case).order_by(Case.deadline.asc().nullslast()).all():
         queue = _latest(db, str(case.case_id), "ADMIN_QUEUE")
         if queue and _is_active_queue_status(queue.status):
-            rows.append(_case_payload(db, case))
+            payload = _case_payload(db, case)
+            if payload.get("submission_mode") != "BATCH":
+                rows.append(payload)
     return {"items": rows, "total": len(rows)}
 
 
 @router.get("/queue/{case_id}")
 def admin_queue_case(case_id: str, db: Session = Depends(get_db)) -> dict:
     return _case_detail_payload(db, _case(db, case_id))
+
+
+@router.post("/cases/{case_id}/demo-dispatch")
+def admin_demo_dispatch(case_id: str, actor_id: str = "admin", db: Session = Depends(get_db)) -> dict:
+    """Persist an Admin local simulation without creating or sending a submission."""
+    if not settings.demo_queue_enabled:
+        raise HTTPException(status_code=403, detail="Local submission simulation is disabled.")
+    case = _case(db, case_id)
+    case_key = str(case.case_id)
+    queue = _latest(db, case_key, "ADMIN_QUEUE")
+    if queue is None:
+        raise HTTPException(status_code=409, detail="This case has no persisted Admin queue entry.")
+    existing = _latest(db, case_key, "ADMIN_DEMO_SUBMISSION")
+    if existing is not None and existing.status == "SIMULATED":
+        if queue.status in ACTIVE_QUEUE_STATUSES:
+            queue.status = "DISPATCHED"
+            queue.payload = {
+                **(queue.payload or {}),
+                "submission_id": existing.record_id,
+                "status": "SIMULATED",
+            }
+            db.commit()
+        return {
+            "case_id": case_key,
+            "record_id": existing.record_id,
+            "status": existing.status,
+            "demo_submission": True,
+            "externally_dispatched": False,
+        }
+    if not _is_active_queue_status(queue.status):
+        raise HTTPException(status_code=409, detail="This case is not active in the Admin queue.")
+
+    payload = {
+        "demo_submission": True,
+        "authorization_status": "AUTHORIZED",
+        "destination": "DEMO_SIMULATION",
+        "externally_dispatched": False,
+        "notice": "Local simulated submission recorded. No report was sent to a public health authority.",
+    }
+    row = CaseWorkflowRecord(
+        case_id=case_key,
+        record_type="ADMIN_DEMO_SUBMISSION",
+        status="SIMULATED",
+        actor_id=actor_id,
+        payload=payload,
+    )
+    db.add(row)
+    queue.status = "DISPATCHED"
+    queue.payload = {
+        **(queue.payload or {}),
+        "submission_id": row.record_id,
+        "status": "SIMULATED",
+    }
+    db.commit()
+    db.refresh(row)
+    _event(db, "CASE", case_key, "ADMIN_DEMO_SUBMISSION_SIMULATED", actor_id, payload)
+    return {
+        "case_id": case_key,
+        "record_id": row.record_id,
+        "status": row.status,
+        "demo_submission": True,
+        "externally_dispatched": False,
+    }
 
 
 @router.post("/queue/{case_id}/review")
@@ -258,6 +416,30 @@ def clear_admin_session_submissions(
 
 @router.get("/submissions/{submission_id}")
 def admin_submission(submission_id: str, db: Session = Depends(get_db)) -> dict:
+    simulated_record = db.query(CaseWorkflowRecord).filter(
+        CaseWorkflowRecord.record_id == submission_id,
+        CaseWorkflowRecord.record_type == "ADMIN_DEMO_SUBMISSION",
+    ).first()
+    if simulated_record is not None:
+        case = db.query(Case).filter(Case.case_id == simulated_record.case_id).first()
+        if case is None:
+            raise HTTPException(status_code=404, detail="Case not found for simulated workflow record.")
+        return {
+            "submission_id": simulated_record.record_id,
+            "case_id": simulated_record.case_id,
+            "status": "SIMULATED",
+            "destination": "DEMO_SIMULATION",
+            "channel": "DEMO_SIMULATION",
+            "submission_mode": case.submission_mode,
+            "created_at": simulated_record.created_at,
+            "patient": case.patient or {},
+            "disease": case.disease,
+            "jurisdiction": case.jurisdiction,
+            "warnings": ["Local simulated result; no external transmission was made."],
+            "errors": [],
+            "acknowledgement": None,
+        }
+
     from backend.app.submission.api import _get_submission, _submission_payload
     row = _get_submission(db, submission_id)
     data = _submission_payload(db, row)
@@ -296,7 +478,32 @@ def admin_retry(submission_id: str, reason: str | None = None, db: Session = Dep
 
 @router.post("/cases/{case_id}/dispatch")
 def admin_dispatch(case_id: str, actor_id: str = "admin", db: Session = Depends(get_db)) -> dict:
-    case = _case(db, case_id)
+    try:
+        parsed_case_id = UUID(case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="case_id must be a UUID.") from exc
+    case = db.query(Case).filter(Case.case_id == parsed_case_id).with_for_update().first()
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found.")
+
+    queue = _latest(db, str(case.case_id), "ADMIN_QUEUE")
+    if queue and queue.status == "DISPATCHED":
+        submission_id = (queue.payload or {}).get("submission_id")
+        submission = db.query(Submission).filter(Submission.submission_id == submission_id).first() if submission_id else None
+        if submission is not None:
+            return {
+                "case_id": str(case.case_id),
+                "submission_mode": submission.submission_mode,
+                "report_id": submission.report_id,
+                "ecr_id": submission.ecr_id,
+                "submission_id": submission.submission_id,
+                "status": submission.status,
+                "destination": submission.destination,
+                "errors": submission.errors or [],
+                "warnings": submission.warnings or [],
+            }
+        raise HTTPException(status_code=409, detail="This case has already been dispatched.")
+
     _eligible_for_dispatch(db, case)
     if case.submission_mode == "BATCH":
         raise HTTPException(status_code=409, detail="BATCH cases must be dispatched through a batch.")

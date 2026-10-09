@@ -26,6 +26,9 @@ class EmptyQuery:
     def count(self):
         return 0
 
+    def distinct(self):
+        return self
+
 
 class EmptySession:
     def query(self, *args):
