@@ -5,6 +5,7 @@ import {
   governanceService,
   outcomeLearningService,
 } from '../services/aiGovernanceService.js'
+import '../styles/ai-governance-feature.css'
 import '../styles/AiGovernance.css'
 
 function useLoad(loader, dependencies = []) {

@@ -6,7 +6,7 @@ import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { useDailyRefresh } from "../hooks/useDailyRefresh.js";
 import "../styles/patients.css";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const EMPTY_VALUE = "—";
 
 function formatDate(value) {
@@ -63,16 +63,25 @@ function visiblePages(currentPage, totalPages) {
 
 export default function Patients() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
+  const [conditionInput, setConditionInput] = useState("");
   const [condition, setCondition] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedCondition, setAppliedCondition] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const currentDay = useDailyRefresh();
+
+  useEffect(() => {
+    const debounceId = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setCondition(conditionInput.trim());
+    }, 250);
+    return () => window.clearTimeout(debounceId);
+  }, [searchInput, conditionInput]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -84,9 +93,9 @@ export default function Patients() {
       try {
         const response = await listCanonicalPatients({
           page,
-          page_size: PAGE_SIZE,
-          search: appliedSearch || undefined,
-          condition: appliedCondition || undefined,
+          page_size: pageSize,
+          search,
+          condition: condition || undefined,
           signal: controller.signal,
         });
         if (active) setResult(response);
@@ -102,27 +111,17 @@ export default function Patients() {
       active = false;
       controller.abort();
     };
-  }, [page, appliedSearch, appliedCondition, refreshKey, currentDay]);
-
-  function applyFilters(event) {
-    event.preventDefault();
-    setAppliedSearch(search.trim());
-    setAppliedCondition(condition.trim());
-    setPage(1);
-  }
-
-  function clearFilters() {
-    setSearch("");
-    setCondition("");
-    setAppliedSearch("");
-    setAppliedCondition("");
-    setPage(1);
-  }
+  }, [page, pageSize, refreshKey, search, condition, currentDay]);
 
   const visiblePatients = Array.isArray(result?.items) ? result.items : [];
   const totalPages = result?.pages || 0;
-  const firstVisiblePatient = result?.total ? (page - 1) * PAGE_SIZE + 1 : 0;
-  const lastVisiblePatient = Math.min(page * PAGE_SIZE, result?.total || 0);
+  const firstVisiblePatient = result?.total ? (page - 1) * pageSize + 1 : 0;
+  const lastVisiblePatient = Math.min(page * pageSize, result?.total || 0);
+
+  function handlePageSizeChange(value) {
+    setPageSize(Number(value));
+    setPage(1);
+  }
 
   return (
     <section className="patients-page">
@@ -143,30 +142,50 @@ export default function Patients() {
       </PageHeader>
 
       <div className="patients-card">
-        <form className="patients-filter-section" onSubmit={applyFilters}>
+        <div className="patients-filter-section">
           <div className="patients-toolbar">
             <label className="patients-search">
-              <span>SEARCH PATIENTS</span>
+              <span>Search patient records</span>
               <input
                 type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Name or patient ID"
+                value={searchInput}
+                onChange={(event) => {
+                  setSearchInput(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Name, ID, condition, or location"
               />
             </label>
             <label className="patients-condition">
-              <span>CONDITION</span>
+              <span>Condition</span>
               <input
                 type="search"
-                value={condition}
-                onChange={(event) => setCondition(event.target.value)}
+                value={conditionInput}
+                onChange={(event) => {
+                  setConditionInput(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="Type a condition"
               />
             </label>
-            <button className="patients-search-button" type="submit">Search</button>
-            <button className="patients-clear-filters" type="button" onClick={clearFilters}>Clear</button>
+            <label className="patients-page-size">
+              <span>Rows per page</span>
+              <select value={pageSize} onChange={(event) => handlePageSizeChange(event.target.value)}>
+                {PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
+            <span className="patients-result-total" aria-live="polite">
+              {result ? `${result.total} records` : "Loading records"}
+            </span>
           </div>
-        </form>
+          <button type="button" className="patients-clear-filters" onClick={() => {
+            setSearchInput("");
+            setSearch("");
+            setConditionInput("");
+            setCondition("");
+            setPage(1);
+          }}>Clear filters</button>
+        </div>
         {loading ? (
           <SignalLoading title="Loading patients..." message="Retrieving patient records." />
         ) : error ? (
@@ -177,8 +196,8 @@ export default function Patients() {
           </div>
         ) : visiblePatients.length === 0 ? (
           <div className="patients-empty">
-            <strong>No patients found</strong>
-            {(appliedSearch || appliedCondition) && <p>No patients match the current search filters.</p>}
+            <strong>{search ? "No matching patients" : "No patients found"}</strong>
+            {(search || condition) && <p>Try another name, ID, condition, or location.</p>}
           </div>
         ) : (
           <>
@@ -235,11 +254,11 @@ export default function Patients() {
             </div>
 
             <nav className="patients-pagination" aria-label="Patient pages">
-              <span className="patients-count">
-                Showing {firstVisiblePatient}–{lastVisiblePatient} of {result?.total || 0} patients
+              <span className="patients-count" aria-live="polite">
+                Showing {firstVisiblePatient}–{lastVisiblePatient} of {result?.total || 0} patient records
               </span>
               <div className="patients-page-controls">
-                <button type="button" onClick={() => setPage((current) => current - 1)} disabled={page <= 1}>Previous</button>
+                <button type="button" onClick={() => setPage((current) => current - 1)} disabled={page <= 1 || loading}>Previous</button>
                 {visiblePages(page, totalPages).map((pageNumber) => (
                   <button
                     key={pageNumber}
@@ -247,11 +266,12 @@ export default function Patients() {
                     className={pageNumber === page ? "active" : ""}
                     aria-current={pageNumber === page ? "page" : undefined}
                     onClick={() => setPage(pageNumber)}
+                    disabled={loading}
                   >
                     {pageNumber}
                   </button>
                 ))}
-                <button type="button" onClick={() => setPage((current) => current + 1)} disabled={page >= totalPages}>Next</button>
+                <button type="button" onClick={() => setPage((current) => current + 1)} disabled={page >= totalPages || loading}>Next</button>
               </div>
             </nav>
           </>

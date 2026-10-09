@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
+import { useBackendHealth } from "../../hooks/useBackendHealth.js";
 import {
   clearAdminSessionSubmissions,
   getAdminSubmissions,
@@ -66,6 +67,7 @@ const NAVIGATION = [
 
 export default function AdminShell({ children }) {
   const navigate = useNavigate();
+  const backendHealth = useBackendHealth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const submissionBaselinePromise = useRef(null);
@@ -209,11 +211,11 @@ export default function AdminShell({ children }) {
         {/* BOTTOM USER AREA */}
         <div className="admin-sidebar-bottom">
           <div className="admin-system-status">
-            <span className="admin-status-dot" />
+            <span className={`admin-status-dot${backendHealth === "online" ? "" : ` backend-health-${backendHealth}`}`} />
 
             <div>
-              <strong>System Operational</strong>
-              <small>Reporting services active</small>
+              <strong>{backendHealth === "online" ? "System Operational" : backendHealth === "checking" ? "Connecting to backend" : "Backend unavailable"}</strong>
+              <small>{backendHealth === "online" ? "Reporting services active" : backendHealth === "checking" ? "Checking API health" : "Check that the API is running"}</small>
             </div>
           </div>
 
@@ -250,8 +252,8 @@ export default function AdminShell({ children }) {
           </div>
 
           <div className="admin-topbar-status">
-            <span className="admin-topbar-dot" />
-            Operational
+            <span className={`admin-topbar-dot${backendHealth === "online" ? "" : ` backend-health-${backendHealth}`}`} />
+            {backendHealth === "online" ? "Backend connected" : backendHealth === "checking" ? "Connecting…" : "Backend unavailable"}
           </div>
         </header>
 

@@ -81,6 +81,7 @@ def _evaluate_candidate(candidate):
         disease=candidate.get("disease"),
         laboratory_evidence=candidate.get("laboratory_evidence", []),
         clinical_evidence=candidate.get("clinical_evidence", {}),
+        jurisdiction=jurisdiction_result.jurisdiction,
     )
 
     # ---------------------------------------------------------
@@ -161,7 +162,7 @@ def test_happy_path_reaches_report_decision():
     result = _evaluate_candidate(_candidate("CAND-001"))
 
     assert result["jurisdiction"].status == "RESOLVED"
-    assert result["reportability"].decision == "PROCEED_TO_RULES"
+    assert result["reportability"].decision == "REPORT"
     assert result["reconciliation"].final_decision == "REPORT"
 
 

@@ -29,7 +29,9 @@ def reconcile_decisions(data: ReconciliationInput) -> ReconciliationResult:
             warnings=list(data.conflicts),
         )
 
-    if data.reportability_decision == "HOLD":
+    reportability = (data.reportability_decision or "").upper()
+
+    if reportability == "HOLD":
         return ReconciliationResult(
             candidate_id=data.candidate_id,
             final_decision="HOLD",
@@ -37,7 +39,7 @@ def reconcile_decisions(data: ReconciliationInput) -> ReconciliationResult:
             warnings=["Pending evidence must be finalized before reporting."],
         )
 
-    if data.reportability_decision == "NEEDS_REVIEW":
+    if reportability == "NEEDS_REVIEW":
         return ReconciliationResult(
             candidate_id=data.candidate_id,
             final_decision="NEEDS_REVIEW",

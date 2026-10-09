@@ -170,7 +170,7 @@ def evaluate_reportability(data: ReportabilityInput) -> ReportabilityAssessment:
             data.candidate_id,
             data.jurisdiction,
             data.disease,
-            "PROCEED_TO_RULES",
+            "REPORT",
             "LAB_POSITIVE",
             ["Positive laboratory evidence is available."],
             ["Apply jurisdiction-specific reporting rules."],

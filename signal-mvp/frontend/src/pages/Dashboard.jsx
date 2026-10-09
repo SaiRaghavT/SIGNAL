@@ -109,9 +109,22 @@ export default function Dashboard() {
   const currentDay = useDailyRefresh();
 
   const loadDashboard = useCallback(async () => {
-    setLoading(true);
-    const [summaryResult, reportingResult, qualityResult, submissionsResult, jurisdictionsResult, activityResult, deadlinesResult, patientsResult, measlesPatientsResult] = await Promise.allSettled([
-      getDashboardSummary(),
+    const summaryPromise = getDashboardSummary()
+      .then((summary) => {
+        setData((current) => ({
+          ...current,
+          summary,
+          errors: { ...current?.errors, summary: "" },
+        }));
+      })
+      .catch((error) => {
+        setData((current) => ({
+          ...current,
+          summary: null,
+          errors: { ...current?.errors, summary: error?.message || "This dashboard data is unavailable." },
+        }));
+      });
+    const [reportingResult, qualityResult, submissionsResult, jurisdictionsResult, activityResult, deadlinesResult, patientsResult, measlesPatientsResult] = await Promise.allSettled([
       request("/api/dashboard/reporting-status"),
       request("/api/dashboard/quality"),
       request("/api/dashboard/submissions"),
@@ -121,8 +134,8 @@ export default function Dashboard() {
       listCanonicalPatients({ page: 1, page_size: WORKLIST_PAGE_SIZE }),
       listCanonicalPatients({ page: 1, page_size: 5, condition: "measles" }),
     ]);
-    setData({
-      summary: summaryResult.status === "fulfilled" ? summaryResult.value : null,
+    setData((current) => ({
+      ...current,
       reporting: reportingResult.status === "fulfilled" ? reportingResult.value : null,
       quality: qualityResult.status === "fulfilled" ? qualityResult.value : null,
       submissions: submissionsResult.status === "fulfilled" ? submissionsResult.value : null,
@@ -132,7 +145,7 @@ export default function Dashboard() {
       patients: patientsResult.status === "fulfilled" ? patientsResult.value : null,
       measlesPatients: measlesPatientsResult.status === "fulfilled" ? measlesPatientsResult.value : null,
       errors: {
-        summary: errorMessage(summaryResult),
+        ...current?.errors,
         reporting: errorMessage(reportingResult),
         quality: errorMessage(qualityResult),
         submissions: errorMessage(submissionsResult),
@@ -142,10 +155,18 @@ export default function Dashboard() {
         patients: errorMessage(patientsResult),
         measlesPatients: errorMessage(measlesPatientsResult),
       },
-    });
+    }));
     setLoading(false);
+    await summaryPromise;
   }, []);
 
+  function refreshDashboard() {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
+  }
+
+  // Data loading is asynchronous; render fast sections before the summary resolves.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadDashboard(); }, [loadDashboard, refreshKey, currentDay]);
 
   const reportingRows = useMemo(() => countRows(data?.reporting?.cases), [data]);
@@ -180,7 +201,7 @@ export default function Dashboard() {
     <section className="dashboard-page">
       <header className="dashboard-heading">
         <div><span className="dashboard-eyebrow">SIGNAL</span><h1>Dashboard</h1><p>Public health reporting operations at a glance</p></div>
-        <button className="dashboard-refresh" type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}>
+        <button className="dashboard-refresh" type="button" onClick={refreshDashboard} disabled={loading}>
           <RefreshCw size={15} aria-hidden="true" /> {loading ? "Refreshing…" : "Refresh"}
         </button>
       </header>

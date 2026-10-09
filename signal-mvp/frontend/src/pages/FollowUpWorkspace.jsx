@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { useDemoWorkflow } from "../hooks/useDemoWorkflow.js";
@@ -76,12 +76,13 @@ export default function FollowUpWorkspace() {
   const [notes, setNotes] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
   const [working, setWorking] = useState(false);
   const [processingAction, setProcessingAction] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isCurrent = () => true) => {
     setLoading(true);
     setError("");
     try {
@@ -99,16 +100,24 @@ export default function FollowUpWorkspace() {
       const acknowledgementData = latestSubmission?.submission_id
         ? await getSubmissionAcknowledgement(latestSubmission.submission_id).catch(() => null)
         : null;
+      if (!isCurrent()) return;
       setCaseData(caseResponse?.data || caseResponse);
       setJourney(journeyData);
       setPersistedFollowups(matchingFollowups);
       setAcknowledgement(acknowledgementData?.data || acknowledgementData);
     } catch (err) {
-      setError(err?.message || err?.response?.data?.detail || "Unable to load case follow-up workspace.");
-    } finally { setLoading(false); }
+      if (isCurrent()) setError(err?.message || err?.response?.data?.detail || "Unable to load case follow-up workspace.");
+    } finally {
+      if (isCurrent()) setLoading(false);
+    }
   }, [caseId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load(() => active);
+    return () => { active = false; };
+  }, [load, retryKey]);
 
   const patient = caseData?.patient || {};
   const patientId = routePatientId || patient.patient_id || caseData?.patient_id || "";
@@ -223,7 +232,7 @@ export default function FollowUpWorkspace() {
   }
 
   if (loading) return <section className="follow-up-page"><SignalLoading title="Loading Follow-up" message="Retrieving public-health follow-up information." /></section>;
-  if (!caseData) return <section className="follow-up-page"><div className="fu-alert error" role="alert"><strong>Follow-up workspace unavailable</strong><span>{error || "The case could not be loaded."}</span><button onClick={load}>Retry</button></div></section>;
+  if (!caseData) return <section className="follow-up-page"><div className="fu-alert error" role="alert"><strong>Follow-up workspace unavailable</strong><span>{error || "The case could not be loaded."}</span><button onClick={() => { setLoading(true); setRetryKey((key) => key + 1); }}>Retry</button></div></section>;
 
   return <section className="follow-up-page">
     <header className="fu-header">

@@ -600,9 +600,22 @@ def list_patients(
 ) -> dict[str, Any]:
     """Return a paginated patient list using fields present in canonical models."""
     query = db.query(Patient)
-    search_text = (search or "").strip()
-    if search_text:
-        pattern = f"%{search_text}%"
+    search_terms = (search or "").split()
+    for term in search_terms:
+        pattern = f"%{term}%"
+        condition_patient_ids = (
+            db.query(Condition.patient_id)
+            .filter(or_(
+                Condition.condition_code.ilike(pattern),
+                Condition.condition_display.ilike(pattern),
+            ))
+            .distinct()
+        )
+        encounter_patient_ids = (
+            db.query(Encounter.patient_id)
+            .filter(Encounter.facility_id.ilike(pattern))
+            .distinct()
+        )
         query = query.filter(or_(
             cast(Patient.patient_id, String).ilike(pattern),
             Patient.source_patient_id.ilike(pattern),
@@ -610,6 +623,13 @@ def list_patients(
             Patient.last_name.ilike(pattern),
             (func.coalesce(Patient.first_name, "") + " " + func.coalesce(Patient.last_name, "")).ilike(pattern),
             cast(Patient.date_of_birth, String).ilike(pattern),
+            Patient.address_line.ilike(pattern),
+            Patient.city.ilike(pattern),
+            Patient.county.ilike(pattern),
+            Patient.state.ilike(pattern),
+            Patient.postal_code.ilike(pattern),
+            Patient.patient_id.in_(condition_patient_ids),
+            Patient.patient_id.in_(encounter_patient_ids),
         ))
 
     facility_text = (facility or "").strip()

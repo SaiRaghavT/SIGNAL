@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import "@google/model-viewer";
-
-
-
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 
@@ -1256,6 +1252,7 @@ function DetectionProgress({ activeStage }) {
 
 
 function PatientAnatomyCard({ patientName = "Patient", conditions = [], documents = [] }) {
+  const modelContainerRef = useRef(null);
   const documentedText = documents
     .map((document) => [document?.title, document?.extracted_text, document?.text, document?.content].filter(Boolean).join(" "))
     .join(" ")
@@ -1269,6 +1266,33 @@ function PatientAnatomyCard({ patientName = "Patient", conditions = [], document
     { id: "pain", label: "Pain or tenderness", terms: /\bpain\b|tenderness|soreness/ },
     { id: "gastrointestinal", label: "Gastrointestinal symptoms", terms: /nausea|vomiting|diarrhea|abdominal pain/ },
   ].filter((finding) => finding.terms.test(documentedText));
+
+  useEffect(() => {
+    const container = modelContainerRef.current;
+    if (!container) return undefined;
+
+    let observer;
+    const loadModelViewer = () => {
+      observer?.disconnect();
+      import("@google/model-viewer").catch((error) => {
+        console.error("Unable to load the 3D patient model.", error);
+      });
+    };
+
+    if ("IntersectionObserver" in window) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) loadModelViewer();
+        },
+        { rootMargin: "300px" },
+      );
+      observer.observe(container);
+    } else {
+      loadModelViewer();
+    }
+
+    return () => observer?.disconnect();
+  }, []);
 
   return (
     <section className="anatomy-card" aria-labelledby="anatomy-card-title">
@@ -1286,7 +1310,7 @@ function PatientAnatomyCard({ patientName = "Patient", conditions = [], document
           )) : <p className="anatomy-no-findings">No matching findings were found in the available clinical documents.</p>}
         </div>
       </div>
-      <div className="anatomy-figure-wrap" aria-label="3D patient model">
+      <div className="anatomy-figure-wrap" aria-label="3D patient model" ref={modelContainerRef}>
         <span className="anatomy-visual-badge">GENERIC PATIENT MODEL</span>
         <model-viewer
           class="anatomy-figure"
