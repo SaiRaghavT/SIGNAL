@@ -16,7 +16,6 @@ import { getCanonicalPatient } from "../api/canonical.js";
 
 
 import { detectPatientCandidates as detectCandidates, getCandidate, persistDetectedCandidate, processCandidate } from "../api/detection.js";
-import { getCase } from "../api/cases.js";
 
 
 
@@ -1918,10 +1917,10 @@ function AiDocumentUploadCard({
     <section className="ai-document-upload-card">
       <div className="ai-document-upload-icon" aria-hidden="true">↑</div>
       <div className="ai-document-upload-copy">
-      <div className="section-label">AI DETECTION INPUT</div>
-      <div className="ai-document-upload-title">
-        <h2>Add clinical documents</h2>
-        <span className="ai-document-upload-optional">Optional</span>
+        <div className="section-label">AI DETECTION INPUT</div>
+        <div className="ai-document-upload-title">
+          <h2>Add clinical documents</h2>
+          <span className="ai-document-upload-optional">Optional</span>
         </div>
         <p>
           Detection can use the patient’s existing records. Add a clinical note,
@@ -3228,7 +3227,7 @@ function CandidateDetails({ candidate, signalCount }) {
   );
 }
 
-function DetectionCandidate({ candidate, onContinue, onRunAgain }) {
+function DetectionCandidate({ candidate, onContinue, onRunAgain, isProcessing = false, isContinuing = false, errorMessage = "" }) {
   const rawSignals = getCandidateDisplaySignals(candidate);
   const grouped = { condition: [], laboratory: [], document: [] };
 
@@ -3334,11 +3333,14 @@ function DetectionCandidate({ candidate, onContinue, onRunAgain }) {
         <button
           type="button"
           className="detection-primary-action"
+          disabled={isProcessing}
+          aria-busy={isContinuing}
           onClick={() => onContinue(candidate)}
         >
-          Continue to Reporting
+          {isContinuing ? "Opening Reporting…" : "Continue to Reporting"}
           <span aria-hidden="true">→</span>
         </button>
+        {errorMessage && <div className="detection-continue-error" role="alert">{errorMessage}</div>}
       </div>
     </div>
   );
@@ -4433,6 +4435,9 @@ export default function PatientWorkspace() {
 
     useState("");
 
+  const [continuingCandidateKey, setContinuingCandidateKey] = useState("");
+  const [continueError, setContinueError] = useState({ key: "", message: "" });
+
 
 
 
@@ -4734,6 +4739,8 @@ export default function PatientWorkspace() {
 
 
     setDetectionError("");
+    setContinueError({ key: "", message: "" });
+    setContinuingCandidateKey("");
 
 
 
@@ -4869,6 +4876,9 @@ export default function PatientWorkspace() {
 
   async function handleReviewCandidate(candidate) {
     setDetectionError("");
+    const candidateKey = String(candidate?.candidate_id || candidate?.id || candidate?.disease_id || "candidate");
+    setContinuingCandidateKey(candidateKey);
+    setContinueError({ key: "", message: "" });
     try {
       let candidateId = candidate?.candidate_id || candidate?.id;
       let caseId = candidate?.case_id || candidate?.case?.case_id || candidate?.case?.id;
@@ -4899,13 +4909,6 @@ export default function PatientWorkspace() {
         throw new Error("SIGNAL could not create a case for this patient.");
       }
 
-      const caseResponse = await getCase(caseId);
-      const caseRecord = caseResponse?.data || caseResponse;
-      const casePatientId = caseRecord?.patient?.patient_id || caseRecord?.patient_id;
-      if (casePatientId && String(casePatientId) !== String(patientId)) {
-        throw new Error("This case does not belong to the current patient.");
-      }
-
       const storedUser = sessionStorage.getItem("signal-user") || localStorage.getItem("signal-user");
       let actorId = "reporting_user";
       if (storedUser) {
@@ -4917,29 +4920,29 @@ export default function PatientWorkspace() {
         }
       }
 
-      try {
-        await auditEvent({
-          entity_type: "PATIENT",
-          entity_id: String(patientId),
-          event_type: "CANDIDATE_REVIEW_STARTED",
-          actor_type: "USER",
-          actor_id: actorId,
-          source_agent: "patient_workspace",
-          status: "STARTED",
-          description: "Reviewer continued a detected candidate to reporting.",
-          new_value: { disease: getCandidateConditionName(candidate), case_id: String(caseId) },
-          metadata: { patient_id: String(patientId), case_id: String(caseId) },
-        });
-        const events = await listAuditEvents("PATIENT", patientId);
-        setAuditEvents(events || []);
-      } catch (auditError) {
-        console.warn("Unable to record candidate review event", auditError);
-      }
-
       navigate(`/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}/reporting-form`);
+      void auditEvent({
+        entity_type: "PATIENT",
+        entity_id: String(patientId),
+        event_type: "CANDIDATE_REVIEW_STARTED",
+        actor_type: "USER",
+        actor_id: actorId,
+        source_agent: "patient_workspace",
+        status: "STARTED",
+        description: "Reviewer continued a detected candidate to reporting.",
+        new_value: { disease: getCandidateConditionName(candidate), case_id: String(caseId) },
+        metadata: { patient_id: String(patientId), case_id: String(caseId) },
+      }).catch((auditError) => {
+        console.warn("Unable to record candidate review event", auditError);
+      });
     } catch (err) {
       console.error("Unable to continue to reporting", err);
-      setDetectionError(err?.message || "Unable to continue to reporting.");
+      setContinueError({
+        key: candidateKey,
+        message: err?.message || "Unable to continue to reporting.",
+      });
+    } finally {
+      setContinuingCandidateKey("");
     }
   }
   if (loading) {
@@ -5547,6 +5550,9 @@ export default function PatientWorkspace() {
                       candidate={getVisibleDetectionCandidates(detectionResult?.candidates)[0]}
                       onContinue={handleReviewCandidate}
                       onRunAgain={handleDetection}
+                      isProcessing={Boolean(continuingCandidateKey)}
+                      isContinuing={continuingCandidateKey === String(detectionResult.candidates[0]?.candidate_id || detectionResult.candidates[0]?.id || detectionResult.candidates[0]?.disease_id || "candidate")}
+                      errorMessage={continueError.message}
                     />
                   ) : (
                     <section className="candidate-section">
@@ -5561,6 +5567,9 @@ export default function PatientWorkspace() {
                             candidate={candidate}
                             onContinue={handleReviewCandidate}
                             onRunAgain={handleDetection}
+                            isProcessing={Boolean(continuingCandidateKey)}
+                            isContinuing={continuingCandidateKey === String(candidate?.candidate_id || candidate?.id || candidate?.disease_id || "candidate")}
+                            errorMessage={continueError.key === String(candidate?.candidate_id || candidate?.id || candidate?.disease_id || "candidate") ? continueError.message : ""}
                           />
                         </div>
                       ))}

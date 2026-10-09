@@ -69,7 +69,14 @@ def eligibility(db: Session, case: Case) -> dict:
 
 
 def case_payload(db: Session, case: Case) -> dict:
-    return {"case_id": str(case.case_id), "candidate_id": case.candidate_id, "patient": case.patient or {}, "disease": case.disease, "jurisdiction": case.jurisdiction, "facility": case.facility or {}, "provider": case.provider or {}, "deadline": case.deadline, "severity": case.severity, "submission_mode": (case.report_fields or {}).get("submission_mode", "Individual"), "status": case.status, "final_decision": case.final_decision, "reportability_decision": case.reportability_decision, "eligibility": eligibility(db, case)}
+    report_fields = case.report_fields if isinstance(case.report_fields, dict) else {}
+    raw_mode = case.submission_mode or report_fields.get("submission_mode") or "INDIVIDUAL"
+    normalized_mode = str(raw_mode).strip().replace("-", "_").replace(" ", "_").upper()
+    if normalized_mode in {"PER_CASE", "PERCASE"}:
+        normalized_mode = "INDIVIDUAL"
+    if normalized_mode not in {"IMMEDIATE", "INDIVIDUAL", "BATCH"}:
+        normalized_mode = "INDIVIDUAL"
+    return {"case_id": str(case.case_id), "candidate_id": case.candidate_id, "patient": case.patient or {}, "disease": case.disease, "jurisdiction": case.jurisdiction, "facility": case.facility or {}, "provider": case.provider or {}, "deadline": case.deadline, "severity": case.severity, "submission_mode": normalized_mode, "status": case.status, "final_decision": case.final_decision, "reportability_decision": case.reportability_decision, "eligibility": eligibility(db, case)}
 
 
 @router.get("/submission-queue")
@@ -87,7 +94,7 @@ def submission_dashboard(db: Session = Depends(get_db)) -> dict:
     status = lambda s: (s.status or "").upper()
     draft_rows = db.query(CaseWorkflowRecord).filter_by(record_type="SUBMISSION_BATCH_CASE", status="DRAFT").all()
     pending_batch_count = len({(row.payload or {}).get("batch_id") for row in draft_rows})
-    return {"ready_for_submission": sum(item["eligibility"]["eligible"] for item in items), "immediate_reports": sum(item["eligibility"]["eligible"] and item["submission_mode"] == "Immediate" for item in items), "pending_batch": pending_batch_count, "submitted_today": sum(status(s) in {"SUBMITTED", "ACKNOWLEDGED", "ACCEPTED"} and s.created_at.date() == today for s in submissions), "failed": sum(status(s) in {"FAILED", "ERROR", "REJECTED"} for s in submissions), "awaiting_acknowledgement": sum(status(s) == "SUBMITTED" for s in submissions)}
+    return {"ready_for_submission": sum(item["eligibility"]["eligible"] for item in items), "immediate_reports": sum(item["eligibility"]["eligible"] and item["submission_mode"] == "IMMEDIATE" for item in items), "pending_batch": pending_batch_count, "submitted_today": sum(status(s) in {"SUBMITTED", "ACKNOWLEDGED", "ACCEPTED"} and s.created_at.date() == today for s in submissions), "failed": sum(status(s) in {"FAILED", "ERROR", "REJECTED"} for s in submissions), "awaiting_acknowledgement": sum(status(s) == "SUBMITTED" for s in submissions)}
 
 
 @router.get("/cases/{case_id}/submission-review")

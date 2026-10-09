@@ -164,9 +164,9 @@ export default function Dashboard() {
   const maxCondition = Math.max(1, ...conditionRows.map((row) => Number(row.value) || 0));
   const metrics = [
     { label: "Total Patients", value: summary?.total_patients ?? data?.patients?.total ?? EMPTY_VALUE, detail: "Patients across all conditions", tone: "total", Icon: Users },
-    { label: "Active Cases", value: summary?.active_cases ?? EMPTY_VALUE, detail: "Open cases requiring action", tone: "active", Icon: ClipboardList },
-    { label: "Patients Due Today", value: summary?.patients_due_today ?? EMPTY_VALUE, detail: "Patient deadlines due today", tone: "due", Icon: Clock3 },
-    { label: "Reported Cases", value: summary?.reported_cases ?? EMPTY_VALUE, detail: "Cases with submitted or acknowledged records", tone: "reported", Icon: Send },
+    { label: "Active Cases", value: summary?.active_cases ?? summary?.active_measles_cases ?? EMPTY_VALUE, detail: "Open cases requiring action", tone: "active", Icon: ClipboardList },
+    { label: "Patients Due Today", value: summary?.patients_due_today ?? summary?.measles_patients_due_today ?? EMPTY_VALUE, detail: "Patient deadlines due today", tone: "due", Icon: Clock3 },
+    { label: "Reported Cases", value: summary?.reported_cases ?? summary?.reported_measles_cases ?? EMPTY_VALUE, detail: "Cases with submitted or acknowledged records", tone: "reported", Icon: Send },
   ];
 
   if (loading && !data) {
@@ -208,7 +208,7 @@ export default function Dashboard() {
                   const priority = patientPriority(patient);
                   const badgeClass = `priority-badge ${priority === EMPTY_VALUE ? "not-set" : priority.toLowerCase()}`;
                   return <tr key={patient.patient_id}>
-                    <td><strong>{patientName(patient)}</strong></td><td>{patient.condition || "Patient review"}</td>
+                    <td><strong>{patientName(patient)}</strong></td><td>{patient.condition ? titleCase(patient.condition) : "Patient review"}</td>
                     <td>{patient.jurisdiction || patient.deadline?.jurisdiction || EMPTY_VALUE}</td>
                     <td><span className={badgeClass}>{priority}</span></td><td>{formatDeadline(deadline)}</td>
                     <td><button className="row-action" type="button" onClick={() => navigate(`/patients/${encodeURIComponent(patient.patient_id)}`)}>View</button></td>

@@ -82,6 +82,51 @@ FOREIGN_KEY_TABLES = {
     "cases": {"candidate_id": "candidates"},
 }
 
+SOURCE_KEY_COLUMNS = {
+    "patients": ("patient_id", "source_patient_id"),
+    "encounters": ("encounter_id", "source_encounter_id"),
+    "conditions": ("condition_id", "source_condition_id"),
+    "observations": ("observation_id", "source_observation_id"),
+    "lab_results": ("lab_result_id", "source_lab_result_id"),
+    "clinical_documents": ("document_id", "source_document_id"),
+}
+
+
+def _as_key(value: Any) -> str | None:
+    return None if value is None else str(value)
+
+
+def _natural_id_map(
+    connection: sa.Connection,
+    table: sa.Table,
+    primary_key: str,
+    source_key: str,
+    rows: list[dict[str, Any]],
+) -> dict[str, str]:
+    """Map snapshot ids onto rows already present by their stable source identity."""
+    stored = connection.execute(
+        sa.select(table.c[primary_key], table.c.source, table.c[source_key])
+    ).all()
+    stored_by_identity = {
+        (_as_key(source), _as_key(external_id)): _as_key(row_id)
+        for row_id, source, external_id in stored
+        if external_id is not None
+    }
+    return {
+        _as_key(row[primary_key]): stored_by_identity.get(
+            (_as_key(row.get("source")), _as_key(row.get(source_key))),
+            _as_key(row[primary_key]),
+        )
+        for row in rows
+    }
+
+
+def _remap_columns(row: dict[str, Any], maps: dict[str, dict[str, str]]) -> None:
+    for column, id_map in maps.items():
+        value = row.get(column)
+        if value is not None:
+            row[column] = id_map.get(str(value), value)
+
 
 def _bind_value(column: sa.Column[Any], value: Any) -> Any:
     if value is None:
@@ -164,12 +209,13 @@ def upgrade() -> None:
     connection = op.get_bind()
     metadata = sa.MetaData()
     id_mappings = _build_id_mappings(connection, metadata, snapshot["tables"])
+    snapshot_rows = snapshot["tables"]
     for table_name in INSERT_ORDER:
-        rows = snapshot["tables"].get(table_name, [])
+        rows = snapshot_rows.get(table_name, [])
         if not rows:
             continue
-
         table = sa.Table(table_name, metadata, autoload_with=connection)
+        prepared_rows = []
         prepared_rows = []
         for row in rows:
             remapped_row = dict(row)
@@ -191,6 +237,58 @@ def upgrade() -> None:
             batch = prepared_rows[start : start + BATCH_SIZE]
             statement = postgresql.insert(table).values(batch).on_conflict_do_nothing()
             connection.execute(statement)
+
+        if table_name in SOURCE_KEY_COLUMNS:
+            primary_key, source_key = SOURCE_KEY_COLUMNS[table_name]
+            id_maps[table_name] = _natural_id_map(
+                connection, table, primary_key, source_key, rows
+            )
+        elif table_name == "candidates":
+            existing = connection.execute(
+                sa.select(table.c.candidate_id, table.c.detection_key)
+            ).all()
+            by_detection_key = {
+                _as_key(detection_key): _as_key(candidate_id)
+                for candidate_id, detection_key in existing
+                if detection_key is not None
+            }
+            id_maps[table_name] = {
+                str(row["candidate_id"]): by_detection_key.get(
+                    _as_key(row.get("detection_key")), str(row["candidate_id"])
+                )
+                for row in rows
+            }
+        elif table_name == "cases":
+            existing = connection.execute(
+                sa.select(table.c.case_id, table.c.candidate_id)
+            ).all()
+            by_candidate = {
+                _as_key(candidate_id): _as_key(case_id)
+                for case_id, candidate_id in existing
+                if candidate_id is not None
+            }
+            id_maps[table_name] = {
+                str(row["case_id"]): by_candidate.get(
+                    _as_key(id_maps.get("candidates", {}).get(
+                        str(row.get("candidate_id")), row.get("candidate_id")
+                    )),
+                    str(row["case_id"]),
+                )
+                for row in rows
+            }
+
+    # Candidate rows carry a denormalized case link without a database FK.
+    # Repair it when a snapshot case was mapped to an existing canonical row.
+    candidates = sa.Table("candidates", metadata, autoload_with=connection)
+    for row in snapshot_rows.get("candidates", []):
+        candidate_id = id_maps.get("candidates", {}).get(str(row["candidate_id"]))
+        case_id = id_maps.get("cases", {}).get(str(row.get("case_id")))
+        if candidate_id and case_id:
+            connection.execute(
+                candidates.update()
+                .where(candidates.c.candidate_id == candidate_id)
+                .values(case_id=case_id)
+            )
 
 
 def downgrade() -> None:

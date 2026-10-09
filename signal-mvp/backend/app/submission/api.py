@@ -7,10 +7,153 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.models.case import Case
 from backend.app.models.submissions import Submission
-from backend.app.models.workflow_records import Acknowledgement, SubmissionAttempt
+from backend.app.models.workflow_records import Acknowledgement, CaseWorkflowRecord, SubmissionAttempt
 from backend.app.models.audit_event import AuditEvent
 
 router = APIRouter(tags=["Submissions"])
+
+
+def _clinical_tracking_rows(db: Session) -> list[dict]:
+    """Combine persisted admin handoffs with persisted PHA transmission records."""
+    cases = db.query(Case).all()
+    case_ids = [str(case.case_id) for case in cases]
+    if not case_ids:
+        return []
+
+    workflow_rows = (
+        db.query(CaseWorkflowRecord)
+        .filter(CaseWorkflowRecord.case_id.in_(case_ids))
+        .filter(CaseWorkflowRecord.record_type.in_(("ADMIN_QUEUE", "REVIEW")))
+        .order_by(CaseWorkflowRecord.created_at.desc())
+        .all()
+    )
+    latest_queue: dict[str, CaseWorkflowRecord] = {}
+    latest_admin_review: dict[str, CaseWorkflowRecord] = {}
+    for row in workflow_rows:
+        if row.record_type == "ADMIN_QUEUE":
+            latest_queue.setdefault(row.case_id, row)
+        elif row.record_type == "REVIEW":
+            payload = row.payload if isinstance(row.payload, dict) else {}
+            role = str(payload.get("reviewer_role") or row.actor_id or "").casefold()
+            if "admin" in role or "administrator" in role:
+                latest_admin_review.setdefault(row.case_id, row)
+
+    submissions = (
+        db.query(Submission)
+        .filter(Submission.case_id.in_(case_ids))
+        .order_by(Submission.created_at.desc())
+        .all()
+    )
+    submissions_by_case: dict[str, list[Submission]] = {}
+    for submission in submissions:
+        submissions_by_case.setdefault(str(submission.case_id), []).append(submission)
+
+    result: list[dict] = []
+    for case in cases:
+        case_id = str(case.case_id)
+        queue = latest_queue.get(case_id)
+        queue_status = (queue.status if queue else "").upper()
+        review = latest_admin_review.get(case_id)
+        review_status = (review.status if review else "").upper()
+        if review_status == "APPROVE":
+            workflow_status = "Ready for Submission"
+        elif review_status == "REQUEST_INFORMATION":
+            workflow_status = "Returned for Correction"
+        elif review_status == "REJECT":
+            workflow_status = "Rejected"
+        elif queue_status == "READY_FOR_SUBMISSION":
+            workflow_status = "Ready for Submission"
+        elif queue_status == "QUEUED":
+            workflow_status = "Pending Admin Verification"
+        elif queue_status == "FAILED":
+            workflow_status = "Failed"
+        elif queue_status == "DISPATCHED":
+            workflow_status = "Submitted"
+        else:
+            workflow_status = queue_status.replace("_", " ").title() or "Not Queued"
+
+        patient = case.patient if isinstance(case.patient, dict) else {}
+        case_submissions = submissions_by_case.get(case_id, [])
+        if case_submissions:
+            for submission in case_submissions:
+                status = (submission.status or "").upper()
+                result.append({
+                    "record_id": submission.submission_id,
+                    "submission_id": submission.submission_id,
+                    "case_id": case_id,
+                    "patient": patient,
+                    "disease": case.disease,
+                    "jurisdiction": case.jurisdiction,
+                    "destination": submission.destination,
+                    "channel": submission.channel,
+                    "status": status,
+                    "workflow_status": {
+                        "SUBMITTED": "Submitted",
+                        "ACKNOWLEDGED": "Acknowledged",
+                        "ACCEPTED": "Acknowledged",
+                        "FAILED": "Failed",
+                        "ERROR": "Failed",
+                        "REJECTED": "Rejected",
+                    }.get(status, status.replace("_", " ").title() or workflow_status),
+                    "submitted_at": submission.created_at,
+                    "created_at": submission.created_at,
+                    "updated_at": submission.updated_at,
+                    "submission_mode": submission.submission_mode or case.submission_mode,
+                    "acknowledgement_id": submission.acknowledgement_id,
+                    "pha_case_id": submission.pha_case_id,
+                    "errors": submission.errors or [],
+                })
+        elif queue is not None:
+            result.append({
+                "record_id": f"QUEUE-{case_id}",
+                "submission_id": None,
+                "case_id": case_id,
+                "patient": patient,
+                "disease": case.disease,
+                "jurisdiction": case.jurisdiction,
+                "destination": case.jurisdiction,
+                "channel": None,
+                "status": queue_status or "QUEUED",
+                "workflow_status": workflow_status,
+                "submitted_at": None,
+                "created_at": queue.created_at,
+                "updated_at": queue.updated_at,
+                "submission_mode": case.submission_mode,
+                "acknowledgement_id": None,
+                "pha_case_id": None,
+                "errors": [],
+            })
+
+    return result
+
+
+@router.get("/api/clinical/submissions")
+def list_clinical_submission_tracking(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: str | None = Query(None, max_length=200),
+    status: str | None = Query(None, max_length=50),
+    db: Session = Depends(get_db),
+) -> dict:
+    items = _clinical_tracking_rows(db)
+    if status:
+        items = [item for item in items if item["status"].casefold() == status.casefold()]
+    if search and search.strip():
+        needle = search.strip().casefold()
+        items = [item for item in items if needle in " ".join(str(value or "") for value in (
+            item["patient"].get("name"), item["patient"].get("full_name"),
+            item["disease"], item["jurisdiction"], item["case_id"], item["submission_id"],
+        )).casefold()]
+    items.sort(key=lambda item: item["created_at"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    total = len(items)
+    start = (page - 1) * page_size
+    return {
+        "items": items[start:start + page_size],
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "pages": (total + page_size - 1) // page_size,
+    }
 
 
 def _submission_payload(db: Session, submission: Submission) -> dict:
@@ -28,12 +171,9 @@ def _submission_payload(db: Session, submission: Submission) -> dict:
         "patient": case.patient if case else {},
         "disease": case.disease if case else None,
         "jurisdiction": case.jurisdiction if case else None,
-
         "submitted_by": submitted_event.actor_id if submitted_event else None,
         "batch_id": (submitted_event.new_value or {}).get("batch_id") if submitted_event else None,
         "pha_case_id": submission.pha_case_id,
-
-
         "destination": submission.destination,
         "channel": submission.channel,
         "status": submission.status,

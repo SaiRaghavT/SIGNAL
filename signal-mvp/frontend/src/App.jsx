@@ -1,120 +1,393 @@
-﻿import { Navigate, Route, Routes } from "react-router-dom";
-import { AppShell } from "./components/layout/AppShell.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import Patients from "./pages/Patients.jsx";
-import PatientWorkspace from "./pages/PatientWorkspace.jsx";
-import { CasesPage } from "./pages/CasesPage.jsx";
-import CaseWorkspacePage from "./pages/CaseWorkspacePage.jsx";
-import { SubmissionsPage } from "./pages/SubmissionsPage.jsx";
-import { AnalyticsPage } from "./pages/AnalyticsPage.jsx";
-import { AuditPage } from "./pages/AuditPage.jsx";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminAudit from "./pages/admin/AdminAudit.jsx";
-import AdminDeadlines from "./pages/admin/AdminDeadlines.jsx";
-import AdminImmediateReview from "./pages/admin/AdminImmediateReview.jsx";
-import AdminIndividualReview from "./pages/admin/AdminIndividualReview.jsx";
-import AdminBatchReview from "./pages/admin/AdminBatchReview.jsx";
-import AdminQueue from "./pages/admin/AdminQueue.jsx";
-import Login from "./pages/Login.jsx";
-import AdminSubmissions from "./pages/admin/AdminSubmissions.jsx";
-import AdminSubmissionAcknowledgement from "./pages/admin/AdminSubmissionAcknowledgement.jsx";
-import AdminShell from "./components/layout/AdminShell.jsx";
-import ReportingFormPage from "./pages/ReportingFormPage.jsx";
-import SubmissionWorkspace from "./pages/SubmissionWorkspace.jsx";
-import CaseCompletion from "./pages/CaseCompletion.jsx";
-import QueueAcknowledgementPage from "./pages/QueueAcknowledgementPage.jsx";
-import AdminCaseReview from "./pages/admin/AdminCaseReview.jsx";
-import {
-  AgentDetailPage,
-  AgentGovernancePage,
-  EvaluationPage,
-  ExplainabilityPage,
-  GovernanceOverview,
-  LearningSignalDetail,
-  MonitoringPage,
-  OutcomeLearningPage,
-} from "./pages/AiGovernance.jsx";
-import "./styles/ai-governance-feature.css";
-import "./styles/AiGovernance.css";
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
+import { Activity, AlertTriangle, Bell, Check, ChevronRight, ClipboardList, FileCheck2, LayoutDashboard, Search, Settings, ShieldCheck, Users, BriefcaseBusiness, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Menu, RefreshCw } from 'lucide-react'
+import './App.css'
+import './styles/ai-governance-feature.css'
+import './styles/AiGovernance.css'
+import CaseWorkspacePage from './pages/CaseWorkspacePage.jsx'
+import CaseCompletion from './pages/CaseCompletion.jsx'
+import FollowUpWorkspace from './pages/FollowUpWorkspace.jsx'
+import QueueAcknowledgementPage from './pages/QueueAcknowledgementPage.jsx'
+import ReportingFormPage from './pages/ReportingFormPage.jsx'
+import SubmissionWorkspace from './pages/SubmissionWorkspace.jsx'
+import { GovernanceOverview, MonitoringPage, EvaluationPage, ExplainabilityPage, AgentGovernancePage, OutcomeLearningPage, LearningSignalDetail, AgentDetailPage } from './pages/AiGovernance.jsx'
+import SeedReportingFormPage from './pages/SeedReportingFormPage.jsx'
+import { reportingWorkflowService } from './services/reportingWorkflowService.js'
+import { listCandidates, getCandidate, detectPatientCandidates } from './api/candidates.js'
+import { getCanonicalPatient, listCanonicalPatients } from './api/canonical.js'
+import { getDashboardSummary } from './api/dashboard.js'
+import { listCases } from './api/cases.js'
+import { getCaseReview, attestCase, prepareManualReport, renderForm, submitEcr } from './api/workflow.js'
+import { request } from './api/client.js'
+import { reviewCase } from './api/workflow.js'
+import { candidateForUi } from './services/candidateData.js'
+import { CasesPage } from './pages/CasesPage.jsx'
+import Patients from './pages/Patients.jsx'
+import PatientWorkspace from './pages/PatientWorkspace.jsx'
+import ClinicalDashboard from './pages/Dashboard.jsx'
+import { ReportingAdminDashboard, ReportingAdminQueue, ReportingAdminCaseReview, ReportingAdminSubmissions, ReportingAdminSubmissionDetail, ReportingAdminDeadlines, ReportingAdminSettings } from './pages/ReportingAdmin.jsx'
+import clinicalAnatomyReference from './assets/clinical-anatomy-reference.png'
+import AdminShell from './components/layout/AdminShell.jsx'
+import AdminAudit from './pages/admin/AdminAudit.jsx'
+import AdminDeadlines from './pages/admin/AdminDeadlines.jsx'
+import AdminImmediateReview from './pages/admin/AdminImmediateReview.jsx'
+import AdminIndividualReview from './pages/admin/AdminIndividualReview.jsx'
+import AdminBatchReview from './pages/admin/AdminBatchReview.jsx'
+import AdminQueue from './pages/admin/AdminQueue.jsx'
+import BranchAdminDashboard from './pages/admin/AdminDashboard.jsx'
+import AdminSubmissions from './pages/admin/AdminSubmissions.jsx'
+import AdminSubmissionAcknowledgement from './pages/admin/AdminSubmissionAcknowledgement.jsx'
+import AdminCaseReview from './pages/admin/AdminCaseReview.jsx'
+import { SubmissionsPage } from './pages/SubmissionsPage.jsx'
 
-// Clear temporary workflow values whenever the frontend boots. These values
-// survive route changes, but a frontend restart starts a clean local session.
-if (typeof window !== "undefined") {
-  const transientPrefixes = [
-    "signal:missing-information:",
-    "signal:reporting-preview:",
-    "signal:case-workflow-session:",
-    "signal:demo-workflow:",
-  ];
-  for (const storage of [window.sessionStorage, window.localStorage]) {
-    for (let index = storage.length - 1; index >= 0; index -= 1) {
-      const key = storage.key(index);
-      if (key && transientPrefixes.some((prefix) => key.startsWith(prefix))) {
-        storage.removeItem(key);
-      }
+const CandidateContext = createContext(null)
+const getSavedRole = () => {
+  const savedRole = localStorage.getItem('signalRole')
+  return savedRole === 'admin' || savedRole === 'reporting_admin' ? 'admin' : 'clinical'
+}
+
+function App() {
+  const [queue, setQueue] = useState([])
+  const [role,setRole] = useState(getSavedRole)
+  const [caseStates,setCaseStates] = useState(()=>reportingWorkflowService.getCaseStates())
+  useEffect(()=>{
+    let active=true
+    Promise.all([listCases({page:1,page_size:100}),request('/api/submissions?page=1&page_size=100').catch(()=>({items:[]}))]).then(async ([caseResult,submissionResult])=>{
+      const databaseCases=caseResult.items||[]
+      const reviews=await Promise.all(databaseCases.map(item=>getCaseReview(item.case_id).catch(()=>null)))
+      if(!active)return
+      const submissionsByCase=new Map((submissionResult.items||[]).map(item=>[item.case_id,item]))
+      const persisted=Object.fromEntries(databaseCases.map((item,index)=>{
+        const review=reviews[index],decision=String(review?.status||review?.payload?.decision||'').toUpperCase(),submission=submissionsByCase.get(item.case_id)
+        const adminVerificationStatus=decision==='APPROVE'?'Verified':decision==='REQUEST_INFORMATION'?'Returned for Correction':'Pending Admin Verification'
+        const submissionStatus=submission?.status==='SUBMITTED'?'Submitted':submission?.status==='ACKNOWLEDGED'?'Acknowledged':adminVerificationStatus==='Verified'?'Ready for Submission':'Not Submitted'
+        return [item.candidate_id,{caseId:item.case_id,status:submissionStatus==='Not Submitted'?adminVerificationStatus:submissionStatus,adminVerificationStatus,submissionStatus,adminReviewer:review?.actor_id,adminDecisionAt:review?.updated_at,submittedAt:submission?.created_at,pha:submission?.destination}]
+      }))
+      const stored=reportingWorkflowService.getCaseStates(),nextStates={...stored,...persisted}
+      const ids=[...new Set(databaseCases.map(item=>item.candidate_id))]
+      localStorage.setItem('signalQueue',JSON.stringify(ids));setQueue(ids);setCaseStates(nextStates)
+    }).catch(()=>{})
+    return()=>{active=false}
+  },[])
+  const addToQueue = async (candidate) => {
+    const id = candidate.id
+    let caseId = caseStates[id]?.caseId
+    if (!caseId && /^[0-9a-f-]{36}$/i.test(id)) {
+      const result = await request('/api/candidate/process', { method: 'POST', body: JSON.stringify({ candidate_id: id }) })
+      caseId = result.case?.case_id
+      if (!caseId) throw new Error('The backend did not create a reporting case.')
     }
+    if (caseId && /^[0-9a-f-]{36}$/i.test(caseId)) {
+      await reviewCase(caseId, { reviewer_id: 'clinical-staff', reviewer_role: 'Clinical Staff', decision: 'APPROVE', comments: 'Clinical Staff reviewed the reporting values and available source evidence.' })
+      await attestCase(caseId, { reviewer_id: 'clinical-staff', reviewer_role: 'Clinical Staff', attestation_status: 'ATTESTED', comments: 'Clinical Staff attests to the reviewed reporting information.' })
+      const prepared = await prepareManualReport({ case_id: caseId, reporting_method: 'FORM', notes: 'Prepared after Clinical Staff review.' })
+      if (prepared.status !== 'READY_FOR_RENDERING') throw new Error(prepared.missing_fields?.length ? `Required reporting information is missing: ${prepared.missing_fields.join(', ')}` : 'Reporting data is not ready to prepare a submission form.')
+      const rendered = await renderForm({ case_id: caseId, form_id: prepared.form_id, form_version: prepared.form_version, report_data: prepared.report_data })
+      if (rendered.status !== 'RENDERED' || !rendered.report_id) throw new Error('The reporting form could not be generated.')
+    }
+    const now = new Date().toLocaleString()
+    setQueue(current => { const next = current.includes(id) ? current : [...current, id]; localStorage.setItem('signalQueue', JSON.stringify(next)); return next })
+    reportingWorkflowService.setCaseState(id,{caseId,clinicalReviewStatus:'Complete',clinicalReviewer:'Clinical Staff',clinicalCompletedAt:now,adminVerificationStatus:'Pending Admin Verification',submissionStatus:'Not Submitted',status:'Pending Admin Verification',queuedAt:now})
+    setCaseStates(reportingWorkflowService.getCaseStates())
   }
+  const setCaseState=async (id,patch)=>{
+    const current = reportingWorkflowService.getCaseStates()[id] || {}
+    if (patch.adminVerificationStatus && current.caseId && /^[0-9a-f-]{36}$/i.test(current.caseId)) {
+      await reviewCase(current.caseId, {
+        reviewer_id: 'reporting-admin',
+        reviewer_role: 'Reporting Administrator',
+        decision: patch.adminVerificationStatus === 'Verified' ? 'APPROVE' : 'REQUEST_INFORMATION',
+        comments: patch.adminVerificationStatus === 'Verified' ? 'Approved for submission.' : 'Returned for correction.',
+      })
+    }
+    if(patch.submissionStatus==='Acknowledged')reportingWorkflowService.acknowledgeCase(id);else reportingWorkflowService.setCaseState(id,patch)
+    setCaseStates(reportingWorkflowService.getCaseStates())
+  }
+  const submitCase=async id=>{
+    const current=reportingWorkflowService.getCaseStates()[id]||{}
+    if(current.adminVerificationStatus!=='Verified'||current.submissionStatus!=='Ready for Submission')throw new Error('Only individually verified cases can be submitted.')
+    if(!current.caseId)throw new Error('This candidate is not linked to a persisted reporting case.')
+    await attestCase(current.caseId,{reviewer_id:'reporting-admin',reviewer_role:'Reporting Administrator',attestation_status:'ATTESTED',comments:'Verified and approved for per-case submission.'})
+    const prepared=await prepareManualReport({case_id:current.caseId,reporting_method:'FORM',notes:'Individual case submission'})
+    if(prepared.status!=='READY_FOR_RENDERING')throw new Error(prepared.missing_fields?.length?`Reporting data needs attention: ${prepared.missing_fields.join(', ')}`:'The report is not ready for rendering.')
+    const rendered=await renderForm({case_id:current.caseId,form_id:prepared.form_id,form_version:prepared.form_version,report_data:prepared.report_data})
+    if(rendered.status!=='RENDERED'||!rendered.report_id)throw new Error('The reporting form could not be generated.')
+    const result=await submitEcr(current.caseId)
+    if(!result.submission_id||!['SUBMITTED','ACKNOWLEDGED'].includes(String(result.status||'').toUpperCase()))throw new Error(result.errors?.join(', ')||`Submission was not accepted (${result.status||'unknown status'}).`)
+    const status=String(result.status).toUpperCase()==='ACKNOWLEDGED'?'Acknowledged':'Submitted'
+    reportingWorkflowService.setCaseState(id,{submissionStatus:status,status,submissionId:result.submission_id,submittedAt:new Date().toISOString(),pha:result.destination})
+    setCaseStates(reportingWorkflowService.getCaseStates())
+    return result
+  }
+  return <BrowserRouter><Routes>
+    <Route path="/login" element={<Login type="clinical" onLogin={setRole} />} />
+    <Route path="/admin/login" element={<Login type="admin" onLogin={setRole} />} />
+    <Route path="*" element={<Shell queue={queue} role={role}><Routes>
+      <Route path="/" element={<RoleGate role={role} required="clinical"><ClinicalDashboard/></RoleGate>} /><Route path="/dashboard" element={<RoleGate role={role} required="clinical"><ClinicalDashboard/></RoleGate>} />
+      <Route path="/admin/dashboard" element={<RoleGate role={role} required="admin"><BranchAdminDashboard/></RoleGate>}/>
+      <Route path="/patients" element={<RoleGate role={role} required="clinical"><Patients/></RoleGate>} />
+      <Route path="/patients/:patientId" element={<RoleGate role={role} required="clinical"><PatientWorkspace/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId" element={<RoleGate role={role} required="clinical"><CaseWorkspacePage/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/reporting-form" element={<RoleGate role={role} required="clinical"><ReportingFormPage/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/submission" element={<RoleGate role={role} required="clinical"><SubmissionWorkspace/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/follow-up" element={<RoleGate role={role} required="clinical"><FollowUpWorkspace/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/completion" element={<RoleGate role={role} required="clinical"><CaseCompletion/></RoleGate>} />
+      <Route path="/patients/:patientId/case/:caseId/queue" element={<RoleGate role={role} required="clinical"><QueueAcknowledgementPage/></RoleGate>} />
+      <Route path="/cases/:caseId" element={<RoleGate role={role} required="clinical"><CaseWorkspacePage/></RoleGate>} />
+      <Route path="/cases/:caseId/reporting-form" element={<RoleGate role={role} required="clinical"><ReportingFormPage/></RoleGate>} />
+      <Route path="/cases/:caseId/completion" element={<RoleGate role={role} required="clinical"><CaseCompletion/></RoleGate>} />
+      <Route path="/cases/:caseId/queue" element={<RoleGate role={role} required="clinical"><QueueAcknowledgementPage/></RoleGate>} />
+      <Route path="/submissions/case/:caseId" element={<RoleGate role={role} required="clinical"><SubmissionWorkspace/></RoleGate>} />
+      <Route path="/follow-ups/case/:caseId" element={<RoleGate role={role} required="clinical"><FollowUpWorkspace/></RoleGate>} />
+      <Route path="/candidates" element={<RoleGate role={role} required="clinical"><Candidates caseStates={caseStates}/></RoleGate>} /><Route path="/candidates/:id" element={<RoleGate role={role} required="clinical"><CandidateRoute><CandidateDetails caseStates={caseStates}/></CandidateRoute></RoleGate>} />
+      <Route path="/candidates/:id/reporting-form" element={<RoleGate role={role} required="clinical"><SeedReportingFormPage/></RoleGate>} />
+      <Route path="/candidates/:id/extraction" element={<RoleGate role={role} required="clinical"><CandidateRoute><Extraction /></CandidateRoute></RoleGate>} /><Route path="/candidates/:id/reporting-data" element={<RoleGate role={role} required="clinical"><CandidateRoute><ReportingData /></CandidateRoute></RoleGate>} />
+      <Route path="/candidates/:id/review" element={<RoleGate role={role} required="clinical"><CandidateRoute><ClinicalReviewPage addToQueue={addToQueue} caseStates={caseStates}/></CandidateRoute></RoleGate>} />
+      <Route path="/queue-confirmation/:id" element={<RoleGate role={role} required="clinical"><CandidateRoute><QueueConfirmation caseStates={caseStates}/></CandidateRoute></RoleGate>}/>
+      <Route path="/admin/reporting-queue" element={<RoleGate role={role} required="admin"><ReportingAdminQueue/></RoleGate>}/>
+      <Route path="/admin/reporting-queue/batch" element={<Navigate to="/admin/submission-batches" replace/>}/>
+      <Route path="/admin/reporting-queue/:id" element={<RoleGate role={role} required="admin"><ReportingAdminCaseReview/></RoleGate>}/>
+      <Route path="/admin/queue" element={<RoleGate role={role} required="admin"><AdminQueue/></RoleGate>}/>
+      <Route path="/admin/queue/:caseId/immediate" element={<RoleGate role={role} required="admin"><AdminImmediateReview/></RoleGate>}/>
+      <Route path="/admin/queue/:caseId/individual" element={<RoleGate role={role} required="admin"><AdminIndividualReview/></RoleGate>}/>
+      <Route path="/admin/queue/:caseId" element={<RoleGate role={role} required="admin"><AdminCaseReview/></RoleGate>}/>
+      <Route path="/admin/submission-batches" element={<RoleGate role={role} required="admin"><AdminBatches/></RoleGate>}/>
+      <Route path="/admin/submission-batches/:batchId" element={<RoleGate role={role} required="admin"><AdminBatchDetail/></RoleGate>}/>
+      <Route path="/admin/batches/:batchId" element={<RoleGate role={role} required="admin"><AdminBatchReview/></RoleGate>}/>
+      <Route path="/admin/submissions" element={<RoleGate role={role} required="admin"><AdminSubmissions/></RoleGate>}/>
+      <Route path="/admin/submissions/:submissionId/acknowledgement" element={<RoleGate role={role} required="admin"><AdminSubmissionAcknowledgement/></RoleGate>}/>
+      <Route path="/admin/submissions/:batchId" element={<RoleGate role={role} required="admin"><ReportingAdminSubmissionDetail/></RoleGate>}/>
+      <Route path="/admin/deadlines" element={<RoleGate role={role} required="admin"><AdminDeadlines/></RoleGate>}/>
+      <Route path="/admin/settings" element={<RoleGate role={role} required="admin"><ReportingAdminSettings/></RoleGate>}/>
+      <Route path="/admin/follow-ups" element={<RoleGate role={role} required="admin"><FollowUpsPage/></RoleGate>}/><Route path="/admin/audit" element={<RoleGate role={role} required="admin"><AdminAudit/></RoleGate>}/>
+      <Route path="/follow-ups" element={<FollowUpsPage/>}/><Route path="/analytics" element={<AnalyticsPage/>}/><Route path="/audit" element={<AuditPage/>}/>
+      <Route path="/reporting-queue" element={<RoleGate role={role} required="admin"><FinalAdminQueue queue={queue} caseStates={caseStates}/></RoleGate>} />
+      <Route path="/reporting-queue/:id/verify" element={<RoleGate role={role} required="admin"><Navigate to="/admin/reporting-queue" replace/></RoleGate>} />
+      <Route path="/reporting-queue/batch" element={<Navigate to="/admin/reporting-queue" replace/>} />
+      <Route path="/submissions" element={<RoleGate role={role} required="clinical"><SubmissionsPage/></RoleGate>} />
+      <Route path="/cases" element={<CasesPage />} /><Route path="/investigation" element={<Investigation />} /><Route path="/governance" element={<Governance />} />
+      <Route path="/governance/monitoring" element={<MonitoringPage/>}/><Route path="/governance/evaluation" element={<EvaluationPage/>}/><Route path="/governance/explainability" element={<ExplainabilityPage/>}/><Route path="/governance/agents" element={<AgentGovernancePage/>}/><Route path="/governance/outcome-learning" element={<OutcomeLearningPage/>}/><Route path="/governance/outcome-learning/:signalId" element={<LearningSignalDetail/>}/><Route path="/governance/agents/:agentId" element={<AgentDetailPage/>}/>
+    </Routes></Shell>} />
+  </Routes></BrowserRouter>
 }
 
-export default function App() {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route element={<AppShell />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/patients" element={<Patients />} />
-        <Route path="/patients/:patientId" element={<PatientWorkspace />} />
-        <Route path="/patients/:patientId/case/:caseId" element={<CaseWorkspacePage />} />
-        <Route path="/patients/:patientId/case/:caseId/reporting-form" element={<ReportingFormPage />} />
-        <Route path="/patients/:patientId/case/:caseId/submission" element={<SubmissionWorkspace />} />
-        <Route path="/patients/:patientId/case/:caseId/completion" element={<CaseCompletion />} />
-        <Route path="/patients/:patientId/case/:caseId/queue" element={<QueueAcknowledgementPage />} />
-        <Route path="/cases" element={<CasesPage />} />
-        <Route path="/cases/:caseId" element={<CaseWorkspacePage />} />
-        <Route path="/cases/:caseId/reporting-form" element={<ReportingFormPage />} />
-        <Route path="/cases/:caseId/completion" element={<CaseCompletion />} />
-        <Route path="/cases/:caseId/queue" element={<QueueAcknowledgementPage />} />
-        <Route path="/submissions" element={<SubmissionsPage />} />
-        <Route path="/submissions/case/:caseId" element={<SubmissionWorkspace />} />
-        <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/audit" element={<AuditPage />} />
-        <Route path="/governance" element={<GovernanceOverview />} />
-        <Route path="/governance/monitoring" element={<MonitoringPage />} />
-        <Route path="/governance/evaluation" element={<EvaluationPage />} />
-        <Route path="/governance/explainability" element={<ExplainabilityPage />} />
-        <Route path="/governance/agents" element={<AgentGovernancePage />} />
-        <Route path="/governance/agents/:agentId" element={<AgentDetailPage />} />
-        <Route path="/governance/outcome-learning" element={<OutcomeLearningPage />} />
-        <Route path="/governance/outcome-learning/:signalId" element={<LearningSignalDetail />} />
-      </Route>
-      <Route element={<AdminShell />}>
-  <Route path="/admin/dashboard" element={<AdminDashboard />} />
-  <Route path="/admin/queue" element={<AdminQueue />} />
-  <Route path="/admin/deadlines" element={<AdminDeadlines />} />
-  <Route path="/admin/audit" element={<AdminAudit />} />
-  <Route path="/admin/batches/:batchId" element={<AdminBatchReview />} />
-
-  <Route
-    path="/admin/queue/:caseId/immediate"
-    element={<AdminImmediateReview />}
-  />
-
-  <Route
-    path="/admin/queue/:caseId/individual"
-    element={<AdminIndividualReview />}
-  />
-
-  <Route
-    path="/admin/queue/:caseId"
-    element={<AdminCaseReview />}
-  />
-
-  <Route path="/admin/submissions" element={<AdminSubmissions />} />
-  <Route path="/admin/submissions/:submissionId/acknowledgement" element={<AdminSubmissionAcknowledgement />} />
-</Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
-  );
+function RoleGate({role,required,children}) {
+  if (role === required) return children
+  return <Navigate to={role==='admin'?'/admin/dashboard':'/dashboard'} replace/>
 }
 
+function Shell({ children, queue, role }) {
+  const [open, setOpen] = useState(false)
+  if (role === 'admin') return <AdminShell>{children}</AdminShell>
+  const nav = [['Dashboard','/dashboard',LayoutDashboard],['Patients','/patients',Users],['Cases','/cases',BriefcaseBusiness],['Submissions','/submissions',FileCheck2],['Analytics','/analytics',Activity],['Technical / Audit','/audit',ClipboardList]]
+  return <div className="app-shell"><aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
+    <Link className="brand" to={role==='admin'?'/admin/dashboard':'/dashboard'}><div className="brand-logo">S</div><div><b>SIGNAL</b><small>INTELLIGENCE LAYER</small></div></Link>
+    <div className="sidebar-scroll"><div className="nav-title">{role==='admin'?'ADMIN':'WORKSPACE'}</div>{role==='admin'?<><nav className="navigation">{nav.slice(0,1).map(([label,path,Icon])=><NavLink key={path} to={path} className={({isActive})=>`nav-item ${isActive?'active':''}`}><Icon size={17}/><span>{label}</span></NavLink>)}</nav><div className="nav-title">SUBMISSION</div><nav className="navigation">{nav.slice(1,4).map(([label,path,Icon])=><NavLink key={path} to={path} className={({isActive})=>`nav-item ${isActive?'active':''}`}><Icon size={17}/><span>{label}</span></NavLink>)}</nav><nav className="navigation">{nav.slice(4).map(([label,path,Icon])=><NavLink key={path} to={path} className={({isActive})=>`nav-item ${isActive?'active':''}`}><Icon size={17}/><span>{label}</span></NavLink>)}</nav></>:<><nav className="navigation">{nav.map(([label,path,Icon])=><NavLink key={path} to={path} className={({isActive})=>`nav-item ${isActive?'active':''}`}><Icon size={17}/><span>{label}</span></NavLink>)}</nav><div className="sidebar-governance"><div className="nav-title">AI GOVERNANCE</div>{[['Overview','/governance'],['AI Monitoring','/governance/monitoring'],['Model Evaluation','/governance/evaluation'],['Explainability','/governance/explainability'],['Agent Governance','/governance/agents']].map(([label,path])=><NavLink end key={path} to={path} className={({isActive})=>`nav-item ${isActive?'active':''}`}><ShieldCheck size={15}/><span>{label}</span></NavLink>)}</div><div className="sidebar-extra"><NavLink to="/investigation" className="nav-item"><Search size={17}/><span>Investigation</span></NavLink><button className="nav-item"><Settings size={17}/><span>Settings</span></button></div></>}</div><div className="sidebar-footer"><div className="user-card"><div className="avatar">{role==='admin'?'RA':'CS'}</div><div><div className="user-name">{role==='admin'?'Reporting Administrator':'Clinical Staff'}</div><div className="user-role">{role==='admin'?'Reporting Administrator':'Clinical Staff'}</div></div></div><Link to={role==='admin'?'/admin/login':'/login'} className="switch-role">Sign out</Link><div className="powered">Powered by <b>feuji</b></div></div>
+  </aside><main className="main-content"><header className="header"><button className="mobile-menu" onClick={()=>setOpen(!open)}><Menu/></button><span className="mobile-brand">SIGNAL</span><div className="header-actions"><div className="system-status"><span className="status-dot"/>Demo Environment · Synthetic Data</div><button className="notification-button"><Bell size={18}/></button><div className="header-profile"><div className="header-avatar">{role==='admin'?'RA':'CS'}</div><div><b>{role==='admin'?'Reporting Administrator':'Clinical Staff'}</b><small>{role==='admin'?'Reporting Administrator':'Clinical Staff'}</small></div></div></div></header>{children}</main></div>
+}
+function Page({title,subtitle,children}) { return <div className="page"><div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div></div>{children}</div> }
+function Metric({label,value,note,tone='blue'}) { return <div className={`metric-card ${tone}`}><span>{label}</span><strong>{value}</strong><small>{note}</small><Activity className="metric-spark" size={19}/></div> }
+function Dashboard({caseStates}) {
+  const [data,setData]=useState(null),[error,setError]=useState('')
+  useEffect(()=>{let active=true;Promise.all([getDashboardSummary(),listCandidates({page:1,page_size:8})]).then(([summary,candidates])=>{if(active)setData({summary,candidates})}).catch(e=>{if(active)setError(e.message||'Unable to load database dashboard data.')});return()=>{active=false}},[])
+  const summary=data?.summary,candidateResult=data?.candidates
+  const rows=(candidateResult?.items||[]).map(item=>candidateForUi(item))
+  const activeCount=(candidateResult?.items||[]).filter(item=>!['CLOSED','REJECTED','PROCESSED'].includes(String(item.status).toUpperCase())).length
+  return <Page title="Dashboard" subtitle="Public health reporting operations at a glance">{error&&<div className="alert-banner"><AlertTriangle size={17}/><div><b>Dashboard data unavailable</b><p>{error}</p></div></div>}{!data&&<div className="panel pad">Loading dashboard data from SIGNAL…</div>}{data&&<><section className="metrics-grid"><Metric label="TOTAL CANDIDATES" value={candidateResult.total} note="Persisted candidate records"/><Metric label="ACTIVE CANDIDATES" value={activeCount} note="From candidate detection" tone="orange"/><Metric label="CANDIDATES DUE" value={summary.upcoming_deadlines} note="Upcoming reporting deadlines" tone="red"/><Metric label="REPORTED CASES" value={summary.submitted_cases} note="Persisted submissions" tone="green"/></section><section className="panel priority-panel"><div className="panel-header"><div><h3>Priority Work <span className="dark-pill">{rows.length} candidates</span></h3><p>Candidate records requiring clinical review or public-health reporting action</p></div><Link className="button secondary" to="/candidates">View All Candidates</Link></div>{rows.length?<CandidateTable rows={rows} compact caseStates={caseStates}/>:<div className="empty-state"><h3>No detected candidates yet</h3><p>Candidate records will appear after detection runs against the seeded clinical data.</p><Link className="button secondary" to="/candidates">Open Candidates</Link></div>}</section></>}</Page>
+}
+function CandidateTable({rows,compact=false,caseStates={}}) { return <div className="table-wrapper"><table><thead><tr>{(compact?['Candidate','Work Item','Jurisdiction','Priority','Status','Action']:['Candidate ID','Patient','Condition','Jurisdiction','Priority','Detected At','Status','Action']).map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{rows.map(c=>{const status=caseStates[c.id]?.status||c.status;return <tr key={c.id}><td><div className="table-patient"><div className="small-avatar">{c.initials}</div><div><b>{c.patient}</b><small>{c.id}</small></div></div></td>{compact?<><td><span className="condition-pill">● {c.condition}</span></td><td>{c.jurisdiction}</td><td><Badge value={c.priority}/></td><td><Badge value={status}/></td></>:<><td>{c.patient}</td><td>{c.condition}</td><td>{c.jurisdiction}</td><td><Badge value={c.priority}/></td><td>{c.detected}</td><td><Badge value={status}/></td></>}<td><Link className="button small secondary" to={`/candidates/${c.id}`}>{status==='Pending Admin Verification'?'View':compact?(status==='Needs Review'?'View':status==='Ready to Submit'?'Resolve':'Review'):'View'}</Link></td></tr>})}</tbody></table></div> }
+function Badge({value}) { let key=value.toLowerCase().replaceAll(' ','-'); return <span className={`badge ${key}`}>{value}</span> }
+function Candidates({caseStates}) {
+ const [q,setQ]=useState(''),[status,setStatus]=useState('All statuses'),[priority,setPriority]=useState('All priorities')
+ const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[scanning,setScanning]=useState(false),[progress,setProgress]=useState('')
+ const reloadCandidates=async()=>{const response=await listCandidates({page:1,page_size:100});const mapped=(response.items||[]).map(item=>candidateForUi(item));setRows(mapped);return {...response,mapped}}
+ const scanPatients=async()=>{
+  setScanning(true);setProgress('Loading canonical FHIR patient records...');setError('')
+  try {
+   let page=1,patients=[],pages=1
+   do{const result=await listCanonicalPatients({page,page_size:100});patients=patients.concat(result.items||[]);pages=result.pages||1;page++}while(page<=pages)
+   let cursor=0,completed=0,detected=0,failures=0
+   const worker=async()=>{while(cursor<patients.length){const patient=patients[cursor++];try{const result=await detectPatientCandidates(patient.patient_id);detected+=result.candidate_count??result.candidates?.length??0}catch{failures++}completed++;setProgress(`Scanned ${completed} of ${patients.length} patients - ${detected} candidates found`)}}
+   await Promise.all(Array.from({length:Math.min(4,patients.length)},worker));await reloadCandidates()
+   setProgress(`Detection complete - ${detected} candidates found${failures?` - ${failures} records could not be scanned`:''}`)
+  }catch(e){setError(e.message||'Candidate detection could not be completed.')}finally{setScanning(false);setLoading(false)}
+ }
+ useEffect(()=>{let active=true;listCandidates({page:1,page_size:100}).then(async response=>{if(!active)return;setRows((response.items||[]).map(item=>candidateForUi(item)));setLoading(false);if(response.total===0)await scanPatients()}).catch(e=>{if(active){setError(e.message||'Unable to load candidates from the database.');setLoading(false)}});return()=>{active=false}},[])
+ const list=rows.map(c=>({...c,status:caseStates[c.id]?.status||c.status})).filter(c=>(`${c.id} ${c.patient} ${c.condition} ${c.jurisdiction}`.toLowerCase().includes(q.toLowerCase()))&&(status==='All statuses'||c.status===status)&&(priority==='All priorities'||c.priority===priority))
+ return <Page title="Candidates" subtitle="Reporting candidates identified from canonical FHIR patient and clinical data.">{error&&<div className="alert-banner"><AlertTriangle size={17}/><div><b>Candidate data issue</b><p>{error}</p></div></div>}<div className="toolbar"><label className="search-field"><Search size={17}/><input placeholder="Search candidates" value={q} onChange={e=>setQ(e.target.value)}/></label><select value={status} onChange={e=>setStatus(e.target.value)}><option>All statuses</option>{[...new Set(rows.map(c=>c.status))].map(x=><option key={x}>{x}</option>)}</select><select value={priority} onChange={e=>setPriority(e.target.value)}><option>All priorities</option><option>High</option><option>Medium</option><option>Review</option></select><button className="button secondary" disabled={loading||scanning} onClick={scanPatients}>{scanning?'Detecting...':'Run Candidate Detection'}</button><span className="result-count">{rows.length} candidates</span></div>{progress&&<div className="note" role="status">{progress}</div>}{loading?<div className="panel pad">Loading candidate data...</div>:<section className="panel">{list.length?<CandidateTable rows={list} caseStates={caseStates}/>:<div className="empty-state"><h3>{rows.length?'No candidates match these filters':'No candidates detected from the available data'}</h3><p>{rows.length?'Adjust the search or filters.':'Candidate detection found no reportable signals in the connected FHIR records.'}</p></div>}</section>}</Page>
+}
+
+function Crumbs({active,id}) { const c=useCandidate(); return <div className="crumbs"><Link to="/candidates">Candidates</Link><ChevronRight/><Link to={`/candidates/${id}`}>{c.patient}</Link>{active!=='Candidate Details'&&<span><ChevronRight/>{active}</span>}</div> }
+function CandidateDetails() {
+ const c=useCandidate(),navigate=useNavigate(),evidenceItems=c.evidenceItems||[]
+ return <Page title="Candidate Details" subtitle="Review patient context, clinical evidence, and reporting status."><Crumbs active="Active Candidate" id={c.id}/><div className="candidate-banner"><div className="case-info"><div className="large-avatar">{c.initials}</div><div><h2>{c.patient} <Badge value={c.status}/></h2><p>Source ID: {c.mrn} - DOB: {c.dob} - {c.sex}</p></div></div><div className="case-id"><small>REPORTING CANDIDATE</small><b>{c.id}</b></div></div><div className="alert-banner"><AlertTriangle size={17}/><div><b>Reporting Context</b><p>Detected from this candidate's available clinical records. Review linked evidence before routing this case.</p></div></div><div className="two-column"><section className="panel pad"><PanelTitle title="Patient Information" sub="Canonical demographic record"/><div className="info-grid">{[['FULL NAME',c.patient],['SOURCE PATIENT ID',c.mrn],['DATE OF BIRTH',c.dob],['SEX',c.sex],['PRIMARY FACILITY',c.facility],['STATE',c.jurisdiction]].map(([a,b])=><Info key={a} label={a} value={b}/>)}</div></section><section className="panel pad"><PanelTitle title="Reporting Status" sub="Current reporting context"/><div className="info-grid">{[['CONDITION',c.condition],['JURISDICTION',c.jurisdiction],['DEADLINE',c.deadline],['DETECTION CONFIDENCE',c.confidence]].map(([a,b])=><Info key={a} label={a} value={b}/>)}</div><button className="button primary full" onClick={()=>navigate(`/candidates/${c.id}/extraction`)}>Extract Reporting Data <ArrowRight size={15}/></button></section></div><section className="panel"><PanelTitle title="Clinical Evidence Summary" sub="Evidence linked to canonical FHIR records" right={`${evidenceItems.length} Evidence Items`}/>{evidenceItems.length?<div className="table-wrapper"><table><thead><tr><th>Evidence</th><th>Source</th><th>Date</th></tr></thead><tbody>{evidenceItems.map((item,index)=><tr key={`${item.label}-${index}`}><td><b>{item.label}</b></td><td>{item.source||'Not specified'}</td><td>{item.date?new Date(item.date).toLocaleDateString():'Not provided'}</td></tr>)}</tbody></table></div>:<div className="empty-state">No evidence records were attached to this candidate.</div>}<div className="note">Values and source metadata are displayed from connected patient, condition, observation, and diagnostic report records.</div></section><section className="panel pad"><PanelTitle title="Recent Encounters" sub="Longitudinal clinical record" right={`${c.encounters?.length||0} encounters`}/>{c.encounters?.length?<div className="encounters">{c.encounters.map((item,index)=><div key={item.encounter_id||index}><b>{item.displayDate} - {item.displayType}</b><p>Status: {item.status||'Not provided'}{item.facility_id?` - Facility: ${item.facility_id}`:''}</p><small>Source: {item.provenance?.source_resource||item.provenance?.source||'FHIR Encounter'}</small></div>)}</div>:<div className="empty-state">No encounter records are available for this patient.</div>}</section></Page>
+}
+
+function PanelTitle({title,sub,right}) { return <div className="panel-header"><div><h3>{title}</h3>{sub&&<p>{sub}</p>}</div>{right&&<small className="muted">{right}</small>}</div> }
+function Info({label,value}) { return <div className="info"><small>{label}</small><b>{value}</b></div> }
+function CandidateRoute({children}) {
+ const {id}=useParams();const [candidate,setCandidate]=useState(null);const [error,setError]=useState('')
+ useEffect(()=>{let active=true;setCandidate(null);setError('');getCandidate(id).then(async record=>{const context=await getCanonicalPatient(record.patient_id);if(active)setCandidate(candidateForUi(record,context))}).catch(e=>{if(active)setError(e.message||'Unable to load this candidate from the database.')});return()=>{active=false}},[id])
+ if(error)return <Page title="Candidate unavailable" subtitle="Unable to retrieve the candidate record."><div className="empty-state" role="alert">{error}<div><Link className="button secondary" to="/candidates">Back to Candidates</Link></div></div></Page>
+ if(!candidate)return <Page title="Loading Candidate" subtitle="Retrieving canonical patient context and clinical evidence."><div className="panel pad">Loading candidate from the database?</div></Page>
+ return <CandidateContext.Provider value={candidate}>{children}</CandidateContext.Provider>
+}
+
+function useCandidate() { return useContext(CandidateContext) }
+
+function useCandidatesByIds(ids) {
+ const [records,setRecords]=useState({})
+ useEffect(()=>{let active=true;listCandidates({page:1,page_size:100}).then(result=>{if(active){const mapped=(result.items||[]).map(item=>candidateForUi(item));setRecords(Object.fromEntries(mapped.map(item=>[item.id,item])))}}).catch(()=>{});return()=>{active=false}},[])
+ return ids.map(id=>records[id]).filter(Boolean)
+}
+
+function StepPage({title,subtitle,children,id}) { return <Page title={title} subtitle={subtitle}><Crumbs active={title} id={id}/>{children}</Page> }
+function Extraction() {
+ const c=useCandidate(),[done,setDone]=useState(false),nav=useNavigate(),evidence=c.evidenceItems||[],encounters=c.encounters||[]
+ return <StepPage title="Reporting Data Extraction" subtitle="Review evidence compiled from the candidate's connected clinical records." id={c.id}><div className="success-banner"><CheckCircle2/><div><b>{done?'Extraction review complete':'Candidate data is available for review'}</b><p>{done?'Available patient and clinical data is ready for field review.':'SIGNAL loaded patient, condition, laboratory, observation, and encounter information from its source records.'}</p></div></div><div className="extract-grid"><section className="panel navy-panel"><small>LONGITUDINAL CLINICAL DATA</small><h2>Available evidence for reporting review.</h2><p>Review candidate information and source records before mapping reporting fields.</p><div className="stat-row"><div><b>{encounters.length}</b><small>Encounters</small></div><div><b>{evidence.length}</b><small>Evidence Items</small></div><div><b>{c.context?.conditions?.length||0}</b><small>Conditions</small></div></div></section><section className="panel pad"><PanelTitle title="Clinical Visualization" sub="Reference image only"/><figure className="clinical-visual"><img src={clinicalAnatomyReference} alt="Anatomy reference visual"/><figcaption>Illustrative reference - not patient data</figcaption></figure><small className="muted">This illustration is contextual only. Findings are sourced from the patient's clinical records.</small></section><section className="panel"><PanelTitle title="Source-Backed Extraction" sub="Evidence present in available records" right={`${evidence.length} records`}/>{evidence.length?evidence.map((item,index)=><div className="evidence-row" key={`${item.label}-${index}`}><CheckCircle2/><div><b>{item.label}</b><small>Source: {item.source||'Not specified'} - {item.date?new Date(item.date).toLocaleDateString():'Date not provided'}</small></div><Badge value="Source-backed"/></div>):<div className="empty-state">No source evidence is available for this candidate.</div>}</section><section className="panel pad"><PanelTitle title="Data Coverage" sub="Record counts from canonical sources"/>{[['Patient Information',Boolean(c.context?.patient)],['Conditions',c.context?.conditions?.length||0],['Observations',c.context?.observations?.length||0],['Laboratory Results',c.context?.lab_results?.length||0],['Encounters',encounters.length]].map(([label,value])=><div className="coverage-row" key={label}><span>{value?'OK':'!'}</span><b>{label}</b><Badge value={value?'Available':'Not Available'}/></div>)}</section></div><div className="bottom-action"><span>Review available source values before continuing.</span>{done?<button className="button primary" onClick={()=>nav(`/candidates/${c.id}/reporting-data`)}>Continue to Reporting Data <ArrowRight size={15}/></button>:<button className="button primary" onClick={()=>setDone(true)}>Continue with Available Data <ArrowRight size={15}/></button>}</div></StepPage>
+}
+
+function ReportingData() {
+ const c=useCandidate(),nav=useNavigate(),evidence=c.evidenceItems||[]
+ const fields=[['Patient & Administrative',[c.patient,c.mrn].filter(Boolean).join(' - '),'FHIR Patient'],['Condition',c.condition,'FHIR Condition'],['Clinical Evidence',c.evidence.join(', ')||'No evidence available','FHIR clinical records'],['Jurisdiction',c.jurisdiction,'Patient address / candidate record']]
+ return <StepPage title="Reporting Data" subtitle="Review mapped values and evidence available in the patient record." id={c.id}><div className="two-column"><section className="panel reporting-data-card"><PanelTitle title="Reporting Data" sub="Values mapped from canonical candidate data" right={`${fields.filter(([,value])=>value&&value!=='No evidence available').length} mapped values`}/>{fields.map(([label,value,source])=><div className="reporting-data-row" key={label}><div className="reporting-data-label"><span/><b>{label}</b></div><div className="reporting-data-value"><small>VALUE</small><p>{value||'Not available'}</p></div><div className="reporting-data-source"><small>SOURCE</small><p>{source}</p></div><div className="reporting-data-status"><Badge value={value?'Source-backed':'Needs Review'}/></div></div>)}</section><section className="panel pad"><PanelTitle title="Extraction Summary" sub="Available source data"/><div className="summary-stats"><div><b>{evidence.length}</b><small>Evidence</small></div><div><b>{c.context?.conditions?.length||0}</b><small>Conditions</small></div><div><b>{c.context?.lab_results?.length||0}</b><small>Lab Results</small></div></div>{[['Patient record loaded',Boolean(c.context?.patient)],['Condition record linked',(c.context?.conditions?.length||0)>0],['Laboratory evidence linked',(c.context?.lab_results?.length||0)>0],['Encounter records linked',(c.encounters?.length||0)>0]].map(([label,complete])=><div className="check-row" key={label}>{complete?<Check size={15}/>:<AlertTriangle size={15}/>}{label}<span>{complete?'Available':'Not available'}</span></div>)}</section><section className="panel"><PanelTitle title="Source Evidence" sub="Records linked to this candidate" right={`${evidence.length} records`}/>{evidence.length?evidence.map((item,index)=><div className="source-row" key={`${item.label}-${index}`}><b>{item.date?new Date(item.date).toLocaleDateString():'Date not provided'}</b><span>{item.label} - {item.source||'Source not specified'}</span><Badge value="Linked"/></div>):<div className="empty-state">No source records are available.</div>}</section><section className="panel pad"><PanelTitle title="Next Step" sub="Human review and validation"/><p>Confirm that available patient data and source evidence are appropriate for review.</p><button className="button primary full" onClick={()=>nav(`/candidates/${c.id}/review`)}>Proceed to Review &amp; Validation <ArrowRight size={15}/></button></section></div><div className="bottom-action"><Link className="button secondary" to={`/candidates/${c.id}/extraction`}><ArrowLeft size={15}/> Back</Link><button className="button primary" onClick={()=>nav(`/candidates/${c.id}/review`)}>Continue to Review <ArrowRight size={15}/></button></div></StepPage>
+}
+
+function Investigation() { return <CasesPage/> }
+function Governance() { return <GovernanceOverview/> }
+function AdminDashboard() {
+ const [summary,setSummary]=useState(null),[items,setItems]=useState([]),[error,setError]=useState('')
+ useEffect(()=>{let active=true;Promise.all([request('/api/admin/submission-dashboard'),request('/api/admin/submission-queue')]).then(([s,q])=>{if(active){setSummary(s);setItems(q.items||[])}}).catch(e=>{if(active)setError(e.message||'Unable to load reporting administration data.')});return()=>{active=false}},[])
+ const labels=[['READY FOR SUBMISSION','ready_for_submission','Eligible cases for dispatch','green'],['IMMEDIATE REPORTS','immediate_reports','High priority eligible cases','orange'],['PENDING BATCH','pending_batch','Cases in draft batches','blue'],['SUBMITTED TODAY','submitted_today','Database submission records','green'],['FAILED','failed','Requires operational review','orange'],['AWAITING ACKNOWLEDGEMENT','awaiting_acknowledgement','Simulated PHA responses pending','blue']]
+ const work=items.filter(x=>x.eligibility?.eligible).slice(0,8)
+ return <Page title="Reporting Administration" subtitle="Dispatch approved cases and track submission status.">{error&&<div className="alert-banner" role="alert">{error}</div>}<div className="metrics-grid">{labels.map(([label,key,note,tone])=><Metric key={key} label={label} value={summary?.[key]??'—'} note={note} tone={tone}/>)}</div><section className="panel"><div className="panel-header"><div><h3>Priority Work</h3><p>Cases that have passed backend submission eligibility checks.</p></div><Link className="button primary" to="/admin/reporting-queue">Open Submission Queue <ArrowRight size={15}/></Link></div>{work.length?<div className="table-wrapper"><table><thead><tr><th>Patient</th><th>Disease</th><th>Jurisdiction</th><th>Deadline</th><th>Submission Mode</th><th>Priority</th><th>Action</th></tr></thead><tbody>{work.map(c=><tr key={c.case_id}><td>{patientName(c.patient)}</td><td>{c.disease||'—'}</td><td>{c.jurisdiction||'—'}</td><td>{formatDeadline(c.deadline)}</td><td>{c.severity==='HIGH'?'Immediate':'Individual'}</td><td><Badge value={c.severity||'Standard'}/></td><td><Link className="button small secondary" to={`/admin/reporting-queue/${c.case_id}`}>View</Link></td></tr>)}</tbody></table></div>:<div className="empty-state"><ClipboardList size={28}/><h3>{items.length?'No cases currently meet submission requirements.':'No persisted cases are available.'}</h3><p>KPIs and work items come from backend case and submission records.</p></div>}</section><div className="panel-header"><Link className="text-link" to="/admin/submissions">Submission History <ArrowRight size={14}/></Link><Link className="text-link" to="/admin/submission-batches">Manage Batches <ArrowRight size={14}/></Link></div></Page>
+}
+function patientName(patient={}) { return patient.name||[patient.first_name,patient.last_name].filter(Boolean).join(' ')||patient.patient_id||'Unknown patient' }
+function formatDeadline(value) { return value?new Date(value).toLocaleString():'Not specified' }
+function QueueConfirmation({caseStates}) { const c=useCandidate(),s=caseStates[c.id]||{};return <Page title="Case Added to Reporting Queue" subtitle="Clinical review and validation are complete."><section className="panel handoff-panel"><div className="handoff-check"><CheckCircle2 size={28}/></div><h2>{c.id} — {c.patient}</h2><p>The case has been added to the Reporting Queue and is now awaiting Reporting Administrator verification.</p><StatusLine value={s.adminVerificationStatus||'Pending Admin Verification'}/><div className="handoff-note">Clinical Staff responsibilities for this case are complete.</div><Link className="button primary" to="/admin/login">Continue to Reporting Administration <ArrowRight size={15}/></Link></section></Page> }
+function StatusLine({value}) { return <div className="handoff-status"><small>ADMIN VERIFICATION</small><Badge value={value}/></div> }
+function ClinicalReviewPage({addToQueue,caseStates}) {
+ const c=useCandidate(),nav=useNavigate(),s=caseStates[c.id]||{};const [checked,setChecked]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(''),evidence=c.evidenceItems||[]
+ if(['Pending Admin Verification','Verified'].includes(s.adminVerificationStatus)||['Submitted','Acknowledged'].includes(s.submissionStatus))return <Navigate to={`/queue-confirmation/${c.id}`} replace/>
+ const submit=async()=>{setSaving(true);setError('');try{await addToQueue(c);nav(`/queue-confirmation/${c.id}`)}catch(e){setError(e.message||'Could not add the case to the reporting queue.')}finally{setSaving(false)}}
+ const checks=[['Patient record loaded',Boolean(c.context?.patient)],['Condition is available',Boolean(c.condition)],['Jurisdiction is available',Boolean(c.jurisdiction&&c.jurisdiction!=='Pending resolution')],['Source evidence linked',evidence.length>0]]
+ return <StepPage title="Review & Validation" subtitle="Review available candidate data and source evidence before completing clinical verification." id={c.id}><div className="two-column"><section className="panel"><PanelTitle title="Reporting Data" sub="Mapped from the candidate record" right={`${evidence.length} evidence items`}/>{[['Patient',`${c.patient} - ${c.mrn}`],['Condition',c.condition],['Clinical Evidence',c.evidence.join(', ')||'No evidence available'],['Jurisdiction / PHA',c.jurisdiction]].map(([label,value])=><div className="review-row" key={label}><span className="green-dot"/><b>{label}</b><p>{value}</p><small>Available candidate / canonical record</small></div>)}</section><section className="panel"><PanelTitle title="Validation Results" sub="Availability checks based on source data"/>{checks.map(([label,complete])=><div className="check-row" key={label}>{complete?<Check size={15}/>:<AlertTriangle size={15}/>}{label}<span>{complete?'Available':'Needs review'}</span></div>)}</section><section className="panel"><PanelTitle title="Clinical Evidence" sub="Evidence linked to this candidate"/>{evidence.length?evidence.map((item,index)=><div className="source-row" key={`${item.label}-${index}`}><b>{item.source||'FHIR'}</b><span>{item.label} - {item.date?new Date(item.date).toLocaleDateString():'Date not provided'}</span></div>):<div className="empty-state">No source evidence is linked to this candidate.</div>}</section><section className="panel pad"><PanelTitle title="Human Verification" sub="Clinical Staff review"/><label className="review-confirm"><input type="checkbox" checked={checked} onChange={e=>setChecked(e.target.checked)}/> I reviewed the available reporting values and source evidence.</label><div className="audit-note">The workflow records this candidate and the time it is added to the administrator queue.</div></section></div>{error&&<div className="alert-banner" role="alert"><AlertTriangle size={17}/><div><b>Queue action failed</b><p>{error}</p></div></div>}<div className="bottom-action"><span>Only loaded patient and clinical data will be sent for administrator verification.</span><button disabled={!checked||saving} className="button primary" onClick={submit}>{saving?'Adding Case...':'Add to Reporting Queue'} <ArrowRight size={15}/></button></div></StepPage>
+}
+
+function LegacyFinalAdminQueue({queue,caseStates}) {
+  const [tab,setTab]=useState('All Cases'),[search,setSearch]=useState(''),[filters,setFilters]=useState({condition:'',jurisdiction:'',priority:'',status:'',date:''})
+  const candidateRecords=useCandidatesByIds(queue)
+  const rows=useMemo(()=>candidateRecords.map(candidate=>({candidate,state:caseStates[candidate.id]||{}})),[candidateRecords,caseStates])
+  const stateOf=({state})=>({admin:state.adminVerificationStatus||'Pending Admin Verification',submission:state.submissionStatus||'Not Submitted'})
+  const isReady=row=>{const status=stateOf(row);return status.admin==='Verified'&&status.submission==='Ready for Submission'}
+  const pendingCount=rows.filter(row=>stateOf(row).admin==='Pending Admin Verification').length
+  const verifiedCount=rows.filter(row=>stateOf(row).admin==='Verified').length
+  const readyRows=rows.filter(isReady),submittedCount=rows.filter(row=>['Submitted','Acknowledged'].includes(stateOf(row).submission)).length
+  const tabRows=rows.filter(row=>{const {admin,submission}=stateOf(row);if(tab==='Pending Verification')return admin==='Pending Admin Verification';if(tab==='Ready for Submission')return admin==='Verified'&&submission==='Ready for Submission';if(tab==='Submitted')return ['Submitted','Acknowledged'].includes(submission);return true})
+  const visibleRows=tabRows.filter(({candidate:c,state:s})=>{
+    const parsedDate=new Date(c.detected),date=Number.isNaN(parsedDate.getTime())?'':parsedDate.toISOString().slice(0,10),q=search.trim().toLowerCase(),status=s.adminVerificationStatus||'Pending Admin Verification'
+    return (!q||c.id.toLowerCase().includes(q)||c.patient.toLowerCase().includes(q))&&(!filters.condition||c.condition===filters.condition)&&(!filters.jurisdiction||c.jurisdiction===filters.jurisdiction)&&(!filters.priority||c.priority===filters.priority)&&(!filters.status||status===filters.status||(s.submissionStatus||'Not Submitted')===filters.status)&&(!filters.date||date===filters.date)
+  })
+  const updateFilter=(key,value)=>setFilters(current=>({...current,[key]:value}))
+  const tabs=[['All Cases',rows.length],['Pending Verification',pendingCount],['Ready for Submission',readyRows.length],['Submitted',submittedCount]]
+  const unique=(key)=>[...new Set(rows.map(({candidate})=>candidate[key]).filter(Boolean))]
+  return <Page title="Reporting Queue" subtitle="Review and verify completed cases before submitting them to the Public Health Authority.">
+    <div className="queue-heading-action"><span>Demo queue data · refreshed from the current case registry</span><button className="button small secondary queue-refresh" onClick={()=>window.location.reload()}><RefreshCw size={13}/> Refresh</button></div>
+    <section className="metrics-grid queue-summary"><Metric label="PENDING VERIFICATION" value={pendingCount} note="Requires individual review" tone="orange"/><Metric label="VERIFIED" value={verifiedCount} note="Admin decision recorded" tone="blue"/><Metric label="READY FOR SUBMISSION" value={readyRows.length} note="Eligible for individual submission" tone="green"/><Metric label="SUBMITTED" value={submittedCount} note="Submitted or acknowledged" tone="blue"/></section>
+    <section className="panel queue-panel"><div className="queue-tabs" role="tablist" aria-label="Reporting queue status">{tabs.map(([label,count])=><button key={label} role="tab" aria-selected={tab===label} className={tab===label?'selected':''} onClick={()=>setTab(label)}>{label}<span>{count}</span></button>)}</div>
+      <div className="queue-filters"><label className="queue-search"><Search size={15}/><input aria-label="Search Candidate ID or Name" placeholder="Search Candidate ID / Name" value={search} onChange={event=>setSearch(event.target.value)}/></label><select aria-label="Condition filter" value={filters.condition} onChange={event=>updateFilter('condition',event.target.value)}><option value="">All Conditions</option>{unique('condition').map(value=><option key={value}>{value}</option>)}</select><select aria-label="Jurisdiction filter" value={filters.jurisdiction} onChange={event=>updateFilter('jurisdiction',event.target.value)}><option value="">All Jurisdictions</option>{unique('jurisdiction').map(value=><option key={value}>{value}</option>)}</select><select aria-label="Priority filter" value={filters.priority} onChange={event=>updateFilter('priority',event.target.value)}><option value="">All Priorities</option>{unique('priority').map(value=><option key={value}>{value}</option>)}</select><select aria-label="Status filter" value={filters.status} onChange={event=>updateFilter('status',event.target.value)}><option value="">All Statuses</option>{['Pending Admin Verification','Verified','Returned for Correction','Not Submitted','Ready for Submission','Submitted','Acknowledged'].map(value=><option key={value}>{value}</option>)}</select><input aria-label="Date filter" type="date" value={filters.date} onChange={event=>updateFilter('date',event.target.value)}/></div>
+      <div className="queue-table-title"><div><h3>{tab}</h3><p>Each case is reviewed individually before it becomes eligible for submission.</p></div><span>{visibleRows.length} case{visibleRows.length===1?'':'s'}</span></div>
+      <div className="table-wrapper queue-table-wrap"><table className="queue-table"><thead><tr><th>Case</th><th>Condition</th><th>Jurisdiction</th><th>Clinical Review</th><th>Admin Verification</th><th>Submission</th><th>Action</th></tr></thead><tbody>{visibleRows.map(({candidate:c,state:s})=>{const admin=s.adminVerificationStatus||'Pending Admin Verification',submission=s.submissionStatus||'Not Submitted';return <tr key={c.id}><td><b>{c.id}</b><small>{c.patient}</small></td><td>{c.condition}</td><td>{c.jurisdiction}</td><td><Badge value={s.clinicalReviewStatus||'Complete'}/></td><td><Badge value={admin==='Pending Admin Verification'?'Pending':admin==='Returned for Correction'?'Returned for Correction':admin}/></td><td><Badge value={submission}/></td><td><Link className="button small secondary" to={`/admin/reporting-queue/${c.id}`}>{admin==='Verified'&&submission==='Ready for Submission'?'Submit Case':'Review Case'} <ArrowRight size={13}/></Link></td></tr>})}</tbody></table></div>
+      {!visibleRows.length&&<div className="empty-state queue-empty"><ClipboardList size={28}/><h3>{tab==='Pending Verification'?'No cases pending verification.':tab==='Ready for Submission'?'No cases are currently ready for submission.':tab==='Submitted'?'No cases have been submitted yet.':'No cases match these filters.'}</h3><p>{tab==='Pending Verification'?'All queued cases have an administrator decision.':'Try another status tab or adjust your search and filters.'}</p></div>}
+    </section>
+  </Page>
+}
+
+function FinalAdminQueue() {
+ const [items,setItems]=useState([]),[selected,setSelected]=useState([]),[search,setSearch]=useState(''),[filters,setFilters]=useState({disease:'',jurisdiction:'',priority:'',mode:'',deadline:'',status:''}),[error,setError]=useState(''),[notice,setNotice]=useState('')
+ const refresh=()=>request('/api/admin/submission-queue').then(data=>setItems(data.items||[])).catch(e=>setError(e.message||'Unable to load submission queue.'))
+ useEffect(()=>{refresh()},[])
+ const update=(key,value)=>setFilters(f=>({...f,[key]:value})), options=key=>[...new Set(items.map(x=>x[key]).filter(Boolean))]
+ const rows=items.filter(c=>{const ready=c.eligibility?.eligible,status=ready?'Ready':'Blocked',mode=c.severity==='HIGH'?'Immediate':'Individual',deadline=c.deadline?new Date(c.deadline):null,q=search.toLowerCase();return(!q||patientName(c.patient).toLowerCase().includes(q)||c.case_id.toLowerCase().includes(q))&&(!filters.disease||c.disease===filters.disease)&&(!filters.jurisdiction||c.jurisdiction===filters.jurisdiction)&&(!filters.priority||c.severity===filters.priority)&&(!filters.mode||mode===filters.mode)&&(!filters.status||status===filters.status)&&(!filters.deadline||!deadline||deadline<=new Date(Date.now()+Number(filters.deadline)*3600000))})
+ const toggle=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id])
+ const createBatch=async()=>{setError('');try{const result=await request('/api/admin/submission-batches',{method:'POST',body:JSON.stringify({case_ids:selected})});setSelected([]);window.location.href=`/admin/submission-batches/${result.batch_id}`}catch(e){setError(e.message||'Batch could not be created. Remove blocked cases and retry.')}}
+ const submit=async id=>{setError('');try{const result=await request(`/api/admin/cases/${id}/submit`,{method:'POST',body:JSON.stringify({})});setNotice(`Submission ${result.submission_id} created. Destination: ${result.destination}. PHA transmission is simulated.`);refresh()}catch(e){setError(e.message||'Submission failed.')}}
+ const retry=async submissionId=>{setError('');try{const result=await request(`/api/admin/submissions/${submissionId}/retry`,{method:'POST',body:JSON.stringify({})});setNotice(`Retry result: ${result.status}. New submission ${result.new_submission_id||'not created'}.`);refresh()}catch(e){setError(e.message||'Retry failed.')}}
+ return <Page title="Submission Queue" subtitle="Dispatch cases that passed upstream review, reporting validation, and attestation."><div className="queue-heading-action"><span>Eligibility is calculated by the backend from persisted case records.</span><button className="button small secondary" onClick={refresh}><RefreshCw size={13}/> Refresh</button></div>{error&&<div className="alert-banner" role="alert">{error}</div>}{notice&&<div className="success-banner">{notice}</div>}<div className="queue-filters"><label className="queue-search"><Search size={15}/><input placeholder="Search patient or case ID" value={search} onChange={e=>setSearch(e.target.value)}/></label><select value={filters.disease} onChange={e=>update('disease',e.target.value)}><option value="">All Diseases</option>{options('disease').map(x=><option key={x}>{x}</option>)}</select><select value={filters.jurisdiction} onChange={e=>update('jurisdiction',e.target.value)}><option value="">All Jurisdictions</option>{options('jurisdiction').map(x=><option key={x}>{x}</option>)}</select><select value={filters.priority} onChange={e=>update('priority',e.target.value)}><option value="">All Priorities</option>{['HIGH','MEDIUM','LOW'].map(x=><option key={x}>{x}</option>)}</select><select value={filters.mode} onChange={e=>update('mode',e.target.value)}><option value="">All Modes</option><option>Immediate</option><option>Individual</option></select><select value={filters.deadline} onChange={e=>update('deadline',e.target.value)}><option value="">Any Deadline</option><option value="24">Within 24 hours</option><option value="72">Within 3 days</option><option value="168">Within 7 days</option></select><select value={filters.status} onChange={e=>update('status',e.target.value)}><option value="">All Eligibility</option><option>Ready</option><option>Blocked</option></select></div><section className="panel"><div className="panel-header"><div><h3>Submission Worklist</h3><p>{selected.length} eligible case{selected.length===1?'':'s'} selected for batch creation.</p></div><button className="button primary" disabled={!selected.length} onClick={createBatch}>Create Batch ({selected.length})</button></div>{rows.length?<div className="table-wrapper"><table><thead><tr><th>Select</th><th>Patient</th><th>Disease</th><th>Jurisdiction</th><th>Deadline</th><th>Mode</th><th>Priority</th><th>Eligibility</th><th>Action</th></tr></thead><tbody>{rows.map(c=>{const ready=c.eligibility?.eligible;return <tr key={c.case_id}><td><input aria-label={`Select ${patientName(c.patient)}`} type="checkbox" disabled={!ready} checked={ready&&selected.includes(c.case_id)} onChange={()=>toggle(c.case_id)}/></td><td>{patientName(c.patient)}<small>{c.candidate_id}</small></td><td>{c.disease||'—'}</td><td>{c.jurisdiction||'—'}</td><td>{formatDeadline(c.deadline)}</td><td>{c.submission_mode||'Individual'}</td><td>{c.severity||'Standard'}</td><td><Badge value={ready?'Ready':c.eligibility?.retryable?'Retry Required':'Blocked'}/></td><td><Link className="button small secondary" to={`/admin/reporting-queue/${c.case_id}`}>View</Link>{ready&&<button className="button small primary" onClick={()=>submit(c.case_id)}>Submit Individually</button>}{c.eligibility?.retryable&&<button className="button small secondary" onClick={()=>retry(c.eligibility.submission_id)}>Retry Failed</button>}</td></tr>})}</tbody></table></div>:<div className="empty-state"><ClipboardList size={28}/><h3>No persisted cases are in the queue.</h3><p>Cases will appear here when the upstream workflow assembles them in SIGNAL.</p></div>}</section></Page>
+}
+
+function AdminSubmissionReview() {
+ const {id}=useParams(),[item,setItem]=useState(null),[error,setError]=useState(''),[notice,setNotice]=useState('')
+ const refresh=()=>request(`/api/admin/cases/${id}/submission-review`).then(setItem).catch(e=>setError(e.message||'Unable to load reporting case.'))
+ useEffect(()=>{refresh()},[id])
+ const submit=async()=>{try{const result=await request(`/api/admin/cases/${id}/submit`,{method:'POST',body:JSON.stringify({})});setNotice(`Submission ${result.submission_id} created. PHA destination: ${result.destination}. Transmission is simulated.`);refresh()}catch(e){setError(e.message||'Submission failed.')}}
+ const addBatch=async()=>{try{const result=await request('/api/admin/submission-batches',{method:'POST',body:JSON.stringify({case_ids:[id]})});window.location.href=`/admin/submission-batches/${result.batch_id}`}catch(e){setError(e.message||'Could not create a batch for this case.')}}
+ if(!item)return <Page title="Submission Review" subtitle="Loading persisted case and reporting data.">{error&&<div className="alert-banner">{error}</div>}<div className="panel pad">Loading...</div></Page>
+ const patient=item.patient||{},facility=item.facility||{},provider=item.provider||{},elig=item.eligibility||{},checks=[['Required information complete',elig.blockers?.every(x=>!x.toLowerCase().includes('field')&&!x.toLowerCase().includes('missing'))],['Human review complete',elig.review_complete],['Attestation complete',elig.attestation_complete],['Submission eligibility',elig.eligible]]
+ return <Page title="Submission Review" subtitle="Reporting readiness based on persisted SIGNAL records."><div className="candidate-banner"><div className="case-info"><div className="large-avatar">{patientName(patient).split(' ').map(x=>x[0]).slice(0,2).join('')}</div><div><h2>{patientName(patient)} <Badge value={item.disease||'Disease not specified'}/></h2><p>Case {item.case_id} · Candidate {item.candidate_id}</p></div></div><div className="case-id"><small>JURISDICTION</small><b>{item.jurisdiction||'Unresolved'}</b></div></div>{error&&<div className="alert-banner" role="alert">{error}</div>}{notice&&<div className="success-banner">{notice}</div>}<div className="two-column"><section className="panel"><PanelTitle title="Patient Information" sub="Persisted patient and case context"/><div className="info-grid">{[['Patient',patientName(patient)],['MRN',patient.mrn||patient.medical_record_number||'Not available'],['DOB',patient.dob||patient.date_of_birth||'Not available'],['Disease',item.disease||'Not available'],['Jurisdiction',item.jurisdiction||'Unresolved'],['Deadline',formatDeadline(item.deadline)]].map(([l,v])=><Info key={l} label={l} value={v}/>)}</div></section><section className="panel"><PanelTitle title="Reporting Information" sub="Reporting destination context"/><div className="info-grid">{[['Facility',facility.name||'Not available'],['Provider',provider.name||'Not available'],['Reporting date',item.deadline?new Date(item.deadline).toLocaleDateString():'Not specified'],['Reporting method','eCR']].map(([l,v])=><Info key={l} label={l} value={v}/>)}</div></section><section className="panel"><PanelTitle title="Validation" sub="Backend workflow gates"/>{checks.map(([label,ok])=><div className="check-row" key={label}>{ok?<Check size={15}/>:<AlertTriangle size={15}/>} {label}<span>{ok?'Complete':'Blocked'}</span></div>)}{elig.blockers?.map(reason=><div key={reason} className="review-row"><b>Blocking reason</b><p>{reason}</p></div>)}{elig.warnings?.map(reason=><div key={reason} className="warning-note">{reason}</div>)}</section><section className="panel"><PanelTitle title="Clinical and Source Evidence" sub="Read-only context from upstream case assembly"/><div className="review-row"><b>Clinical evidence</b><p>{JSON.stringify(item.evidence?.clinical||{})}</p></div><div className="review-row"><b>Laboratory evidence</b><p>{JSON.stringify(item.evidence?.laboratory||[])}</p></div><div className="review-row"><b>AI and source context</b><p>{JSON.stringify(item.evidence?.sources||{})}</p></div></section></div><div className="bottom-action"><Link className="button secondary" to="/admin/reporting-queue"><ArrowLeft size={15}/> Back to Queue</Link><div className="admin-actions"><button className="button secondary" disabled={!elig.eligible} onClick={addBatch}>Add to Batch</button><button className="button primary" disabled={!elig.eligible} onClick={submit}>Submit Individually</button></div></div></Page>
+}
+
+function AdminBatches() {
+ const [items,setItems]=useState([]),[error,setError]=useState('')
+ useEffect(()=>{let active=true;request('/api/admin/submission-batches').then(data=>{if(active)setItems(data.items||[])}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[])
+ return <Page title="Submission Batches" subtitle="Review batch membership and submit each eligible case with per-case outcomes.">{error&&<div className="alert-banner">{error}</div>}<section className="panel"><PanelTitle title="Batches" sub="Batch membership is persisted in the SIGNAL workflow records" right={`${items.length} batches`}/>{items.length?<div className="table-wrapper"><table><thead><tr><th>Batch ID</th><th>Jurisdiction</th><th>Channel</th><th>Cases</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody>{items.map(b=><tr key={b.batch_id}><td>{b.batch_id}</td><td>{b.jurisdiction||'—'}</td><td>{b.channel||'eCR'}</td><td>{b.case_count}</td><td><Badge value={b.status}/></td><td>{b.created_at?new Date(b.created_at).toLocaleString():'—'}</td><td><Link className="button small secondary" to={`/admin/submission-batches/${b.batch_id}`}>View Batch</Link></td></tr>)}</tbody></table></div>:<div className="empty-state"><FileCheck2 size={28}/><h3>No batches created</h3><p>Select eligible cases from the Submission Queue to create a configurable batch.</p><Link className="button secondary" to="/admin/reporting-queue">Open Queue</Link></div>}</section></Page>
+}
+
+function AdminBatchDetail() {
+ const {batchId}=useParams(),[batch,setBatch]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null)
+ const refresh=()=>request(`/api/admin/submission-batches/${batchId}`).then(setBatch).catch(e=>setError(e.message))
+ useEffect(()=>{refresh()},[batchId])
+ const submit=async()=>{setBusy(true);setError('');try{const data=await request(`/api/admin/submission-batches/${batchId}/submit`,{method:'POST',body:JSON.stringify({})});setResult(data);refresh()}catch(e){setError(e.message)}finally{setBusy(false)}}
+ const retry=async submissionId=>{setError('');try{const data=await request(`/api/admin/submissions/${submissionId}/retry`,{method:'POST',body:JSON.stringify({})});setResult({status:'RETRY',submitted_count:data.new_submission_id?1:0,failed_count:data.new_submission_id?0:1});refresh()}catch(e){setError(e.message)}}
+ return <Page title={batch?.batch_id||'Batch Review'} subtitle="Cases are revalidated and submitted individually within this configurable batch.">{error&&<div className="alert-banner">{error}</div>}{result&&<div className="success-banner">Batch result: {result.status}. {result.submitted_count} submitted; {result.failed_count} failed. Mock PHA transmission only.</div>}{!batch?<div className="panel pad">Loading batch...</div>:<><section className="metrics-grid"><Metric label="CASES" value={batch.case_count}/><Metric label="ELIGIBLE" value={batch.cases.filter(c=>c.eligibility.eligible).length} tone="green"/><Metric label="BLOCKED" value={batch.cases.filter(c=>!c.eligibility.eligible).length} tone="orange"/><Metric label="WARNINGS" value={batch.cases.reduce((n,c)=>n+(c.eligibility.warnings?.length||0),0)}/></section><section className="panel"><PanelTitle title={`Batch ${batch.batch_id}`} sub={`${batch.jurisdiction||'Jurisdiction not set'} · ${batch.channel||'eCR'}`} right={batch.status}/><div className="table-wrapper"><table><thead><tr><th>Patient</th><th>Disease</th><th>Eligibility</th><th>Warnings / Blockers</th><th>Submission</th><th>Action</th></tr></thead><tbody>{batch.cases.map(c=><tr key={c.case_id}><td>{patientName(c.patient)}<small>{c.case_id}</small></td><td>{c.disease||'—'}</td><td><Badge value={c.eligibility.eligible?'Eligible':'Blocked'}/></td><td>{(c.eligibility.blockers||[]).concat(c.eligibility.warnings||[]).join('; ')||'None'}</td><td>{c.submission_id||'—'}</td><td><Link className="button small secondary" to={`/admin/reporting-queue/${c.case_id}`}>Inspect</Link>{c.batch_status==='FAILED'&&c.eligibility.retryable&&c.submission_id&&<button className="button small secondary" onClick={()=>retry(c.submission_id)}>Retry Failed</button>}</td></tr>)}</tbody></table></div></section><div className="bottom-action"><Link className="button secondary" to="/admin/submission-batches"><ArrowLeft size={15}/> Batches</Link><button className="button primary" disabled={batch.status!=='DRAFT'||!batch.cases.some(c=>c.eligibility.eligible)||busy} onClick={submit}>{busy?'Submitting…':'Submit Batch'}</button></div></>}</Page>
+}
+
+function AdminSubmissionDetail() { const {batchId}=useParams();return <Page title="Submission Detail" subtitle="Persisted submission status and acknowledgement context."><SubmissionDetailRecord id={batchId}/></Page> }
+function SubmissionDetailRecord({id}) { const [item,setItem]=useState(null),[error,setError]=useState('');useEffect(()=>{let active=true;request(`/api/submissions/${id}`).then(d=>{if(active)setItem(d)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[id]);return error?<div className="alert-banner">{error}</div>:!item?<div className="panel pad">Loading submission...</div>:<section className="panel"><PanelTitle title={item.submission_id} sub={`Case ${item.case_id}`} right={item.status}/><div className="info-grid">{[['Type',item.batch_id?'Batch':'Individual'],['Batch ID',item.batch_id||'Not applicable'],['Jurisdiction',item.jurisdiction||'Not available'],['Disease',item.disease||'Not available'],['Submission channel',item.channel],['PHA destination',item.destination],['Submitted by',item.submitted_by||'Not recorded'],['Submission time',item.created_at?new Date(item.created_at).toLocaleString():'—'],['Acknowledgement',item.acknowledgement_id||'Awaiting / unavailable'],['External reference',item.pha_case_id||item.ecr_id||'Unavailable']].map(([l,v])=><Info key={l} label={l} value={v}/>)}</div>{item.warnings?.map(w=><div key={w} className="warning-note">{w}</div>)}{item.errors?.length>0&&<div className="warning-note">{item.errors.join('; ')}</div>}</section> }
+
+function DatabaseSubmissions() {
+  const [result,setResult]=useState(null),[error,setError]=useState('')
+  const [filters,setFilters]=useState({status:'',type:'',disease:'',jurisdiction:'',pha:'',from:'',to:''})
+  useEffect(()=>{let active=true;request('/api/submissions?page=1&page_size=100').then(data=>{if(active)setResult(data)}).catch(e=>{if(active)setError(e.message||'Unable to retrieve submissions.')});return()=>{active=false}},[])
+  const setFilter=(key,value)=>setFilters(current=>({...current,[key]:value}))
+  const choices=key=>[...new Set((result?.items||[]).map(item=>item[key]).filter(Boolean))]
+  const visible=(result?.items||[]).filter(item=>{const date=item.created_at?.slice(0,10)||'',type=item.batch_id?'Batch':'Individual';return(!filters.status||item.status===filters.status)&&(!filters.type||type===filters.type)&&(!filters.disease||item.disease===filters.disease)&&(!filters.jurisdiction||item.jurisdiction===filters.jurisdiction)&&(!filters.pha||item.destination===filters.pha)&&(!filters.from||date>=filters.from)&&(!filters.to||date<=filters.to)})
+  return <Page title="Submission Status" subtitle="Submission records and PHA acknowledgements stored in SIGNAL.">{error&&<div className="alert-banner" role="alert">{error}</div>}{!result?<div className="panel pad">Loading submission records…</div>:<section className="panel"><PanelTitle title="Submission History" sub="Persisted individual and batch submission records" right={`${visible.length} of ${result.total} records`}/><div className="queue-filters"><select aria-label="Submission status" value={filters.status} onChange={e=>setFilter('status',e.target.value)}><option value="">All statuses</option>{['SUBMITTED','ACKNOWLEDGED','FAILED','ERROR','REJECTED'].map(x=><option key={x}>{x}</option>)}</select><select aria-label="Submission type" value={filters.type} onChange={e=>setFilter('type',e.target.value)}><option value="">All types</option><option>Individual</option><option>Batch</option></select><select aria-label="Disease filter" value={filters.disease} onChange={e=>setFilter('disease',e.target.value)}><option value="">All diseases</option>{choices('disease').map(x=><option key={x}>{x}</option>)}</select><select aria-label="Jurisdiction filter" value={filters.jurisdiction} onChange={e=>setFilter('jurisdiction',e.target.value)}><option value="">All jurisdictions</option>{choices('jurisdiction').map(x=><option key={x}>{x}</option>)}</select><select aria-label="PHA filter" value={filters.pha} onChange={e=>setFilter('pha',e.target.value)}><option value="">All PHA destinations</option>{choices('destination').map(x=><option key={x}>{x}</option>)}</select><input aria-label="Date from" type="date" value={filters.from} onChange={e=>setFilter('from',e.target.value)}/><input aria-label="Date to" type="date" value={filters.to} onChange={e=>setFilter('to',e.target.value)}/></div>{visible.length?<div className="table-wrapper"><table><thead><tr><th>Submission ID</th><th>Type</th><th>Case ID</th><th>Disease</th><th>Jurisdiction</th><th>PHA Destination</th><th>Status</th><th>Created</th></tr></thead><tbody>{visible.map(item=><tr key={item.submission_id}><td><Link className="text-link" to={`/admin/submissions/${item.submission_id}`}>{item.submission_id}</Link></td><td>{item.batch_id?'Batch':'Individual'}</td><td>{item.case_id}</td><td>{item.disease||'Not available'}</td><td>{item.jurisdiction||'Not available'}</td><td>{item.destination||'Not available'}</td><td><Badge value={item.status||'Unknown'}/></td><td>{item.created_at?new Date(item.created_at).toLocaleString():'Not available'}</td></tr>)}</tbody></table></div>:<div className="empty-state"><FileCheck2 size={30}/><h3>{result.items?.length?'No submissions match these filters.':'No submissions in the database'}</h3><p>Submission records are loaded from SIGNAL’s persisted records.</p></div>}</section>}</Page>
+}
+
+function FollowUpsPage() {
+  const [result,setResult]=useState(null),[error,setError]=useState('')
+  useEffect(()=>{let active=true;request('/api/follow-ups?page=1&page_size=100').then(data=>{if(active)setResult(data)}).catch(e=>{if(active)setError(e.message||'Unable to retrieve follow-ups.')});return()=>{active=false}},[])
+  return <Page title="Follow-ups" subtitle="Public health follow-up actions from persisted case and submission records.">{error&&<div className="alert-banner" role="alert">{error}</div>}{!result?<div className="panel pad">Loading follow-up records...</div>:<section className="panel"><PanelTitle title="Follow-up Records" sub="Database records requiring or recording follow-up" right={`${result.total||0} records`}/>{result.items?.length?<div className="table-wrapper"><table><thead><tr><th>Follow-up ID</th><th>Case ID</th><th>Patient ID</th><th>Disease</th><th>Status</th><th>Submission</th><th>Next Action</th><th>Due</th></tr></thead><tbody>{result.items.map(item=><tr key={item.followup_id}><td>{item.followup_id}</td><td>{item.case_id||'Not available'}</td><td>{item.patient_id||'Not available'}</td><td>{item.disease||'Not available'}</td><td><Badge value={item.status||'Unknown'}/></td><td>{item.submission_id?<Link className="text-link" to={`/admin/submissions/${item.submission_id}`}>View Submission</Link>:item.action||'Not linked'}</td><td>{item.next_action||'Not specified'}</td><td>{item.due_date?new Date(item.due_date).toLocaleDateString():'Not scheduled'}</td></tr>)}</tbody></table></div>:<div className="empty-state"><Clock3 size={28}/><h3>No follow-up records</h3><p>Records will appear when follow-up activity is saved for a case.</p></div>}</section>}</Page>
+}
+
+function AnalyticsPage() {
+  const [data,setData]=useState(null),[error,setError]=useState('')
+  useEffect(()=>{let active=true;Promise.all(['/api/analytics/summary','/api/analytics/cases','/api/analytics/reporting','/api/analytics/submissions'].map(path=>request(path))).then(([summary,cases,reporting,submissions])=>{if(active)setData({summary,cases,reporting,submissions})}).catch(e=>{if(active)setError(e.message||'Unable to retrieve analytics.')});return()=>{active=false}},[])
+  const rows=(title,values)=>Object.entries(values||{}).length?Object.entries(values).map(([label,count])=><div className="check-row" key={label}>{label||'Unspecified'}<span>{count}</span></div>):<div className="empty-state compact-empty">No database records</div>
+  return <Page title="Analytics" subtitle="Operational summaries calculated from the SIGNAL database.">{error&&<div className="alert-banner" role="alert">{error}</div>}{!data?<div className="panel pad">Loading database analytics...</div>:<><section className="metrics-grid"><Metric label="REPORTING CASES" value={data.summary.cases} note="Persisted cases"/><Metric label="SUBMISSIONS" value={data.summary.submissions} note="Persisted submissions" tone="orange"/><Metric label="DEADLINES" value={data.summary.deadlines} note="Tracked deadline records" tone="red"/><Metric label="FOLLOW-UPS" value={data.summary.follow_ups} note="Persisted follow-up records" tone="green"/></section><div className="two-column"><section className="panel"><PanelTitle title="Cases by Status" sub="Current persisted case statuses"/>{rows('Case status',data.cases.by_status)}</section><section className="panel"><PanelTitle title="Cases by Jurisdiction" sub="Jurisdiction values on persisted cases"/>{rows('Jurisdiction',data.cases.by_jurisdiction)}</section><section className="panel"><PanelTitle title="Reporting Decisions" sub={`${data.reporting.reportable_cases} reportable · ${data.reporting.needs_review} need review`}/>{rows('Decision',data.reporting.by_decision)}</section><section className="panel"><PanelTitle title="Submissions by Status" sub="Stored submission outcomes"/>{rows('Submission status',data.submissions.by_status)}</section></div></>}</Page>
+}
+
+function AuditPage() {
+  const [events,setEvents]=useState(null),[error,setError]=useState('')
+  useEffect(()=>{let active=true;request('/api/audit/events').then(data=>{if(active)setEvents(data)}).catch(e=>{if(active)setError(e.message||'Unable to retrieve audit events.')});return()=>{active=false}},[])
+  return <Page title="Technical / Audit" subtitle="Persisted workflow and system audit events.">{error&&<div className="alert-banner" role="alert">{error}</div>}{!events?<div className="panel pad">Loading audit events...</div>:<section className="panel"><PanelTitle title="Audit Ledger" sub="Most recent events recorded by SIGNAL" right={`${events.length} events`}/>{events.length?<div className="table-wrapper"><table><thead><tr><th>Timestamp</th><th>Entity</th><th>Event</th><th>Actor</th><th>Source</th><th>Status</th><th>Description</th></tr></thead><tbody>{events.map(event=><tr key={event.audit_id}><td>{event.event_timestamp?new Date(event.event_timestamp).toLocaleString():'Not available'}</td><td>{event.entity_type} · {event.entity_id}</td><td>{event.event_type}</td><td>{event.actor_id||event.actor_type}</td><td>{event.source_agent||'Not available'}</td><td><Badge value={event.status||'Recorded'}/></td><td>{event.description||event.workflow_stage||'—'}</td></tr>)}</tbody></table></div>:<div className="empty-state"><ClipboardList size={28}/><h3>No audit events</h3><p>Workflow events will appear here when recorded by the backend.</p></div>}</section>}</Page>
+}
+
+function DatabaseAdminVerification({caseStates,setCaseState,submitCase}) {
+ const c=useCandidate(),s=caseStates[c.id]||{},nav=useNavigate(),evidence=c.evidenceItems||[]
+ const [error,setError]=useState(''),[notice,setNotice]=useState(''),[saving,setSaving]=useState(false)
+ const decide=async status=>{const approved=status==='Verified';setSaving(true);setError('');try{await setCaseState(c.id,{adminVerificationStatus:status,submissionStatus:approved?'Ready for Submission':'Not Submitted',status:approved?'Ready for Submission':'Returned for Correction',adminReviewer:'Reporting Administrator',adminDecisionAt:new Date().toLocaleString()});nav('/admin/reporting-queue')}catch(e){setError(e.message||'Unable to persist the review decision.')}finally{setSaving(false)}}
+ const submit=async()=>{setSaving(true);setError('');setNotice('');try{const result=await submitCase(c.id);setNotice(`Case submitted individually. Submission ID: ${result.submission_id} - PHA: ${result.destination||c.jurisdiction}`)}catch(e){setError(e.message||'Unable to submit this case.')}finally{setSaving(false)}}
+ const adminStatus=s.adminVerificationStatus||'Pending Admin Verification'
+ return <Page title="Individual Case Verification" subtitle="Review the database-backed reporting package before approval."><Crumbs active="Individual Case Verification" id={c.id}/><div className="candidate-banner"><div className="case-info"><div className="large-avatar">{c.initials}</div><div><h2>{c.patient}</h2><p>{c.id} - Source patient ID: {c.mrn} - {c.condition}</p></div></div><div className="case-id"><small>ADMIN VERIFICATION</small><Badge value={adminStatus}/></div></div><div className="two-column"><section className="panel pad"><PanelTitle title="Candidate Information" sub="Canonical patient record"/><div className="info-grid">{[['Candidate ID',c.id],['Patient',c.patient],['Source Patient ID',c.mrn],['DOB / Sex',`${c.dob} - ${c.sex}`],['Facility',c.facility],['Condition',c.condition],['Jurisdiction / PHA',c.jurisdiction],['Detection confidence',c.confidence]].map(([label,value])=><Info key={label} label={label.toUpperCase()} value={value}/>)}</div></section><section className="panel"><PanelTitle title="Reporting Data" sub="Values from the candidate and canonical records"/>{[['Patient identifiers',`${c.patient} - ${c.mrn}`],['Condition',c.condition],['Clinical evidence',c.evidence.join(', ')||'No evidence recorded'],['Jurisdiction',c.jurisdiction]].map(([label,value])=><div className="report-field" key={label}><div className="field-title"><span/><b>{label}</b><Badge value="Source-backed"/></div><div className="field-columns"><p>{value}</p><small>Canonical candidate record</small></div></div>)}</section><section className="panel"><PanelTitle title="Clinical & Source Evidence" sub="Evidence linked to detection signals" right={`${evidence.length} source records`}/>{evidence.length?evidence.map((item,index)=><div className="source-row" key={`${item.label}-${index}`}><b>{item.source}</b><span>{item.label} - {item.date?new Date(item.date).toLocaleDateString():'Date not provided'}</span><Badge value="Linked"/></div>):<div className="empty-state">No source evidence is linked to this candidate.</div>}</section><section className="panel"><PanelTitle title="Review Status" sub="Persisted reporting case"/><div className="check-row">Clinical review<span>{s.clinicalReviewStatus||'Complete'}</span></div><div className="check-row">Reporting case<span>{s.caseId||'Not linked'}</span></div><div className="check-row">Jurisdiction / PHA<span>{c.jurisdiction}</span></div></section></div><section className="panel pad admin-decision"><PanelTitle title="Admin Verification Decision" sub="Stored as an individual case review in SIGNAL"/>{error&&<div className="alert-banner" role="alert">{error}</div>}{notice&&<div className="success-banner" role="status">{notice}</div>}<div className="admin-actions"><button className="button primary" disabled={saving||adminStatus==='Verified'||s.submissionStatus==='Submitted'||s.submissionStatus==='Acknowledged'} onClick={()=>decide('Verified')}>{saving?'Saving...':'Approve for Submission'}</button><button className="button secondary" disabled={saving||s.submissionStatus==='Submitted'||s.submissionStatus==='Acknowledged'} onClick={()=>decide('Returned for Correction')}>Return for Correction</button>{adminStatus==='Verified'&&s.submissionStatus==='Ready for Submission'&&<button className="button primary" disabled={saving} onClick={submit}>{saving?'Preparing individual submission...':'Submit This Case'}</button>}<span>Verification is recorded for this case. Submission is performed one case at a time.</span></div></section></Page>
+}
+
+function Login({onLogin}) {
+ const nav=useNavigate(),[activeRole,setActiveRole]=useState('clinical')
+ const submit=(event,role)=>{event.preventDefault();localStorage.setItem('signalRole',role);onLogin(role);nav(role==='admin'?'/admin/dashboard':'/dashboard')}
+ const roles=[{id:'clinical',title:'Clinical Staff',description:'Review candidates, validate reporting data, and prepare cases.',email:'sarah.mitchell@example.org'},{id:'admin',title:'Reporting Administrator',description:'Dispatch eligible cases and track submissions, acknowledgements, and follow-up.',email:'reporting.admin@example.org'}]
+ const role=roles.find(item=>item.id===activeRole)
+ return <div className="login-screen"><section className="login-aside"><div className="brand"><div className="brand-logo">S</div><div><b>SIGNAL</b><small>PUBLIC HEALTH INTELLIGENCE LAYER</small></div></div><h1>Intelligent public health reporting for healthcare organizations</h1><div className="login-stages">{[['01','Prepare','Organize source information for required fields.'],['02','Report','Prepare jurisdiction-specific reporting data.'],['03','Execute','Track submission, acknowledgement, and follow-up.']].map(([n,a,b])=><div key={n}><b>{n}</b><span><strong>{a}</strong><small>{b}</small></span></div>)}</div><small>Demo Environment · Synthetic Data</small></section><section className="login-form login-form-pair"><span className="eyebrow">SIGN IN TO SIGNAL</span><h2>{role.title} Sign In</h2><p>{role.description}</p><div className="login-role-switch" aria-label="Choose sign-in role">{roles.map(item=><button key={item.id} type="button" className={activeRole===item.id?'selected':''} aria-pressed={activeRole===item.id} onClick={()=>setActiveRole(item.id)}>{item.title}</button>)}</div><form className="login-role-card login-role-single" key={activeRole} onSubmit={event=>submit(event,activeRole)}><div className="role-card-heading"><span className="role-avatar">{activeRole==='admin'?'RA':'CS'}</span><div><h3>{role.title}</h3><small>{activeRole==='admin'?'Submission operations':'Clinical reporting workflow'}</small></div></div><label>Work Email<input type="email" placeholder="name@organization.org" defaultValue={role.email} required/></label><label>Password<input type="password" placeholder="Enter your password" defaultValue="signal-demo" required/></label><div className="form-options"><label><input type="checkbox" defaultChecked/> Remember me</label><a href="#forgot">Forgot password?</a></div><button className="button primary full">Sign in as {role.title} <ArrowRight size={15}/></button></form></section></div>
+}
+export default App

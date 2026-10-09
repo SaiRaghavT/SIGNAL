@@ -65,7 +65,7 @@ const NAVIGATION = [
   },
 ];
 
-export default function AdminShell() {
+export default function AdminShell({ children }) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -254,7 +254,7 @@ export default function AdminShell() {
         </header>
 
         <div className="admin-content">
-          <Outlet />
+          {children || <Outlet />}
         </div>
       </div>
     </div>

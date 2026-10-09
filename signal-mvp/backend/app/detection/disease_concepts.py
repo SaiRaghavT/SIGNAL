@@ -23,4 +23,3 @@ def canonical_disease_id(value: Any) -> str | None:
     if not identity:
         return None
     return _ALIASES.get(identity.casefold(), identity)
-
