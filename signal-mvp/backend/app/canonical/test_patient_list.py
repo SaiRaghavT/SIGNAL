@@ -99,7 +99,8 @@ def test_list_patients_returns_real_related_fields_and_pagination():
     assert filtered["condition_filter"] == "Measles"
     assert filtered["items"][0]["last_encounter"].replace(tzinfo=timezone.utc) == datetime(2026, 1, 3, tzinfo=timezone.utc)
     assert "severity" not in filtered["items"][0]
-    assert filtered["items"][0]["deadline"]["deadline"] == datetime(2026, 1, 3, tzinfo=timezone.utc)
+    assert filtered["items"][0]["deadline"] is None
+    assert "timestamp" in filtered["items"][0]["deadline_reason"]
     db.close()
 
 
@@ -526,12 +527,12 @@ def test_measles_condition_timestamp_matching_dob_is_not_a_deadline_event():
     result = list_patients(db, condition="measles")
     item = result["items"][0]
     assert result["total"] == 1
-    assert item["deadline"]["deadline"] == encounter.start_time.replace(tzinfo=timezone.utc)
-    assert item["deadline"]["rule_id"] == "MEASLES-TX"
+    assert item["deadline"] is None
+    assert "timestamp" in item["deadline_reason"]
     db.close()
 
 
-def test_measles_condition_without_event_uses_last_encounter_fallback():
+def test_measles_condition_without_event_does_not_use_encounter_as_deadline_anchor():
     db = _session()
     patient = Patient(
         patient_id=uuid4(), source_patient_id="source-no-clinical-event",
@@ -559,8 +560,8 @@ def test_measles_condition_without_event_uses_last_encounter_fallback():
 
     result = list_patients(db, condition="measles")
     assert result["total"] == 1
-    assert result["items"][0]["deadline"]["deadline"] == encounter_time
-    assert result["items"][0]["deadline"]["rule_id"] == "MEASLES-TX"
+    assert result["items"][0]["deadline"] is None
+    assert "timestamp" in result["items"][0]["deadline_reason"]
     db.close()
 
 

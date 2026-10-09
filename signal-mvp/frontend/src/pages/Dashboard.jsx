@@ -16,6 +16,7 @@ import { listCanonicalPatients } from "../api/canonical.js";
 import { getDashboardSummary } from "../api/dashboard.js";
 import { request } from "../api/client.js";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { useDailyRefresh } from "../hooks/useDailyRefresh.js";
 import "../styles/dashboard.css";
 
 const EMPTY_VALUE = "—";
@@ -122,10 +123,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activityVisible, setActivityVisible] = useState(true);
+  const currentDay = useDailyRefresh();
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
-    const [summaryResult, reportingResult, qualityResult, submissionsResult, jurisdictionsResult, activityResult, deadlinesResult, patientsResult] = await Promise.allSettled([
+    const [summaryResult, reportingResult, qualityResult, submissionsResult, jurisdictionsResult, activityResult, deadlinesResult, patientsResult, measlesPatientsResult] = await Promise.allSettled([
       getDashboardSummary(),
       request("/api/dashboard/reporting-status"),
       request("/api/dashboard/quality"),
@@ -133,7 +135,8 @@ export default function Dashboard() {
       request("/api/dashboard/jurisdictions"),
       request("/api/dashboard/activity"),
       request("/api/dashboard/deadlines"),
-      listCanonicalPatients({ page: 1, page_size: WORKLIST_PAGE_SIZE }),
+      listCanonicalPatients({ page: 1, page_size: PATIENT_PAGE_SIZE }),
+      listCanonicalPatients({ page: 1, page_size: 5, condition: "measles" }),
     ]);
     setData({
       summary: summaryResult.status === "fulfilled" ? summaryResult.value : null,
@@ -144,6 +147,7 @@ export default function Dashboard() {
       activity: activityResult.status === "fulfilled" ? responseItems(activityResult.value) : [],
       deadlines: deadlinesResult.status === "fulfilled" ? responseItems(deadlinesResult.value) : [],
       patients: patientsResult.status === "fulfilled" ? patientsResult.value : null,
+      measlesPatients: measlesPatientsResult.status === "fulfilled" ? measlesPatientsResult.value : null,
       errors: {
         summary: errorMessage(summaryResult),
         reporting: errorMessage(reportingResult),
@@ -153,19 +157,20 @@ export default function Dashboard() {
         activity: errorMessage(activityResult),
         deadlines: errorMessage(deadlinesResult),
         patients: errorMessage(patientsResult),
+        measlesPatients: errorMessage(measlesPatientsResult),
       },
     });
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadDashboard(); }, [loadDashboard, refreshKey]);
+  useEffect(() => { loadDashboard(); }, [loadDashboard, refreshKey, currentDay]);
 
   const reportingRows = useMemo(() => countRows(data?.reporting?.cases), [data]);
   const submissionRows = useMemo(() => countRows(data?.submissions), [data]);
   const deadlineRiskRows = useMemo(() => countRows(data?.deadlines?.by_status), [data]);
   const conditionRows = useMemo(() => countRows(data?.reporting?.case_conditions), [data]);
   const jurisdictionRows = useMemo(() => countRows(data?.jurisdictions), [data]);
-  const priorityPatients = useMemo(() => responseItems(data?.patients), [data]);
+  const priorityPatients = useMemo(() => responseItems(data?.measlesPatients), [data]);
   const activityItems = activityVisible ? data?.activity?.slice(0, 5) || [] : [];
   const deadlineItems = data?.deadlines?.slice(0, 3) || [];
   const summary = data?.summary;
@@ -210,10 +215,10 @@ export default function Dashboard() {
 
       <section className="dashboard-priority-card" aria-labelledby="priority-work-heading">
         <header className="dashboard-card-header">
-          <div><h2 id="priority-work-heading">Priority Work</h2><p>Top 5 patients across all conditions</p></div>
+          <div><h2 id="priority-work-heading">Priority Work</h2><p>Top 5 Measles patients</p></div>
           <button className="dashboard-view-all" type="button" onClick={() => navigate("/patients")}>View All Patients <ArrowRight size={14} aria-hidden="true" /></button>
         </header>
-        {data?.errors?.patients ? <div className="dashboard-section-error" role="alert">{data.errors.patients}</div>
+        {data?.errors?.measlesPatients ? <div className="dashboard-section-error" role="alert">{data.errors.measlesPatients}</div>
           : priorityPatients.length ? <>
             <div className="dashboard-table-wrap">
               <table className="priority-table">
@@ -231,7 +236,7 @@ export default function Dashboard() {
                 })}</tbody>
               </table>
             </div>
-            <footer className="dashboard-priority-footer"><span>Showing {priorityPatients.length} of {data.patients.total} patients</span><span>Patients in Patients page order</span></footer>
+            <footer className="dashboard-priority-footer"><span>Showing {priorityPatients.length} of {data.measlesPatients.total} Measles patients</span><span>Patients in Patients page order</span></footer>
           </> : <div className="dashboard-empty">No patients are currently in the reporting worklist.</div>}
       </section>
 

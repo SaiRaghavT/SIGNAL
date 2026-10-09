@@ -13,6 +13,15 @@ from backend.app.models.condition import Condition
 from .schemas import DashboardSummaryResponse
 
 
+def _deadline_local_date(deadline: datetime):
+    try:
+        return deadline.astimezone().date()
+    except (OSError, OverflowError, ValueError):
+        # Windows can reject local-time conversion for out-of-range or
+        # historical timezone dates. Keep the summary available in this case.
+        return deadline.date()
+
+
 def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
     """Aggregate dashboard counts across all patients, conditions, and cases."""
 
@@ -63,7 +72,8 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
             continue
         if deadline_value.tzinfo is None:
             deadline_value = deadline_value.replace(tzinfo=timezone.utc)
-        if deadline_value.astimezone().date() == local_today:
+        deadline_local_date = _deadline_local_date(deadline_value)
+        if deadline_local_date == local_today:
             patients_due_today += 1
 
     reported_case_ids = (

@@ -10,14 +10,19 @@ from backend.app.agents.attestation_control.schemas import AttestationRequest
 from backend.app.agents.attestation_control.service import AttestationControlService
 from backend.app.config.demo import is_demo_case
 from backend.app.config.settings import settings
+from backend.app.detection.disease_concepts import canonical_disease_id
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.database import get_db
+from backend.app.demo.admin_demo_reporting import (
+    apply_admin_demo_reporting_defaults,
+    canonical_patient_for_case,
+)
 from backend.app.demo.reset_service import reset_demo
 from backend.app.ecr.builder import build_ecr
 from backend.app.models.case import Case
 from backend.app.models.audit_event import AuditEvent
-from backend.app.models.workflow_records import CaseWorkflowRecord
+from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.case.report_fields import available_case_report_fields, missing_report_fields
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
@@ -38,18 +43,126 @@ def _has_immediate_reporting_rule(case: Case) -> bool:
     if not case.disease or not case.jurisdiction:
         return False
 
+    from backend.app.rules.resolver import normalize_disease_name
+
+    disease = normalize_disease_name(case.disease)
+    if not disease:
+        return False
+
     rules = DeadlineCalculationService()
     rule_ids = [case.rule_id] if case.rule_id else []
     rule_ids.append(None)
     for rule_id in dict.fromkeys(rule_ids):
         try:
-            rule = rules._load_rule(case.disease, case.jurisdiction, rule_id)
+            rule = rules._load_rule(disease, case.jurisdiction, rule_id)
         except NoReportingRuleError:
             continue
         timing = str((rule.get("reporting") or {}).get("timing") or "").upper()
         if timing in {"CALL_IMMEDIATELY", "REPORT_IMMEDIATELY", "CALL_FAX_IMMEDIATELY", "IMMEDIATE"}:
             return True
     return False
+
+
+def _is_synthetic_measles_case(case: Case) -> bool:
+    patient = case.patient if isinstance(case.patient, dict) else {}
+    facility = case.facility if isinstance(case.facility, dict) else {}
+    provenance = patient.get("provenance") if isinstance(patient.get("provenance"), dict) else {}
+    source = str(provenance.get("source") or facility.get("source") or "").strip().casefold()
+    return (
+        source in {"synthea", "signal_demo"}
+        and canonical_disease_id(case.disease) == canonical_disease_id("measles")
+        and str(case.jurisdiction or "").strip().upper() == "TX"
+    )
+
+
+def _queue_synthetic_demo_case(
+    case_id: UUID,
+    case: Case,
+    request: QueueRequest,
+    db: Session,
+) -> dict[str, Any]:
+    if not settings.demo_queue_enabled:
+        raise HTTPException(status_code=403, detail="Synthetic demo queueing is disabled.")
+    if not _is_synthetic_measles_case(case):
+        raise HTTPException(status_code=403, detail="Demo queueing is limited to synthetic measles cases.")
+    if case.jurisdiction_status != "RESOLVED" or not case.jurisdiction:
+        raise HTTPException(status_code=409, detail="Resolve the reporting jurisdiction before demo queueing.")
+    if not request.demo_review_confirmed:
+        raise HTTPException(status_code=409, detail="Confirm the synthetic demo review before queueing.")
+    if not _has_immediate_reporting_rule(case):
+        raise HTTPException(status_code=409, detail="No configured immediate reporting rule is available for this demo case.")
+    if request.submission_mode is not None and request.submission_mode != "IMMEDIATE":
+        raise HTTPException(status_code=409, detail="Texas measles demo queue mode must be IMMEDIATE.")
+
+    case.submission_mode = "IMMEDIATE"
+    latest = _latest(db, case_id, ADMIN_QUEUE_TYPE)
+    if latest and latest.status in {"QUEUED", "READY_FOR_SUBMISSION"}:
+        if not (latest.payload or {}).get("demo_submission"):
+            raise HTTPException(status_code=409, detail="A non-demo queue record already exists for this case.")
+        db.commit()
+        return {
+            "case_id": str(case_id),
+            "queue_status": latest.status,
+            "submission_mode": case.submission_mode or "IMMEDIATE",
+            "demo_submission": True,
+        }
+
+    reviewer_id = request.actor_id.strip()
+    demo_payload = {
+        "demo_submission": True,
+        "notice": "Synthetic demo workflow only; not authorized for external reporting.",
+    }
+
+    review = _latest(db, case_id, RECORD_TYPES["review"])
+    if review is None or str(review.status or "").upper() not in {"APPROVE", "APPROVED"}:
+        _record(
+            db,
+            case_id,
+            RECORD_TYPES["review"],
+            "APPROVE",
+            {
+                **demo_payload,
+                "reviewer_id": reviewer_id,
+                "reviewer_role": "DEMO_SIMULATION",
+                "decision": "APPROVE",
+                "comments": "Demo-only review confirmation; this is not a clinical approval.",
+                "review_confirmed": True,
+            },
+            reviewer_id,
+        )
+
+    attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
+    if attestation is None or str(attestation.status or "").upper() != "ATTESTED":
+        _record(
+            db,
+            case_id,
+            RECORD_TYPES["attestation"],
+            "ATTESTED",
+            {
+                **demo_payload,
+                "reviewer_id": reviewer_id,
+                "reviewer_role": "DEMO_SIMULATION",
+                "attestation_status": "ATTESTED",
+                "comments": "Demo-only attestation; not authorized for external reporting.",
+            },
+            reviewer_id,
+        )
+
+    row = _record(
+        db,
+        case_id,
+        ADMIN_QUEUE_TYPE,
+        "READY_FOR_SUBMISSION",
+        {**demo_payload, "submission_mode": case.submission_mode},
+        reviewer_id,
+    )
+    return {
+        "case_id": str(case_id),
+        "queue_status": row.status,
+        "submission_mode": case.submission_mode,
+        "demo_submission": True,
+        "queued_at": row.created_at,
+    }
 
 
 class NotificationRequest(BaseModel):
@@ -73,6 +186,7 @@ class ReviewRequest(BaseModel):
     comments: str | None = None
     review_confirmed: bool = False
     draft_decision: str | None = None
+    demo_simulation: bool = False
 
 
 class AttestationBody(BaseModel):
@@ -80,6 +194,7 @@ class AttestationBody(BaseModel):
     reviewer_role: str = Field(min_length=1, max_length=100)
     attestation_status: str = "ATTESTED"
     comments: str | None = None
+    demo_simulation: bool = False
 
 
 class SubmissionReadinessRequest(BaseModel):
@@ -95,7 +210,29 @@ class DemoWorkflowResetRequest(BaseModel):
 
 @router.post("/api/cases/{case_id}/queue", status_code=201)
 def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
-    case = _case(db, case_id)
+    # Lock the case while checking the latest queue row so concurrent clicks
+    # serialize and cannot create duplicate active handoffs.
+    case = db.query(Case).filter(Case.case_id == case_id).with_for_update().first()
+    if case is None:
+        raise HTTPException(status_code=404, detail=f"Case not found: {case_id}")
+    if request.demo_submission:
+        return _queue_synthetic_demo_case(case_id, case, request, db)
+
+    latest = _latest(db, case_id, ADMIN_QUEUE_TYPE)
+    if latest and latest.status in {"QUEUED", "READY_FOR_SUBMISSION"}:
+        return {
+            "case_id": str(case_id),
+            "queue_status": latest.status,
+            "submission_mode": case.submission_mode,
+            "queued_at": latest.created_at,
+        }
+    if latest and latest.status == "DISPATCHED":
+        return {
+            "case_id": str(case_id),
+            "queue_status": latest.status,
+            "submission_mode": case.submission_mode,
+        }
+
     review = _latest(db, case_id, RECORD_TYPES["review"])
     attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
     review_status = str(getattr(review, "status", "") or "").strip().upper()
@@ -104,25 +241,56 @@ def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_d
         raise HTTPException(status_code=409, detail="An approved review is required before queueing.")
     if attestation_status != "ATTESTED":
         raise HTTPException(status_code=409, detail="A persisted attestation is required before queueing.")
+    validation = _validation(case, db)
+    if not validation["valid"]:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Complete and validate the reporting package before queueing.",
+                "validation": validation,
+            },
+        )
+    report = (
+        db.query(Report)
+        .filter(Report.case_id == str(case_id), Report.status == "GENERATED")
+        .order_by(Report.created_at.desc())
+        .first()
+    )
+    if report is None:
+        raise HTTPException(status_code=409, detail="Generate a report from the saved reporting fields before queueing.")
+
     # The effective reporting rule determines mode; a client cannot override
     # an immediate jurisdiction rule with a browser-selected value.
-    if _has_immediate_reporting_rule(case) and case.submission_mode != "IMMEDIATE":
+    if _has_immediate_reporting_rule(case):
         case.submission_mode = "IMMEDIATE"
+    elif not case.submission_mode:
+        case.submission_mode = "INDIVIDUAL"
     if request.submission_mode is not None and request.submission_mode != case.submission_mode:
         raise HTTPException(status_code=409, detail="Queue submission mode must match the Case reporting rule.")
-    latest = _latest(db, case_id, ADMIN_QUEUE_TYPE)
-    if latest and latest.status in {"QUEUED", "READY_FOR_SUBMISSION"}:
-        db.commit()
-        return {"case_id": str(case_id), "queue_status": latest.status, "submission_mode": case.submission_mode}
     row = _record(
         db,
         case_id,
         ADMIN_QUEUE_TYPE,
         "READY_FOR_SUBMISSION",
-        {"submission_mode": case.submission_mode},
+        {
+            "submission_mode": case.submission_mode,
+            "report_id": report.report_id,
+            "rule_id": case.rule_id,
+            "deadline": case.deadline.isoformat() if case.deadline else None,
+            "review_record_id": review.record_id,
+            "attestation_record_id": attestation.record_id,
+        },
         request.actor_id.strip(),
     )
-    return {"case_id": str(case_id), "queue_status": row.status, "submission_mode": case.submission_mode, "queued_at": row.created_at}
+    return {
+        "case_id": str(case_id),
+        "queue_status": row.status,
+        "submission_mode": case.submission_mode,
+        "queued_at": row.created_at,
+        "report_id": report.report_id,
+        "rule_id": case.rule_id,
+        "deadline": case.deadline,
+    }
 
 
 class WorkflowRecordResponse(BaseModel):
@@ -296,7 +464,9 @@ def update_investigation(case_id: UUID, request: InvestigationRequest, db: Sessi
     return _record(db, case_id, RECORD_TYPES["investigation"], request.status.upper(), request.model_dump(mode="json"))
 
 
-def _validation(case: Case) -> dict[str, Any]:
+def _validation(case: Case, db: Session | None = None) -> dict[str, Any]:
+    canonical_patient = canonical_patient_for_case(db, case)
+    apply_admin_demo_reporting_defaults(case, canonical_patient)
     ecr = build_ecr(case)
     ecr.status = "REPORT"
     result = validate_ecr(ecr, smart_fields_for_case(case))
@@ -313,7 +483,7 @@ def _validation(case: Case) -> dict[str, Any]:
 @router.post("/api/cases/{case_id}/validate")
 def validate_case(case_id: UUID, db: Session = Depends(get_db)) -> dict[str, Any]:
     case = _case(db, case_id)
-    data = _validation(case)
+    data = _validation(case, db)
     row = _record(db, case_id, RECORD_TYPES["validation"], "VALID" if data["valid"] else "INVALID", data)
     return {**data, "case_id": str(case_id), "record_id": row.record_id, "status": row.status}
 
@@ -322,7 +492,7 @@ def validate_case(case_id: UUID, db: Session = Depends(get_db)) -> dict[str, Any
 def get_validation(case_id: UUID, db: Session = Depends(get_db)) -> dict[str, Any]:
     case = _case(db, case_id)
     row = _latest(db, case_id, RECORD_TYPES["validation"])
-    return {**row.payload, "case_id": str(case_id), "record_id": row.record_id, "status": row.status} if row else _validation(case)
+    return {**row.payload, "case_id": str(case_id), "record_id": row.record_id, "status": row.status} if row else _validation(case, db)
 
 
 @router.get("/api/cases/{case_id}/review", response_model=WorkflowRecordResponse | None)
@@ -338,11 +508,31 @@ def create_review(case_id: UUID, request: ReviewRequest, db: Session = Depends(g
     if decision not in {"DRAFT", "APPROVE", "REQUEST_INFORMATION", "REJECT"}:
         raise HTTPException(status_code=422, detail="Unsupported review decision.")
     latest_review = _latest(db, case_id, RECORD_TYPES["review"])
+    if (
+        decision == "APPROVE"
+        and latest_review is not None
+        and str(latest_review.status or "").upper() in {"APPROVE", "APPROVED"}
+        and latest_review.actor_id == request.reviewer_id
+    ):
+        return latest_review
     # An outstanding autosaved draft must never arrive after an explicit
     # approval and replace the status that gates queueing and dispatch.
     if decision == "DRAFT" and latest_review is not None and latest_review.status == "APPROVE":
         return latest_review
-    validation = _validation(case)
+    if request.demo_simulation:
+        if not settings.demo_queue_enabled or not _is_synthetic_measles_case(case):
+            raise HTTPException(status_code=403, detail="Demo review is limited to enabled synthetic measles cases.")
+        if decision != "APPROVE":
+            raise HTTPException(status_code=422, detail="Demo review simulation only supports an explicit approval.")
+        if not request.review_confirmed:
+            raise HTTPException(status_code=409, detail="Confirm the reporting values before demo review approval.")
+        payload = request.model_dump(mode="json")
+        payload.update({
+            "demo_submission": True,
+            "notice": "Synthetic demo review only; this is not a clinical approval.",
+        })
+        return _record(db, case_id, RECORD_TYPES["review"], "APPROVE", payload, request.reviewer_id)
+    validation = _validation(case, db)
     if decision == "APPROVE" and not validation["valid"]:
         raise HTTPException(status_code=409, detail={"message": "Case is not valid for approval.", "validation": validation})
     if decision == "APPROVE":
@@ -376,9 +566,29 @@ def get_attestation(case_id: UUID, db: Session = Depends(get_db)) -> CaseWorkflo
 def create_attestation(case_id: UUID, request: AttestationBody, db: Session = Depends(get_db)) -> CaseWorkflowRecord:
     case = _case(db, case_id)
     review = _latest(db, case_id, RECORD_TYPES["review"])
-    if review is None or review.status != "APPROVE":
+    if review is None or str(review.status or "").strip().upper() not in {"APPROVE", "APPROVED"}:
         raise HTTPException(status_code=409, detail="An approved review is required before attestation.")
-    if not _validation(case)["valid"]:
+    latest_attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
+    if (
+        latest_attestation is not None
+        and str(latest_attestation.status or "").upper() == "ATTESTED"
+        and latest_attestation.actor_id == request.reviewer_id
+    ):
+        return latest_attestation
+    if request.demo_simulation:
+        if not settings.demo_queue_enabled or not _is_synthetic_measles_case(case):
+            raise HTTPException(status_code=403, detail="Demo attestation is limited to enabled synthetic measles cases.")
+        if not (review.payload or {}).get("demo_submission"):
+            raise HTTPException(status_code=409, detail="A demo review confirmation is required before demo attestation.")
+        if request.attestation_status.strip().upper() != "ATTESTED":
+            raise HTTPException(status_code=422, detail="Demo attestation status must be ATTESTED.")
+        payload = request.model_dump(mode="json")
+        payload.update({
+            "demo_submission": True,
+            "notice": "Synthetic demo attestation only; this is not authorization for external reporting.",
+        })
+        return _record(db, case_id, RECORD_TYPES["attestation"], "ATTESTED", payload, request.reviewer_id)
+    if not _validation(case, db)["valid"]:
         raise HTTPException(status_code=409, detail="A valid case is required before attestation.")
     result = AttestationControlService().validate(
         AttestationRequest(
@@ -398,14 +608,16 @@ def create_attestation(case_id: UUID, request: AttestationBody, db: Session = De
 @router.get("/api/cases/{case_id}/submission-readiness")
 def get_submission_readiness(case_id: UUID, db: Session = Depends(get_db)) -> dict[str, Any]:
     case = _case(db, case_id)
+    queue_record = _latest(db, case_id, ADMIN_QUEUE_TYPE)
+    if queue_record is not None and queue_record.status in {"QUEUED", "READY_FOR_SUBMISSION"}:
+        return _submission_readiness_response(case, True, queue_record)
+
     row = _latest(db, case_id, SUBMISSION_READINESS_TYPE)
-    valid = _validation(case)["valid"]
+    valid = _validation(case, db)["valid"]
     current = (
         row is not None
-        and (
-            (row.status == "READY" and valid)
-            or row.status == "QUEUED"
-        )
+        and row.status == "READY"
+        and valid
     )
     return _submission_readiness_response(case, current, row)
 
@@ -417,23 +629,27 @@ def mark_submission_ready(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     case = _case(db, case_id)
-    validation = _validation(case)
+    validation = _validation(case, db)
     review = _latest(db, case_id, RECORD_TYPES["review"])
     attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
     persisted_review_approved = (
         review is not None
         and (review.status or "").strip().upper() in {"APPROVE", "APPROVED"}
     )
-    session_review_confirmed = (
-        request.review_confirmed
-        and (request.review_decision or "").strip().upper() in {"APPROVE", "APPROVED"}
-    )
-    if not persisted_review_approved and not session_review_confirmed:
+    if not persisted_review_approved:
         raise HTTPException(status_code=409, detail="An approved human review is required before queue readiness.")
-    if (attestation is None or attestation.status != "ATTESTED") and not request.attestation_confirmed:
+    if attestation is None or attestation.status != "ATTESTED":
         raise HTTPException(status_code=409, detail="An attestation confirmation is required before queue readiness.")
+    if not validation["valid"]:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Complete and validate the required reporting fields before queue readiness.",
+                "validation": validation,
+            },
+        )
     existing = _latest(db, case_id, SUBMISSION_READINESS_TYPE)
-    queue_status = "READY" if validation["valid"] else "QUEUED"
+    queue_status = "READY"
     if existing is not None and existing.status == queue_status:
         return _submission_readiness_response(case, True, existing)
     row = _record(
@@ -442,8 +658,8 @@ def mark_submission_ready(
         SUBMISSION_READINESS_TYPE,
         queue_status,
         {
-            "ready_for_authorized_reporting": validation["valid"],
-            "queued_for_completion": not validation["valid"],
+            "ready_for_authorized_reporting": True,
+            "queued_for_completion": False,
             "missing_fields": validation["missing_fields"],
         },
         request.actor_id.strip(),

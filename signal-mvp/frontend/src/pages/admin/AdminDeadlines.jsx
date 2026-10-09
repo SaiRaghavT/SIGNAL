@@ -4,7 +4,7 @@ import { AlertCircle, Clock3, ShieldCheck } from "lucide-react";
 import "../../styles/AdminDeadlines.css";
 
 // UI-only POC data. Replace this array with getAdminDeadlines() when that API is ready.
-const DEMO_DEADLINES = [
+export const DEMO_DEADLINES = [
   { patient: "Maya Patel", caseId: "33333333-3333-4333-8333-333333333333", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-07T16:00:00-05:00", priority: "HIGH", status: "OVERDUE" },
   { patient: "Liam Chen", caseId: "44444444-4444-4444-8444-444444444444", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-07T19:45:00-05:00", priority: "URGENT", status: "OVERDUE" },
   { patient: "John Anderson", caseId: "11111111-1111-4111-8111-111111111111", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-08T20:30:00-05:00", priority: "URGENT", status: "DUE TODAY" },

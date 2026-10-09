@@ -352,6 +352,12 @@ export default function AdminCaseReview() {
       setSuccess("");
 
       const response = await dispatchCase(caseId);
+      const submission = response?.submission || response?.data?.submission || response?.data || response;
+      if (String(submission?.status || "").toUpperCase() !== "SUBMITTED") {
+        throw new Error(submission?.errors?.join("; ") || "The case was not successfully submitted.");
+      }
+      const submissionId = submission?.submission_id || submission?.submissionId;
+      if (!submissionId) throw new Error("Submission succeeded, but the dispatch response did not include a submission ID.");
 
       setAuthorized(true);
 
@@ -361,6 +367,7 @@ export default function AdminCaseReview() {
         "Case authorized and submitted successfully.";
 
       setSuccess(message);
+      navigate(`/admin/submission-journey/${encodeURIComponent(submissionId)}`);
     } catch (err) {
       setError(
         err?.message ||

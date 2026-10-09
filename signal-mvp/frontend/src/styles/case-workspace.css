@@ -1,5 +1,5 @@
 ﻿/* =========================================================
-   SIGNAL — REVIEW & VALIDATION
+   SIGNAL — Reporting Review
    Reference UI:
    Navy + Orange + White + Light Gray + Green
    ========================================================= */
@@ -868,6 +868,18 @@
   accent-color: var(--rv-navy);
 }
 
+.review-validation-unified-confirmation {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.review-validation-field-feedback {
+  margin: 0 14px 12px;
+  color: var(--rv-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .review-validation-comment-field {
   display: grid;
 
@@ -1139,6 +1151,7 @@
 }
 
 .review-validation-submit {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1374,6 +1387,7 @@
   }
 
   .review-validation-submit {
+    margin-left: 0;
     width: 100%;
   }
 
@@ -1391,7 +1405,7 @@
   }
 }
 
-/* Review & Validation two-column arrangement. */
+/* Reporting Review two-column arrangement. */
 .review-validation-grid {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:

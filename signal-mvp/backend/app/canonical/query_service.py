@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from backend.app.agents.deadline_calculation.schemas import DeadlineCalculationRequest
 from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
-from backend.app.agents.deadline_escalation.service import DeadlineEscalationService
 from backend.app.detection.adapter import canonical_context_to_detection_input
 from backend.app.detection.structured_trigger import detect_structured_triggers
 from backend.app.detection.structured_trigger import STRUCTURED_TRIGGERS
@@ -458,40 +457,33 @@ def _patient_deadline(
             rule_id=rule_id,
         )
     except ValueError:
-        rule = None
+        # Case rule IDs can identify reportability evaluator outcomes (for
+        # example MEASLES-003) or legacy placeholders rather than a deadline
+        # catalog rule. Resolve the configured deadline rule by disease and
+        # jurisdiction before treating the rule as unavailable.
+        try:
+            rule = deadline_calculation_service._load_rule(
+                disease=disease,
+                jurisdiction=jurisdiction,
+                rule_id=None,
+            )
+        except ValueError:
+            rule = None
     if rule is not None:
         rule_id = rule.get("rule_id")
     reporting = rule.get("reporting", {}) if rule else {}
 
     persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
-    if persisted_deadline is not None and last_encounter is None:
-        current_state = (
-            DeadlineEscalationService().evaluate_current_state(persisted_deadline, rule)
-            if rule
-            else {"urgency": None, "minutes_remaining": None}
-        )
-        return {
-            "deadline": None,
-            "status": "SEE_RULES",
-            "calculation_basis": (rule.get("instructions") if rule else None) or "Follow the condition-specific Texas reporting rules.",
-            "disease": disease,
-            "jurisdiction": jurisdiction,
-            "rule_id": rule_id,
-            "reporting_timing": "SEE_RULES",
-            "reporting_method": reporting.get("method"),
-            "urgency": current_state["urgency"],
-            "minutes_remaining": current_state["minutes_remaining"],
-        }, None
 
     event_time = None
     if case:
-        event_time = _payload_event_time(case.clinical_evidence, patient)
+        event_time = _payload_event_time(getattr(case, "clinical_evidence", None), patient)
         if event_time is None:
-            event_time = _payload_event_time(case.laboratory_evidence, patient)
+            event_time = _payload_event_time(getattr(case, "laboratory_evidence", None), patient)
     if event_time is None and candidate:
-        event_time = _payload_event_time(candidate.evidence, patient)
+        event_time = _payload_event_time(getattr(candidate, "evidence", None), patient)
         if event_time is None:
-            event_time = _payload_event_time(candidate.signals, patient)
+            event_time = _payload_event_time(getattr(candidate, "signals", None), patient)
     if event_time is None:
         event_time = positive_lab_event_time
     if event_time is None:
@@ -511,11 +503,11 @@ def _patient_deadline(
             )
             if event_time is not None:
                 break
-    if event_time is None:
+    if event_time is None and str(reporting.get("event_anchor") or "").strip().upper() == "ENCOUNTER":
         event_time = last_encounter
 
     if event_time is None:
-        if persisted_deadline is not None:
+        if persisted_deadline is not None and rule is not None:
             return {
                 "deadline": persisted_deadline,
                 "status": "PERSISTED",
@@ -529,7 +521,11 @@ def _patient_deadline(
                 "source_url": rule.get("source_url") if rule else None,
                 **_deadline_time_metadata(persisted_deadline),
             }, None
-        return None, "No clinical event or encounter timestamp is available to calculate a reporting deadline."
+        if rule is None:
+            if jurisdiction == "TX":
+                return None, f"No Texas 2026 reporting deadline rule matches disease={disease}, rule_id={rule_id}."
+            return None, f"No reporting deadline rule matches disease={disease}, jurisdiction={jurisdiction}, rule_id={rule_id}."
+        return None, "No clinical event timestamp is available to calculate a reporting deadline."
     if event_time.tzinfo is None:
         event_time = event_time.replace(tzinfo=timezone.utc)
 
@@ -546,9 +542,52 @@ def _patient_deadline(
     except ValueError as exc:
         return None, str(exc)
     result_data = result.model_dump()
+    if result.status == "NO_RULE":
+        if jurisdiction == "TX":
+            return None, f"No Texas 2026 reporting deadline rule matches disease={disease}, rule_id={rule_id}. {result.calculation_basis}"
+        return None, result.calculation_basis
     if result.deadline is not None:
         result_data.update(_deadline_time_metadata(result.deadline))
     return result_data, None
+
+
+def resolve_case_deadline(db: Session, case: Case) -> tuple[dict[str, Any] | None, str | None]:
+    """Resolve a case deadline from its canonical patient timeline and catalog rule."""
+    candidate = db.query(Candidate).filter(Candidate.candidate_id == case.candidate_id).first()
+    patient_id = _case_patient_id(case)
+    if patient_id is None and candidate is not None:
+        try:
+            patient_id = UUID(candidate.patient_id)
+        except (TypeError, ValueError):
+            patient_id = None
+    if patient_id is None:
+        return None, "The case has no valid canonical patient reference, and its stored case evidence has no event timestamp for deadline resolution."
+
+    patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
+    if patient is None:
+        return None, "The canonical patient record is unavailable for deadline resolution."
+
+    conditions = db.query(Condition).filter(Condition.patient_id == patient_id).order_by(
+        Condition.recorded_time.desc().nullslast()
+    ).all()
+    lab_results = db.query(LabResult).filter(LabResult.patient_id == patient_id).order_by(
+        LabResult.effective_time.desc().nullslast()
+    ).all()
+    last_encounter = db.query(
+        func.max(func.coalesce(Encounter.end_time, Encounter.start_time))
+    ).filter(
+        Encounter.patient_id == patient_id,
+        func.coalesce(Encounter.end_time, Encounter.start_time).isnot(None),
+    ).scalar()
+
+    return _patient_deadline(
+        patient=patient,
+        conditions=conditions,
+        lab_results=lab_results,
+        candidate=candidate,
+        case=case,
+        last_encounter=last_encounter,
+    )
 
 
 def list_patients(
@@ -569,6 +608,7 @@ def list_patients(
             Patient.source_patient_id.ilike(pattern),
             Patient.first_name.ilike(pattern),
             Patient.last_name.ilike(pattern),
+            (func.coalesce(Patient.first_name, "") + " " + func.coalesce(Patient.last_name, "")).ilike(pattern),
             cast(Patient.date_of_birth, String).ilike(pattern),
         ))
 

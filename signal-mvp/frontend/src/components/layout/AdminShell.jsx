@@ -146,8 +146,11 @@ export default function AdminShell() {
 
     clearClinicalInformationRequests();
     clearTemporaryWorkflowValues();
-    sessionStorage.clear();
-    localStorage.clear();
+    sessionStorage.removeItem("signal-auth");
+    sessionStorage.removeItem("signal-user");
+    sessionStorage.removeItem(ADMIN_SESSION_SUBMISSION_BASELINE);
+    localStorage.removeItem("signal-auth");
+    localStorage.removeItem("signal-user");
 
     navigate("/login", { replace: true });
   };
@@ -185,6 +188,7 @@ export default function AdminShell() {
               <NavLink
                 key={item.path}
                 to={item.path}
+                end={item.path === "/admin/submissions"}
                 className={({ isActive }) =>
                   `admin-nav-item ${
                     isActive ? "active" : ""

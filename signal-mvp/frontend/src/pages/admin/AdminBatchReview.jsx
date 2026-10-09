@@ -79,6 +79,7 @@ function normalizeDispatchResult(response, caseIds) {
   return results.map((result, index) => ({
     ...result,
     case_id: result?.case_id || result?.caseId || caseIds[index] || "",
+    submission_id: result?.submission_id || result?.submissionId || "",
   }));
 }
 
@@ -162,6 +163,9 @@ export default function AdminBatchReview() {
       const result = { ...response, results: normalizedResults };
       setDispatchResult(result);
       setBatch((current) => ({ ...current, ...response }));
+      if (confirmedSuccesses.length === 1 && confirmedSuccesses[0]?.submission_id) {
+        navigate(`/admin/submission-journey/${encodeURIComponent(confirmedSuccesses[0].submission_id)}`);
+      }
     } catch (dispatchError) {
       setError(dispatchError?.message || "Batch dispatch failed. The database queue record is still available for review.");
     } finally {
@@ -207,7 +211,7 @@ export default function AdminBatchReview() {
             <div><dt>Cases Submitted</dt><dd>{successfulResults.length} of {stats.total}</dd></div>
             <div><dt>Destination</dt><dd>{destination}</dd></div>
           </dl>
-          {successfulResults.length > 0 && <div className="batch-result-list"><strong>Submission IDs</strong><ul>{successfulResults.map((item, index) => <li key={item.submission_id || index}><span>{textValue(item.case_id)}</span><code>{textValue(item.submission_id)}</code></li>)}</ul></div>}
+          {successfulResults.length > 0 && <div className="batch-result-list"><strong>Submission IDs</strong><ul>{successfulResults.map((item, index) => <li key={item.submission_id || index}><span>{textValue(item.case_id)}</span>{item.submission_id ? <Link to={`/admin/submission-journey/${encodeURIComponent(item.submission_id)}`}><code>{item.submission_id}</code></Link> : <code>{textValue(item.submission_id)}</code>}</li>)}</ul></div>}
           {failedResults.length > 0 && <div className="batch-result-list errors"><strong>Cases not submitted</strong><ul>{failedResults.map((item, index) => <li key={`${item.case_id}-${index}`}><span>{textValue(item.case_id)} · {textValue(item.status)}</span><p>{(item.errors || []).map(displayValue).join("; ") || "The backend did not confirm submission for this case."}</p></li>)}</ul></div>}
           {errorItems.length > 0 && <div className="batch-result-list errors"><strong>Errors</strong><ul>{errorItems.map((item, index) => <li key={`${item.caseId}-${index}`}><span>{textValue(item.caseId)}</span><p>{displayValue(item.message)}</p></li>)}</ul></div>}
           {warningItems.length > 0 && <div className="batch-result-list"><strong>Warnings</strong><ul>{warningItems.map((item, index) => <li key={`${item.caseId}-${index}`}><span>{textValue(item.caseId)}</span><p>{displayValue(item.message)}</p></li>)}</ul></div>}

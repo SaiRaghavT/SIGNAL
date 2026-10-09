@@ -371,7 +371,7 @@ export default function AdminIndividualReview() {
         followupError = followupRequestError?.message || "PHA follow-up tracking could not be loaded or created.";
       }
 
-      navigate(`/admin/submissions/${encodeURIComponent(submissionId)}/acknowledgement`, {
+      navigate(`/admin/submission-journey/${encodeURIComponent(submissionId)}`, {
         state: { dispatchResponse, followupError },
       });
     } catch (err) {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 import { getAdminSubmissions } from "../../services/adminService.js";
 import "../../styles/AdminSubmissions.css";
 
@@ -548,14 +549,7 @@ export default function AdminSubmissions() {
                       </td>
 
                       <td>
-                        <button
-                          type="button"
-                          className="view-submission-button"
-                          disabled
-                          title="Submission detail page will be added next"
-                        >
-                          View
-                        </button>
+                        <Link className="view-submission-button" to={`/admin/submission-journey/${encodeURIComponent(submission.submissionId)}`}>View</Link>
                       </td>
                     </tr>
                   ),

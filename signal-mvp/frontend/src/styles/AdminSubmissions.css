@@ -292,6 +292,9 @@
 }
 
 .view-submission-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 29px;
   padding: 0 11px;
   border: 1px solid #d5dbe3;
@@ -300,8 +303,8 @@
   color: #24324a;
   font-size: 11px;
   font-weight: 700;
-  cursor: not-allowed;
-  opacity: 0.55;
+  cursor: pointer;
+  text-decoration: none;
 }
 
 @media (max-width: 1200px) {

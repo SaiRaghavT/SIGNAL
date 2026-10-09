@@ -9,6 +9,8 @@ SubmissionMode = Literal["IMMEDIATE", "INDIVIDUAL", "BATCH"]
 class QueueRequest(BaseModel):
     actor_id: str = Field(min_length=1, max_length=255)
     submission_mode: SubmissionMode | None = None
+    demo_submission: bool = False
+    demo_review_confirmed: bool = False
 
 
 class BatchCreateRequest(BaseModel):

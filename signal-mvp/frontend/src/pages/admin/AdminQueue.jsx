@@ -845,9 +845,9 @@ export default function AdminQueue() {
                               status
                             )}`}
                           >
-                            {formatValue(
-                              status
-                            )}
+                            {String(status).toUpperCase() === "READY_FOR_SUBMISSION"
+                              ? "Ready to Submit"
+                              : formatValue(status)}
                           </span>
                         </td>
 
