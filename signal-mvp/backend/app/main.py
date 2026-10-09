@@ -72,6 +72,7 @@ from backend.app.agents.retry_resubmission.router import (
 )
 
 from backend.app.workflow.router import router as workflow_router
+from backend.app.admin.router import router as admin_router
 
 app = FastAPI(
     title="SIGNAL MVP",
@@ -84,6 +85,8 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5173",
         "http://localhost:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:5174",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -170,6 +173,7 @@ app.include_router(
 app.include_router(workflow_router)
 app.include_router(agent_status_router)
 app.include_router(analytics_router)
+app.include_router(admin_router)
 # ---------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------

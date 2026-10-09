@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     tesseract_cmd: str | None = None
     # Destructive demo workflow reset is disabled unless explicitly opted in.
     demo_mode: bool = False
+    # Allows synthetic source records to be staged in Admin Queue for demos.
+    # Demo queue entries are tagged and cannot be dispatched externally.
+    demo_queue_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

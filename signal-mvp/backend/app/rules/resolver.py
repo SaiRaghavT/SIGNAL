@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Dict
 
+from backend.app.detection.disease_concepts import canonical_disease_id
+
 
 CATALOG_PATH = Path(__file__).resolve().parent / "rule_catalog.json"
 
@@ -16,20 +18,16 @@ def _load_catalog() -> Dict[str, Any]:
         return json.load(file)
 
 
-def load_catalog() -> Dict[str, Any]:
-    """Return the current reporting catalog for read-only condition matching."""
-    return _load_catalog()
-
-
-def normalize_jurisdiction(value: str, catalog: Dict[str, Any] | None = None) -> str:
-    """Normalize a jurisdiction using aliases configured in the rule catalog."""
-    catalog = catalog or load_catalog()
-    canonical = str(catalog.get("jurisdiction") or "").strip()
-    aliases = catalog.get("jurisdiction_aliases", [])
-    for known in (canonical, *aliases):
-        if str(known).strip().casefold() == value.strip().casefold():
-            return canonical
-    return value.strip().upper()
+def normalize_disease_name(disease: str | None) -> str | None:
+    """Return the catalog's canonical disease name for a known disease identity."""
+    if disease is None or not disease.strip():
+        return None
+    identity = canonical_disease_id(disease)
+    for rule in _load_catalog().get("rules", []):
+        configured_disease = rule.get("disease")
+        if canonical_disease_id(configured_disease) == identity:
+            return str(configured_disease)
+    return disease.strip()
 
 
 def _load_evaluator(path: str) -> Callable:
@@ -66,7 +64,6 @@ def _load_evaluator(path: str) -> Callable:
 def resolve_rule(
     disease: str,
     jurisdiction: str,
-    rule_id: str | None = None,
 ) -> Dict[str, Any]:
     """
     Resolve the reporting rule applicable to a disease and jurisdiction.
@@ -88,26 +85,22 @@ def resolve_rule(
 
     catalog = _load_catalog()
 
-    disease_key = disease.strip().casefold()
-    canonical_jurisdiction = normalize_jurisdiction(jurisdiction, catalog)
+    disease_key = canonical_disease_id(disease)
+    jurisdiction_key = jurisdiction.strip().upper()
 
     for rule in catalog.get("rules", []):
-        configured_diseases = [
-            rule.get("disease", ""),
-            *rule.get("aliases", []),
-        ]
+        configured_disease = str(
+            rule.get("disease", "")
+        ).strip().casefold()
+        configured_disease_key = canonical_disease_id(configured_disease)
 
         configured_jurisdiction = str(
             rule.get("jurisdiction", "")
         ).strip().upper()
 
         if (
-            any(
-                str(configured_disease).strip().casefold() == disease_key
-                for configured_disease in configured_diseases
-            )
-            and configured_jurisdiction == canonical_jurisdiction.upper()
-            and (rule_id is None or rule.get("rule_id") == rule_id)
+            configured_disease_key == disease_key
+            and configured_jurisdiction == jurisdiction_key
         ):
             evaluator_path = rule.get("evaluator")
 
@@ -116,7 +109,13 @@ def resolve_rule(
                     "Applicable rule does not define an evaluator."
                 )
 
-            return {**rule, "evaluator": _load_evaluator(evaluator_path)}
+            return {
+                "rule_id": rule.get("rule_id"),
+                "rule_version": rule.get("rule_version"),
+                "disease": rule.get("disease"),
+                "jurisdiction": rule.get("jurisdiction"),
+                "evaluator": _load_evaluator(evaluator_path),
+            }
 
     raise RuleResolutionError(
         f"No reporting rule configured for "

@@ -6,6 +6,16 @@
   background: var(--signal-bg);
 }
 
+.patients-shell .sidebar {
+  background: #163B5B;
+}
+
+.patients-shell .brand-mark,
+.patients-shell .nav-item.active {
+  background: #FF693B;
+  color: #fff;
+}
+
 .patients-shell .main > section {
   background: var(--signal-bg);
 }
@@ -58,84 +68,90 @@
   background: var(--signal-card);
 }
 
-.patients-filters {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
-  align-items: end;
-  gap: 12px;
-  padding: 16px;
+.patients-filter-section {
   border-bottom: 1px solid var(--signal-border);
   background: var(--signal-card);
 }
 
-.patients-filters label {
+.patients-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 94px 94px;
+  align-items: end;
+  gap: 18px;
+  padding: 22px;
+}
+
+.patients-search,
+.patients-condition {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 6px;
+  gap: 9px;
 }
 
-.patients-filters label > span {
+.patients-search > span,
+.patients-condition > span {
   color: var(--signal-text-secondary);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  letter-spacing: .035em;
 }
 
-.patients-filters input,
-.patients-filters select {
+.patients-search input,
+.patients-condition input {
   width: 100%;
-  min-height: 38px;
-  padding: 8px 10px;
+  height: 42px;
+  padding: 0 12px;
   border: 1px solid var(--signal-border);
-  border-radius: 7px;
-  outline: none;
+  border-radius: 8px;
   background: var(--signal-surface);
   color: var(--signal-text);
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
 }
 
-.patients-filters input:focus,
-.patients-filters select:focus {
-  border-color: var(--signal-info);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal-info) 14%, transparent);
+.patients-search input::placeholder,
+.patients-condition input::placeholder {
+  color: var(--signal-text-secondary);
+  opacity: .8;
 }
 
-.patients-filter-actions {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+.patients-search input:focus,
+.patients-condition input:focus {
+  outline: 2px solid rgb(255 105 59 / 18%);
+  border-color: #FF693B;
 }
 
-.patients-filter-apply,
-.patients-filter-clear {
-  min-height: 38px;
-  padding: 8px 12px;
-  border: 1px solid var(--signal-border);
+.patients-search-button,
+.patients-clear-filters {
+  width: 94px;
+  height: 42px;
+  padding: 0 14px;
   border-radius: 7px;
-  background: var(--signal-card);
-  color: var(--signal-text);
   cursor: pointer;
   font-size: 12px;
-  font-weight: 650;
-  white-space: nowrap;
+  font-weight: 700;
 }
 
-.patients-filter-apply {
-  border-color: var(--signal-navy);
-  background: var(--signal-navy);
+.patients-search-button {
+  border: 1px solid #FF693B;
+  background: #FF693B;
   color: #fff;
 }
 
-.patients-filter-apply:hover {
-  filter: brightness(1.1);
+.patients-search-button:hover {
+  filter: brightness(.96);
 }
 
-.patients-filter-clear:hover {
-  border-color: var(--signal-orange);
-  color: var(--signal-danger);
+.patients-clear-filters {
+  border: 1px solid var(--signal-border);
+  background: #fff;
+  color: var(--signal-navy);
+}
+
+.patients-clear-filters:hover {
+  border-color: var(--signal-navy);
+  background: var(--signal-surface);
 }
 
 .patients-table-scroll {
@@ -178,7 +194,7 @@
 }
 
 .patient-name {
-  color: var(--signal-text);
+  color: #163B5B;
   font-weight: 600;
 }
 
@@ -203,6 +219,15 @@
   margin-top: 4px;
   color: var(--signal-text-secondary);
   font-size: 10px;
+}
+
+.patient-deadline-state {
+  display: block;
+  max-width: 280px;
+  margin-top: 4px;
+  color: var(--signal-text-secondary);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .patients-view {
@@ -334,18 +359,18 @@
     align-items: flex-start;
     flex-direction: column;
   }
-
-  .patients-filters {
-    grid-template-columns: 1fr;
-  }
-
-  .patients-filter-actions {
-    justify-content: flex-start;
-  }
 }
 
-@media (min-width: 521px) and (max-width: 900px) {
-  .patients-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 720px) {
+  .patients-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .patients-search-button {
+    width: 100%;
+  }
+
+  .patients-clear-filters {
+    width: 100%;
   }
 }

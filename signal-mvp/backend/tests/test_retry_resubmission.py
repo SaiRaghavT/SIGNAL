@@ -73,7 +73,7 @@ def _session(*, report=True):
     records = {
         Submission: [submission],
         SubmissionAttempt: [],
-        Case: [SimpleNamespace(case_id=case_id)],
+        Case: [SimpleNamespace(case_id=case_id, submission_mode="BATCH")],
         Report: [
             SimpleNamespace(report_id="REPORT-1", status="GENERATED")
         ] if report else [],
@@ -139,6 +139,7 @@ def test_retry_creates_one_resubmission_and_reuses_it_while_active(monkeypatch):
     assert second.new_submission_id == first.new_submission_id
     assert len(db.records[SubmissionAttempt]) == 1
     assert len(db.records[Submission]) == 2
+    assert db.records[Submission][1].submission_mode == "BATCH"
 
 
 def test_retry_requires_approved_review_and_attestation():

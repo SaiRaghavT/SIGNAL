@@ -164,7 +164,6 @@ _EVIDENCE_SCHEMA = {
         "evidence",
     ],
     "additionalProperties": False,
-
 }
 
 

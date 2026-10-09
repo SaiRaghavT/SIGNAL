@@ -1,5 +1,5 @@
 ﻿/* =========================================================
-   SIGNAL — REVIEW & VALIDATION
+   SIGNAL — Reporting Review
    Reference UI:
    Navy + Orange + White + Light Gray + Green
    ========================================================= */
@@ -96,6 +96,24 @@
   color: var(--rv-text-secondary);
 
   font-size: 11px;
+  line-height: 1.5;
+}
+
+.review-validation-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-validation-demo-notice {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--rv-border);
+  border-radius: 6px;
+  background: var(--rv-soft);
+  color: var(--rv-text-secondary);
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -850,6 +868,18 @@
   accent-color: var(--rv-navy);
 }
 
+.review-validation-unified-confirmation {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.review-validation-field-feedback {
+  margin: 0 14px 12px;
+  color: var(--rv-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .review-validation-comment-field {
   display: grid;
 
@@ -1121,6 +1151,7 @@
 }
 
 .review-validation-submit {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1301,6 +1332,10 @@
     align-self: flex-start;
   }
 
+  .review-validation-header-actions {
+    flex-wrap: wrap;
+  }
+
   .review-validation-breadcrumb {
     overflow-x: auto;
     flex-wrap: nowrap;
@@ -1352,6 +1387,7 @@
   }
 
   .review-validation-submit {
+    margin-left: 0;
     width: 100%;
   }
 
@@ -1369,7 +1405,7 @@
   }
 }
 
-/* Review & Validation two-column arrangement. */
+/* Reporting Review two-column arrangement. */
 .review-validation-grid {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
@@ -1441,6 +1477,19 @@
   border-bottom: 0;
 }
 
+.review-validation-reporting-data .review-validation-card-header p {
+  display: none;
+}
+
+.review-validation-reporting-data .review-validation-data-list {
+  display: block;
+  padding: 0 16px;
+}
+
+.review-validation-reporting-data .review-validation-field-values {
+  display: none;
+}
+
 .review-validation-reporting-data .review-validation-data-label {
   margin: 0;
   color: var(--rv-navy);
@@ -1472,6 +1521,34 @@
 .review-validation-section-status.not_checked {
   background: var(--signal-bg);
   color: var(--signal-text-muted);
+}
+
+.review-validation-field-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 16px;
+  margin: 0;
+  padding: 0 0 12px;
+}
+
+.review-validation-field-value {
+  min-width: 0;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rv-border-soft);
+}
+
+.review-validation-field-value dt {
+  color: var(--rv-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.review-validation-field-value dd {
+  margin: 4px 0 0;
+  color: var(--rv-text);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .review-validation-action-bar {

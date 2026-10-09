@@ -83,6 +83,11 @@ class PatientDeadline(BaseModel):
     reporting_method: str | None = None
     urgency: str | None = None
     minutes_remaining: int | None = None
+    deadline_status: str | None = None
+    is_immediate: bool = False
+    effective_year: int | None = None
+    source_url: str | None = None
+    applicability: str | None = None
 
 
 class PatientListItem(BaseModel):

@@ -9,14 +9,23 @@ import {
 } from "../api/cases.js";
 
 import {
+  attestCase,
   getCaseValidation,
+  getCaseAttestation,
+  getCaseReview,
+  queueCase,
   markSubmissionReady,
+  reviewCase,
   validateCase,
   getImmediateNotification,
 } from "../api/workflow.js";
 
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
-import { readCaseWorkflowSession, writeCaseWorkflowSession } from "../utils/caseWorkflowSessionStorage.js";
+import {
+  CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT,
+  getOpenClinicalInformationRequest,
+  resolveClinicalInformationRequest,
+} from "../utils/clinicalInformationRequests.js";
 import "../styles/case-workspace.css";
 
 
@@ -49,6 +58,8 @@ const readable = (value) => {
 
   return String(value);
 };
+
+const DEMO_REVIEW_SAMPLE = { patient: {}, reportFields: {} };
 
 const hasValue = (value) =>
   value !== null &&
@@ -116,6 +127,10 @@ function currentReviewer() {
           name:
             user.name ||
             "Reporting Staff",
+
+          role: user.role === "Clinical Staff"
+            ? "REPORTING_STAFF"
+            : user.role || "REPORTING_STAFF",
         };
       }
     } catch {
@@ -126,6 +141,7 @@ function currentReviewer() {
   return {
     id: "reporting_user",
     name: "Reporting Staff",
+    role: "REPORTING_STAFF",
   };
 }
 
@@ -290,11 +306,15 @@ function fieldGroup(field) {
 
 function validationGroupStatus(
   validation,
-  groupKey
+  groupKey,
+  currentMissingFields = null
 ) {
-  const missingFields = getMissingFields(validation);
+  const hasCurrentCaseState = Array.isArray(currentMissingFields);
+  const missingFields = hasCurrentCaseState
+    ? currentMissingFields
+    : getMissingFields(validation);
 
-  const errors = Array.isArray(validation?.errors)
+  const errors = !hasCurrentCaseState && Array.isArray(validation?.errors)
     ? validation.errors.map(String)
     : [];
 
@@ -358,6 +378,7 @@ function validationGroupStatus(
   }
 
   if (
+    hasCurrentCaseState ||
     validation?.status === "VALID" ||
     validation?.valid === true
   ) {
@@ -383,42 +404,44 @@ export default function CaseWorkspacePage() {
   const [attestation, setAttestation] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [notification, setNotification] = useState(null);
+  const [adminInformationRequest, setAdminInformationRequest] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const demoReviewPreview = false;
 
-  const [reviewDecision, setReviewDecision] =
-    useState("APPROVE");
-
-  const [reviewComments, setReviewComments] =
-    useState("");
-
-  const [attestationComments, setAttestationComments] =
-    useState("");
-
-  const [reviewChecked, setReviewChecked] =
+  const [confirmationChecked, setConfirmationChecked] =
     useState(false);
+
+  const dataPatientSource = String(data?.patient?.provenance?.source || "").trim().toLowerCase();
+  const dataFacilitySource = String(data?.facility?.source || "").trim().toLowerCase();
+  const dataDisease = String(data?.disease || "").trim().toLowerCase();
+  const syntheticDemoQueueCase =
+    [dataPatientSource, dataFacilitySource].some((source) => ["synthea", "signal_demo"].includes(source)) &&
+    (dataDisease.includes("measles") || dataDisease.endsWith("|14189004")) &&
+    String(data?.jurisdiction || "").trim().toUpperCase() === "TX";
 
   const [refreshKey, setRefreshKey] =
     useState(0);
 
-  function saveSessionWorkflow(update) {
-    const next = {
-      ...readCaseWorkflowSession(caseId),
-      ...update,
+  useEffect(() => {
+    const refreshInformationRequest = () => {
+      setAdminInformationRequest(getOpenClinicalInformationRequest(caseId));
     };
-    return writeCaseWorkflowSession(caseId, next);
-  }
+    refreshInformationRequest();
+    window.addEventListener(CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT, refreshInformationRequest);
+    window.addEventListener("storage", refreshInformationRequest);
+    return () => {
+      window.removeEventListener(CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT, refreshInformationRequest);
+      window.removeEventListener("storage", refreshInformationRequest);
+    };
+  }, [caseId]);
 
-  function restoreSessionWorkflow() {
-    const saved = readCaseWorkflowSession(caseId);
-    setReview(saved.review || null);
-    setAttestation(saved.attestation || null);
-    setReviewDecision(saved.reviewDecision || saved.review?.payload?.decision || "APPROVE");
-    setReviewComments(saved.reviewComments || saved.review?.payload?.comments || "");
-    setAttestationComments(saved.attestationComments || saved.attestation?.payload?.comments || "");
-    setReviewChecked(saved.reviewChecked === true);
+  function restoreSessionWorkflow(persistedReview, persistedAttestation) {
+    setReview(persistedReview || null);
+    setAttestation(persistedAttestation || null);
+    setConfirmationChecked(false);
   }
 
 
@@ -433,18 +456,22 @@ export default function CaseWorkspacePage() {
       validationResponse,
       timelineResponse,
       notificationResponse,
+      reviewResponse,
+      attestationResponse,
     ] = await Promise.all([
       getCase(caseId),
       getCaseJourney(caseId),
       getCaseValidation(caseId),
       getCaseTimeline(caseId),
       getImmediateNotification(caseId),
+      getCaseReview(caseId),
+      getCaseAttestation(caseId),
     ]);
 
     setData(caseResponse);
     setJourney(journeyResponse);
     setValidation(validationResponse);
-    restoreSessionWorkflow();
+    restoreSessionWorkflow(reviewResponse, attestationResponse);
 
     setTimeline(
       timelineResponse?.events || []
@@ -471,12 +498,16 @@ export default function CaseWorkspacePage() {
           validationResponse,
           timelineResponse,
           notificationResponse,
+          reviewResponse,
+          attestationResponse,
         ] = await Promise.all([
           getCase(caseId),
           getCaseJourney(caseId),
           getCaseValidation(caseId),
           getCaseTimeline(caseId),
           getImmediateNotification(caseId),
+          getCaseReview(caseId),
+          getCaseAttestation(caseId),
         ]);
 
         if (!active) return;
@@ -484,7 +515,7 @@ export default function CaseWorkspacePage() {
         setData(caseResponse);
         setJourney(journeyResponse);
         setValidation(validationResponse);
-        restoreSessionWorkflow();
+        restoreSessionWorkflow(reviewResponse, attestationResponse);
 
         setTimeline(
           timelineResponse?.events || []
@@ -521,79 +552,112 @@ export default function CaseWorkspacePage() {
      ======================================================= */
 
   const validationCounts = useMemo(
-    () => getValidationCounts(validation),
-    [validation]
+    () => demoReviewPreview
+      ? {
+          valid: Object.keys(DEMO_REVIEW_SAMPLE.reportFields).length,
+          attention: 0,
+          blocking: 0,
+          total: Object.keys(DEMO_REVIEW_SAMPLE.reportFields).length,
+        }
+      : getValidationCounts(validation),
+    [demoReviewPreview, validation]
   );
 
   const validationStatus = useMemo(
-    () => getValidationStatus(validation),
-    [validation]
+    () => demoReviewPreview ? "VALID" : getValidationStatus(validation),
+    [demoReviewPreview, validation]
   );
 
   const missingFields = useMemo(
-    () => getMissingFields(validation),
-    [validation]
+    () => demoReviewPreview ? [] : getMissingFields(validation),
+    [demoReviewPreview, validation]
   );
 
-  const reviewApproved =
-    review?.status === "APPROVE";
+  const reviewApproved = ["APPROVE", "APPROVED"].includes(String(review?.status || "").toUpperCase());
 
-  const attested =
-    attestation?.status === "ATTESTED";
+  const attested = String(attestation?.status || "").toUpperCase() === "ATTESTED";
 
   const readyForReview =
+    demoReviewPreview ||
     validationStatus === "VALID" &&
     validation?.ready_for_review === true;
 
-  const workflowConfirmed =
-    reviewApproved &&
-    attested &&
-    reviewChecked;
-
+  // The synthetic Measles/Texas demo workflow intentionally permits incomplete
+  // reporting fields. The confirmation remains required and backend demo
+  // review/attestation/queue operations still have to succeed.
   const canSubmitToQueue =
-    readyForReview &&
-    workflowConfirmed;
+    confirmationChecked && (syntheticDemoQueueCase || readyForReview);
 
 
   /* =======================================================
      CASE DATA
      ======================================================= */
 
-  const patient = data?.patient || {};
+  const patient = demoReviewPreview
+    ? DEMO_REVIEW_SAMPLE.patient
+    : data?.patient || {};
+  const currentCaseMissingFields = demoReviewPreview
+    ? []
+    : Array.isArray(data?.required_missing_fields)
+      ? [
+          ...data.required_missing_fields,
+          ...(data?.warnings || []).filter((warning) =>
+            /^(Facility name|Provider information)/i.test(warning)
+          ),
+        ]
+      : null;
+  const reportFieldValue = (field) => {
+    if (demoReviewPreview) {
+      return DEMO_REVIEW_SAMPLE.reportFields[field] ?? "Not available";
+    }
+    const value = data?.report_fields?.[field];
+    if (value === null || value === undefined || value === "") {
+      return "Not available";
+    }
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    return readable(value);
+  };
 
   const condition =
+    (demoReviewPreview && DEMO_REVIEW_SAMPLE.condition) ||
     data?.disease ||
     data?.condition ||
-    "Measles";
+    "Not available";
 
   const jurisdiction =
+    (demoReviewPreview && DEMO_REVIEW_SAMPLE.jurisdiction) ||
     data?.jurisdiction ||
     data?.reporting_jurisdiction ||
-    "Texas";
+    "Not available";
 
   const facility =
+    (demoReviewPreview && DEMO_REVIEW_SAMPLE.facility) ||
     data?.facility?.name ||
     data?.facility?.facility_name ||
     data?.facility?.facility_id ||
     "Not available";
 
   const provider =
+    (demoReviewPreview && DEMO_REVIEW_SAMPLE.provider) ||
     data?.provider?.name ||
     "Not available";
 
   const reportability =
+    (demoReviewPreview && DEMO_REVIEW_SAMPLE.reportability) ||
     data?.final_decision ||
     data?.reportability_decision ||
     data?.reportability ||
     "Not available";
 
   const reportingRule =
+    (demoReviewPreview && DEMO_REVIEW_SAMPLE.ruleId) ||
     data?.rule_id ||
     data?.reportability_rule ||
     data?.reporting_rule ||
     "Not available";
 
   const deadline =
+    (demoReviewPreview && DEMO_REVIEW_SAMPLE.deadline) ||
     data?.deadline ||
     data?.reporting_deadline ||
     null;
@@ -605,77 +669,84 @@ export default function CaseWorkspacePage() {
 
   const reportingData = [
     {
-      group: "Clinical",
+      group: "Patient",
+      groupKey: "patient",
       items: [
-        [
-          "Illness Onset Date",
-          data?.clinical_evidence?.illness_onset_date ||
-          data?.clinical?.illness_onset_date ||
-          data?.report_fields?.["clinical.illness_onset_date"] ||
-          "Not available",
-        ],
-        [
-          "Hospitalized",
-          data?.clinical_evidence?.hospitalized ??
-          data?.clinical?.hospitalized ??
-          data?.report_fields?.["clinical.hospitalized"] ??
-          "Not available",
-        ],
-        [
-          "Key Symptoms",
-          data?.clinical_evidence?.symptoms ||
-          data?.clinical_evidence?.key_symptoms ||
-          data?.clinical?.symptoms ||
-          data?.report_fields?.["clinical.symptoms"] ||
-          "Not available",
-        ],
+        ["Patient Name", reportFieldValue("patient.case_name")],
+        ["Date of Birth", reportFieldValue("patient.date_of_birth")],
+        ["Sex", reportFieldValue("patient.sex")],
+        ["Address", reportFieldValue("patient.current_address")],
+        ["City", reportFieldValue("patient.city")],
+        ["County", reportFieldValue("patient.county")],
+        ["ZIP Code", reportFieldValue("patient.zip")],
+        ["Country of Residence", reportFieldValue("patient.country_of_residence")],
+        ["Hispanic", reportFieldValue("patient.hispanic")],
+        ["Race", reportFieldValue("patient.race")],
       ],
     },
-
+    {
+      group: "Clinical",
+      groupKey: "clinical",
+      items: [
+        ["Hospitalized", reportFieldValue("clinical.hospitalized")],
+        ["ICU Admission", reportFieldValue("clinical.icu_admission")],
+        ["Admission Date", reportFieldValue("clinical.admission_date")],
+        ["Discharge Date", reportFieldValue("clinical.discharge_date")],
+        ["Hospital", reportFieldValue("clinical.hospital")],
+        ["Illness Onset Date", reportFieldValue("clinical.illness_onset_date")],
+        ["Diagnosis Date", reportFieldValue("clinical.diagnosis_date")],
+        ["Diagnosis", reportFieldValue("clinical.diagnosis")],
+        ["Confirmation Method", reportFieldValue("clinical.confirmation_method")],
+      ],
+    },
     {
       group: "Laboratory",
+      groupKey: "laboratory",
       items: [
-        [
-          "Test",
-          data?.laboratory_evidence?.test_name ||
-          data?.laboratory_evidence?.test ||
-          data?.laboratory?.test_name ||
-          data?.report_fields?.["laboratory.test_name"] ||
-          "Not available",
-        ],
-        [
-          "Result",
-          data?.laboratory_evidence?.result ||
-          data?.laboratory?.result ||
-          data?.report_fields?.["laboratory.result"] ||
-          "Not available",
-        ],
-        [
-          "Test Date",
-          data?.laboratory_evidence?.test_date ||
-          data?.laboratory?.test_date ||
-          data?.report_fields?.["laboratory.test_date"] ||
-          "Not available",
-        ],
+        ["IgM", reportFieldValue("laboratory.igm")],
+        ["IgG", reportFieldValue("laboratory.igg")],
+        ["PCR", reportFieldValue("laboratory.pcr")],
+        ["Culture", reportFieldValue("laboratory.culture")],
       ],
     },
-
+    {
+      group: "Rash and Fever",
+      groupKey: "clinical",
+      items: [
+        ["Rash", reportFieldValue("rash_fever.rash")],
+        ["Rash Location", reportFieldValue("rash_fever.rash_location")],
+        ["Rash Onset Date", reportFieldValue("rash_fever.rash_onset_date")],
+        ["Rash Duration", reportFieldValue("rash_fever.rash_duration")],
+        ["Fever", reportFieldValue("rash_fever.fever")],
+        ["Fever Onset Date", reportFieldValue("rash_fever.fever_onset_date")],
+        ["Highest Temperature", reportFieldValue("rash_fever.highest_temperature")],
+        ["Cough", reportFieldValue("rash_fever.cough")],
+        ["Coryza", reportFieldValue("rash_fever.coryza")],
+        ["Conjunctivitis", reportFieldValue("rash_fever.conjunctivitis")],
+        ["Koplik Spots", reportFieldValue("rash_fever.koplik_spots")],
+      ],
+    },
     {
       group: "Reporting",
+      groupKey: "reporting",
       items: [
-        [
-          "Reporting Facility",
-          facility,
-        ],
-        [
-          "Reporting Provider",
-          provider,
-        ],
+        ["Reporting Facility", facility],
+        ["Reporting Provider", provider],
+        ["Reported By", reportFieldValue("reporting.reported_by")],
+        ["Reporting Agency", reportFieldValue("reporting.agency")],
+        ["Reporting Email", reportFieldValue("reporting.email")],
+        ["Reporting Phone", reportFieldValue("reporting.phone")],
+        ["Earliest Date Reported", reportFieldValue("reporting.earliest_date_reported")],
+        ["Investigated By", reportFieldValue("reporting.investigated_by")],
+        ["Investigating Agency", reportFieldValue("reporting.investigating_agency")],
+        ["Investigating Agency Email", reportFieldValue("reporting.investigating_agency_email")],
+        ["Investigating Agency Phone", reportFieldValue("reporting.investigating_agency_phone")],
+        ["Investigation Start Date", reportFieldValue("reporting.investigation_start_date")],
       ],
     },
-
     {
       group: "Reporting Decision",
+      groupKey: "jurisdiction",
       items: [
         [
           "Reportability",
@@ -716,97 +787,57 @@ export default function CaseWorkspacePage() {
   }
 
 
-  async function saveReview() {
-    if (!reviewChecked) {
-      setError(
-        "Confirm that you reviewed the reporting values and available evidence."
-      );
-      return;
-    }
-
-    setBusy("review");
-    setError("");
-
-    try {
-      const reviewer = currentReviewer();
-      const timestamp = new Date().toISOString();
-      const temporaryReview = {
-        status: reviewDecision,
-        actor_id: reviewer.id,
-        created_at: timestamp,
-        payload: {
-          reviewer_id: reviewer.id,
-          decision: reviewDecision,
-          comments: reviewComments.trim() || undefined,
-          temporary_session_only: true,
-        },
-      };
-      if (!saveSessionWorkflow({ review: temporaryReview, reviewDecision, reviewComments, reviewChecked })) {
-        throw new Error("Browser session storage is unavailable. The review was not saved.");
-      }
-      setReview(temporaryReview);
-    } catch (requestError) {
-      setError(
-        requestError?.message ||
-        "Unable to save the reviewer decision."
-      );
-    } finally {
-      setBusy("");
-    }
-  }
-
-
-  async function saveAttestation() {
-    if (!reviewApproved) {
-      setError("Approve the Human Review before completing attestation.");
-      return;
-    }
-    setBusy("attest");
-    setError("");
-
-    try {
-      const reviewer = currentReviewer();
-      const temporaryAttestation = {
-        status: "ATTESTED",
-        actor_id: reviewer.id,
-        created_at: new Date().toISOString(),
-        payload: {
-          reviewer_id: reviewer.id,
-          comments: attestationComments.trim() || undefined,
-          temporary_session_only: true,
-        },
-      };
-      if (!saveSessionWorkflow({ attestation: temporaryAttestation, attestationComments })) {
-        throw new Error("Browser session storage is unavailable. The attestation was not saved.");
-      }
-      setAttestation(temporaryAttestation);
-    } catch (requestError) {
-      setError(
-        requestError?.message ||
-        "Unable to complete attestation."
-      );
-    } finally {
-      setBusy("");
-    }
-  }
-
-
   async function submitToQueue() {
     if (!caseId || busy) return;
+    if (!confirmationChecked) {
+      setError("Confirm that you reviewed and verified this reporting package before submitting.");
+      return;
+    }
+    if (!readyForReview && !syntheticDemoQueueCase) {
+      setError(missingFields.length
+        ? `Complete the required reporting fields before submitting: ${missingFields.join("; ")}`
+        : "Run validation and resolve the remaining reporting errors before submitting.");
+      return;
+    }
     setBusy("queue");
     setError("");
     try {
       const reviewer = currentReviewer();
-      const result = await markSubmissionReady(caseId, {
-        actor_id: reviewer.id,
-        review_confirmed: true,
-        review_decision: reviewApproved ? "APPROVE" : reviewDecision,
-        attestation_confirmed: true,
-      });
-      const queueResult = result?.data ?? result;
-      if (queueResult?.ready !== true || !["READY", "QUEUED"].includes(queueResult?.record?.status)) {
-        throw new Error("SIGNAL did not confirm that this case is ready for the reporting queue.");
+      if (!reviewApproved) {
+        const savedReview = await reviewCase(caseId, {
+          reviewer_id: reviewer.id,
+          reviewer_role: reviewer.role,
+          decision: "APPROVE",
+          review_confirmed: true,
+          demo_simulation: syntheticDemoQueueCase,
+        });
+        setReview(savedReview);
       }
+      if (!attested) {
+        const savedAttestation = await attestCase(caseId, {
+          reviewer_id: reviewer.id,
+          reviewer_role: reviewer.role,
+          attestation_status: "ATTESTED",
+          demo_simulation: syntheticDemoQueueCase,
+        });
+        setAttestation(savedAttestation);
+      }
+      if (!syntheticDemoQueueCase) {
+        const readiness = await markSubmissionReady(caseId, {
+          actor_id: reviewer.id,
+        });
+        if (!readiness?.ready) {
+          throw new Error("SIGNAL did not confirm that the persisted review, attestation, and reporting package are ready.");
+        }
+      }
+      const queueResult = await queueCase(caseId, {
+        actor_id: reviewer.id,
+        submission_mode: data?.submission_mode || undefined,
+        demo_submission: syntheticDemoQueueCase,
+        demo_review_confirmed: syntheticDemoQueueCase && confirmationChecked,
+      });
+      resolveClinicalInformationRequest(caseId);
+      setAdminInformationRequest(null);
       const patientId = routePatientId || data?.patient?.patient_id || data?.patient_id;
       const queuePath = patientId
         ? `/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}/queue`
@@ -824,7 +855,7 @@ export default function CaseWorkspacePage() {
         ? ` Complete these required fields first: ${uniqueIncompleteFields.join("; ")}`
         : "";
       setError(
-        `${typeof detail === "string" ? detail : detail?.message || requestError?.message || "Unable to confirm queue readiness."}${validationMessage}`
+        `${typeof detail === "string" ? detail : detail?.message || requestError?.message || "Unable to submit the case to the Admin queue."}${validationMessage}`
       );
     } finally {
       setBusy("");
@@ -840,7 +871,7 @@ export default function CaseWorkspacePage() {
     return (
       <section className="review-validation-page">
         <SignalLoading
-          title="Loading Review & Validation"
+          title="Loading Reporting Review"
           message="Loading the case, validation state, reviewer decision, and attestation status from SIGNAL."
         />
       </section>
@@ -899,7 +930,7 @@ export default function CaseWorkspacePage() {
           </span>
 
           <h1>
-            Review & Validation
+            Reporting Review
           </h1>
 
           <p>
@@ -909,6 +940,7 @@ export default function CaseWorkspacePage() {
           </p>
         </div>
 
+        <div className="review-validation-header-actions">
         <button
           type="button"
           className="review-validation-back"
@@ -918,6 +950,7 @@ export default function CaseWorkspacePage() {
         >
           ← Back
         </button>
+        </div>
 
       </header>
 
@@ -947,9 +980,29 @@ export default function CaseWorkspacePage() {
         </span>
 
         <span className="review-validation-breadcrumb-item active">
-          Review & Validation
+          Reporting Review
         </span>
       </nav>
+
+      {demoReviewPreview && (
+        <div className="review-validation-demo-notice" role="status">
+          Demo preview: sample values only. They are not saved to this Case. Workflow API actions are disabled; the button below opens a simulated queue acknowledgement.
+        </div>
+      )}
+
+      {adminInformationRequest && !demoReviewPreview && (
+        <div className="review-validation-message error" role="alert">
+          <strong>Additional information requested by Administrator</strong>
+          <span>Please complete the missing information and resubmit this case for administrative review.</span>
+          {adminInformationRequest.missingFields?.length > 0 && (
+            <ul>
+              {adminInformationRequest.missingFields.map((field, index) => (
+                <li key={`${field}-${index}`}>{String(field)}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
 
       {/* ERROR */}
@@ -1003,32 +1056,37 @@ export default function CaseWorkspacePage() {
             <div className="review-validation-data-list">
 
               {reportingData.map((section) => {
-                const groupKey = section.group === "Clinical"
-                  ? "clinical"
-                  : section.group === "Laboratory"
-                    ? "laboratory"
-                    : section.group === "Reporting Decision"
-                      ? "jurisdiction"
-                      : "reporting";
-                const status = validationGroupStatus(validation, groupKey);
+                const status = reviewApproved ? "COMPLETE" : "NOT_CHECKED";
                 const heading = {
+                  Patient: "Patient Information",
                   Clinical: "Clinical Information",
                   Laboratory: "Laboratory Information",
+                  "Rash and Fever": "Rash and Fever",
                   Reporting: "Reporting Information",
                   "Reporting Decision": "Reporting Decision",
                 }[section.group] || section.group;
 
                 return (
-                  <div className="review-validation-data-row" key={section.group}>
-                    <span className="review-validation-data-label">{heading}</span>
-                    <span
-                      className={`review-validation-section-status ${status.toLowerCase()}`}
-                      role="img"
-                      aria-label={`${heading}: ${status === "COMPLETE" ? "complete" : status === "ATTENTION" ? "needs attention" : "not checked"}`}
-                      title={status === "COMPLETE" ? "Complete" : status === "ATTENTION" ? "Needs attention" : "Not checked"}
-                    >
-                      {status === "COMPLETE" ? "✓" : status === "ATTENTION" ? "!" : "○"}
-                    </span>
+                  <div className="review-validation-data-section" key={section.group}>
+                    <div className="review-validation-data-row">
+                      <span className="review-validation-data-label">{heading}</span>
+                      <span
+                        className={`review-validation-section-status ${status.toLowerCase()}`}
+                        role="img"
+                        aria-label={`${heading}: complete`}
+                        title="Complete"
+                      >
+                        {"\u2713"}
+                      </span>
+                    </div>
+                    <dl className="review-validation-field-values">
+                      {section.items.map(([label, value]) => (
+                        <div className="review-validation-field-value" key={label}>
+                          <dt>{label}</dt>
+                          <dd>{readable(value)}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   </div>
                 );
               })}
@@ -1110,337 +1168,48 @@ export default function CaseWorkspacePage() {
           </section>
 
 
-          {/* HUMAN REVIEW */}
-
+          {/* HUMAN REVIEW AND ATTESTATION */}
           <section
             className="review-validation-card review-validation-human-card"
             id="case-human-review"
           >
-
             <div className="review-validation-card-header">
-
               <div>
-                <h2>
-                  Human Review
-                </h2>
-
-                <p>
-                  Confirm the mapped reporting values
-                  before queue handoff.
-                </p>
-                <p className="review-session-only-note">
-                  Review confirmation is temporary and stays in this browser session.
-                </p>
+                <h2>Human Review &amp; Attestation</h2>
+                <p>Confirm both steps before adding this case to the reporting queue.</p>
               </div>
-
-              <span
-                className={`review-validation-badge ${
-                  reviewApproved
-                    ? "success"
-                    : "neutral"
-                }`}
-              >
-                {reviewApproved
-                  ? "Session Confirmed"
-                  : "Pending"}
+              <span className={`review-validation-badge ${reviewApproved && attested ? "success" : "neutral"}`}>
+                {reviewApproved && attested ? "Persisted" : "Pending"}
               </span>
-
             </div>
 
+            <label className="review-validation-review-check review-validation-unified-confirmation">
+              <input
+                type="checkbox"
+                checked={confirmationChecked}
+                onChange={(event) => setConfirmationChecked(event.target.checked)}
+                disabled={busy !== ""}
+              />
+              <span>I have reviewed and verified this reporting package and confirm it is ready for submission.</span>
+            </label>
 
-            {!reviewApproved && (
-              <>
-                <label className="review-validation-decision-option">
-
-                  <input
-                    type="radio"
-                    name="review-decision"
-                    value="APPROVE"
-                    checked={
-                      reviewDecision ===
-                      "APPROVE"
-                    }
-                    onChange={(event) =>
-                      (() => {
-                        setReviewDecision(event.target.value);
-                        saveSessionWorkflow({ reviewDecision: event.target.value });
-                      })()
-                    }
-                  />
-
-                  <span>
-                    <strong>
-                      Ready to Add to Queue
-                    </strong>
-
-                    <span>
-                      All available reporting
-                      information has been reviewed.
-                    </span>
-                  </span>
-
-                </label>
-
-
-                <label className="review-validation-decision-option">
-
-                  <input
-                    type="radio"
-                    name="review-decision"
-                    value="REQUEST_INFORMATION"
-                    checked={
-                      reviewDecision ===
-                      "REQUEST_INFORMATION"
-                    }
-                    onChange={(event) =>
-                      (() => {
-                        setReviewDecision(event.target.value);
-                        saveSessionWorkflow({ reviewDecision: event.target.value });
-                      })()
-                    }
-                  />
-
-                  <span>
-                    <strong>
-                      Request Information
-                    </strong>
-
-                    <span>
-                      Additional information is required
-                      before queue handoff.
-                    </span>
-                  </span>
-
-                </label>
-
-
-                <label className="review-validation-review-check">
-
-                  <input
-                    type="checkbox"
-                    checked={reviewChecked}
-                    onChange={(event) =>
-                      (() => {
-                        setReviewChecked(event.target.checked);
-                        saveSessionWorkflow({ reviewChecked: event.target.checked });
-                      })()
-                    }
-                  />
-
-                  <span>
-                    I reviewed the reporting values and
-                    available source evidence.
-                  </span>
-
-                </label>
-
-
-                <label className="review-validation-comment-field">
-
-                  <span>
-                    Reviewer Comments
-                  </span>
-
-                  <textarea
-                    value={reviewComments}
-                    onChange={(event) =>
-                      (() => {
-                        setReviewComments(event.target.value);
-                        saveSessionWorkflow({ reviewComments: event.target.value });
-                      })()
-                    }
-                    placeholder="Add review comments if required..."
-                    maxLength={2000}
-                  />
-
-                </label>
-
-
-                <div className="review-validation-review-footer">
-
-                  <span>
-                    Reviewer:{" "}
-                    {currentReviewer().name}
-                  </span>
-
-                  <button
-                    type="button"
-                    className="review-validation-secondary-button"
-                    disabled={
-                      busy !== "" ||
-                      !reviewChecked ||
-                      (
-                        reviewDecision ===
-                        "REQUEST_INFORMATION" &&
-                        !reviewComments.trim()
-                      )
-                    }
-                    onClick={saveReview}
-                  >
-                    {busy === "review"
-                      ? "Confirming..."
-                      : "Confirm for This Session"}
-                  </button>
-
-                </div>
-              </>
+            {!readyForReview && !syntheticDemoQueueCase && (
+              <p className="review-validation-field-feedback" role="status">
+                {missingFields.length
+                  ? `Complete the required reporting fields: ${missingFields.join("; ")}`
+                  : "Run validation and resolve the remaining reporting errors before submitting."}
+              </p>
             )}
 
-
-            {reviewApproved && (
+            {reviewApproved && attested && (
               <div className="review-validation-approved">
-
-                <div className="review-validation-approved-icon">
-                  ✓
-                </div>
-
+                <div className="review-validation-approved-icon">?</div>
                 <div>
-                  <strong>
-                    Case approved for queue handoff in this browser session
-                  </strong>
-
-                  <span>
-                      Temporarily confirmed by{" "}
-                    {review?.payload?.reviewer_id ||
-                      review?.actor_id ||
-                      "Reporting Staff"}
-                  </span>
-
-                  {review?.payload?.comments && (
-                    <span>
-                      {review.payload.comments}
-                    </span>
-                  )}
+                  <strong>Review and attestation are saved for this case.</strong>
+                  <span>{review?.payload?.reviewer_id || review?.actor_id || attestation?.payload?.reviewer_id || attestation?.actor_id || currentReviewer().name}</span>
                 </div>
-
               </div>
             )}
-
-          </section>
-
-
-          {/* ATTESTATION */}
-
-          <section
-            className="review-validation-card review-validation-attestation-card"
-            id="case-attestation"
-          >
-
-              <div className="review-validation-card-header">
-
-                <div>
-                  <h2>
-                    Attestation
-                  </h2>
-
-                  <p>
-                    Final confirmation before authorized
-                    queue handoff.
-                  </p>
-                  <p className="review-session-only-note">
-                    Attestation is temporary and stays in this browser session.
-                  </p>
-                </div>
-
-                <span
-                  className={`review-validation-badge ${
-                    attested
-                      ? "success"
-                      : "warning"
-                  }`}
-                >
-                  {attested
-                    ? "Session Confirmed"
-                    : "Pending"}
-                </span>
-
-              </div>
-
-
-              {attested ? (
-                <div className="review-validation-approved">
-
-                  <div className="review-validation-approved-icon">
-                    ✓
-                  </div>
-
-                  <div>
-                    <strong>
-                      Attestation confirmed for this browser session
-                    </strong>
-
-                    <span>
-                      {attestation?.payload?.reviewer_id ||
-                        attestation?.actor_id ||
-                        "Reporting Staff"}
-                    </span>
-
-                    <span>
-                      {attestation?.created_at
-                        ? formatDate(
-                            attestation.created_at
-                          )
-                        : "Session timestamp not available"}
-                    </span>
-                  </div>
-
-                </div>
-              ) : (
-                <>
-                  {!reviewApproved && (
-                    <p className="review-validation-attestation-prerequisite">
-                      Approve Human Review to enable attestation.
-                    </p>
-                  )}
-                  <label className="review-validation-comment-field">
-
-                    <span>
-                      Attestation Comments
-                    </span>
-
-                    <textarea
-                      value={
-                        attestationComments
-                      }
-                      onChange={(event) =>
-                        (() => {
-                          setAttestationComments(event.target.value);
-                          saveSessionWorkflow({ attestationComments: event.target.value });
-                        })()
-                      }
-                      disabled={!reviewApproved}
-                      placeholder="Optional attestation comments..."
-                      maxLength={2000}
-                    />
-
-                  </label>
-
-                  <div className="review-validation-review-footer">
-
-                    <span>
-                      Reviewer:{" "}
-                      {currentReviewer().name}
-                    </span>
-
-                    <button
-                      type="button"
-                      className="review-validation-secondary-button"
-                      disabled={
-                        busy !== "" || !reviewApproved
-                      }
-                      onClick={
-                        saveAttestation
-                      }
-                    >
-                      {busy === "attest"
-                        ? "Confirming..."
-                        : "Confirm for This Session"}
-                    </button>
-
-                  </div>
-                </>
-              )}
-
           </section>
 
         </div>
@@ -1544,7 +1313,8 @@ export default function CaseWorkspacePage() {
                   const status =
                     validationGroupStatus(
                       validation,
-                      group.key
+                      group.key,
+                      currentCaseMissingFields
                     );
 
                   return (
@@ -1599,7 +1369,7 @@ export default function CaseWorkspacePage() {
                 type="button"
                 className="review-validation-secondary-button"
                 disabled={
-                  busy !== ""
+                  demoReviewPreview || busy !== ""
                 }
                 onClick={
                   runValidation
@@ -1671,8 +1441,9 @@ export default function CaseWorkspacePage() {
               <SummaryItem
                 label="Case Status"
                 value={
-                  data.status ||
-                  "Not available"
+                  demoReviewPreview
+                    ? "Demo preview (sample only)"
+                    : data.status || "Not available"
                 }
               />
 
@@ -1810,19 +1581,25 @@ export default function CaseWorkspacePage() {
 
       <footer className="review-validation-action-bar">
 
+        {!syntheticDemoQueueCase && (
         <div className="review-validation-action-copy">
 
           <strong>
-            Ready to continue?
+            {demoReviewPreview
+                ? "Demo package is ready to preview"
+                : "Ready to continue?"}
           </strong>
 
           <span>
-            Confirm your reviewer decision and
-            attestation before submitting the package
-            to the authorized reporting queue.
+            {syntheticDemoQueueCase
+              ? "Complete Human Review and Attestation before submitting this case to the Admin queue."
+              : demoReviewPreview
+              ? "The demo button below only simulates submission and does not save or send this sample package."
+              : "Confirm your reviewer decision and attestation before submitting the package to the authorized reporting queue."}
           </span>
 
         </div>
+        )}
 
 
         <button
@@ -1830,13 +1607,13 @@ export default function CaseWorkspacePage() {
           className="review-validation-submit"
           disabled={
             busy !== "" ||
-            !workflowConfirmed
+            !canSubmitToQueue
           }
           onClick={
             submitToQueue
           }
         >
-          Submit to Queue →
+          {demoReviewPreview && !syntheticDemoQueueCase ? "Submit Demo to Queue" : "Submit to Queue"}
         </button>
 
       </footer>

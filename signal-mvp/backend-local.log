@@ -1,0 +1,860 @@
+INFO:     127.0.0.1:55683 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55683 - "GET /api/admin/batches/ADMIN-WF-BATCH-001 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55683 - "GET /api/admin/batches/ADMIN-WF-BATCH-002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55683 - "GET /api/admin/batches/ADMIN-WF-BATCH-003 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55627 - "GET /api/admin/batches/ADMIN-WF-BATCH-001 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64015 - "GET /api/admin/batches/BATCH-TX-MEASLES-001 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:64017 - "GET /api/admin/batches/BATCH-TX-MEASLES-001 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:63680 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49398 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63679 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49400 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54795 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54757 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53946 - "POST /api/cases/22222222-2222-4222-8222-222222222222/queue HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:55174 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59284 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55173 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50163 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57868 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61257 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49972 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49974 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63087 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63089 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58726 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65335 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60350 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60352 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61873 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50773 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61871 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59471 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55742 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53523 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62694 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62349 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57210 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64743 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62694 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55097 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51943 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52973 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63051 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63053 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64741 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63298 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58012 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50364 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55030 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61519 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55028 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50942 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57150 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57152 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57149 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57154 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53243 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53245 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53240 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53247 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53249 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53251 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53494 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49972 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53492 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65149 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49972 - "GET /api/admin/batches/ADMIN-WF-BATCH-001 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58249 - "GET /api/admin/batches/ADMIN-WF-BATCH-001 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59025 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58109 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59024 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54327 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57848 - "GET /api/admin/queue/11111111-1111-4111-8111-111111111111 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51382 - "GET /api/admin/queue/11111111-1111-4111-8111-111111111111 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56798 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61150 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50727 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50745 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52789 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54961 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54963 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51262 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51264 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58013 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49163 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64253 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64266 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60916 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54062 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54064 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60320 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60312 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52143 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52734 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63773 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62693 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60321 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60322 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53240 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60319 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64289 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54813 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60317 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52733 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50682 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55347 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50163 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55759 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58045 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58045 - "GET /api/cases/47c36049-c05c-5cd0-9636-e870a6457597 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50205 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50207 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50209 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61895 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61895 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56015 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55166 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55168 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62355 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60806 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64929 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62433 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62432 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62438 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62436 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58338 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53539 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57743 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57744 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62437 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60315 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60313 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62712 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52224 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50540 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62427 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58340 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61501 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61794 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60978 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56201 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56203 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55000 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64979 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62693 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64528 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:64530 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:64527 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51943 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51945 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51947 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62377 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:62376 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:58132 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62378 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:58766 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:58764 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:58765 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:62769 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55227 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55634 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62058 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62060 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53243 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:53245 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:53242 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:54569 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61575 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61574 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61572 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50185 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52767 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57992 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60554 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57990 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56046 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51945 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59978 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62226 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61430 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62225 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65003 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49972 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57301 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57303 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58106 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:58109 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:58110 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:56943 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:54308 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:54307 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50469 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50470 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50471 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50479 - "GET /api/cases/11111111-1111-4111-8111-111111111111 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:54977 - "GET /api/cases?page=1&page_size=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54982 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57722 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61214 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51631 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51633 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51635 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51638 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65377 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65379 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65381 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56915 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:56914 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:56916 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:56910 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56817 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:56819 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:56820 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:53340 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53942 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53339 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52870 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49374 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60781 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55788 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62069 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55787 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52538 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52080 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58376 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53769 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64221 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61621 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61618 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61619 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:54718 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61718 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61717 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61716 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61013 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51703 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58332 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55723 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62751 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62753 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62757 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62759 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62755 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62761 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63810 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58314 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58316 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50498 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50499 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50500 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52738 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57854 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:57857 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:57856 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51447 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51450 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51451 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57814 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:57813 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:57811 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:62157 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64115 - "GET /api/cases/44444444-4444-4444-8444-444444444444 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:64114 - "GET /api/cases/33333333-3333-4333-8333-333333333333 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:64116 - "GET /api/cases/55555555-5555-4555-8555-555555555555 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:49983 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52580 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56840 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63984 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56839 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55812 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57209 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50922 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52928 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61515 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54018 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56586 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56588 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60802 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65388 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55503 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60315 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60315 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55757 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55756 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55311 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61264 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55309 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55308 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55307 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62698 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62699 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61125 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54944 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62700 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55310 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63473 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62694 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55306 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64522 - "GET /api/canonical/patients?page=1&page_size=10&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50548 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57618 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49350 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51276 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49349 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61797 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+GROQ ERROR: APIConnectionError: Connection error.
+DOCUMENT EVIDENCE ERROR: APIConnectionError: Connection error.
+INFO:     127.0.0.1:58047 - "POST /api/detection/candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50196 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55801 - "POST /api/agents/audit/events HTTP/1.1" 201 Created
+INFO:     127.0.0.1:56437 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59454 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59453 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56123 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56961 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52517 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63741 - "GET /api/agents/form-rendering/5a13d35dc82e42f8a034f07402b101e5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49972 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50396 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50397 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50395 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63876 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50394 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64732 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64733 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64730 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64731 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58784 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62372 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50398 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55237 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65349 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60841 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55443 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55446 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55444 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55445 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53345 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51298 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51300 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57542 - "POST /api/agents/deadline/calculate HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:57540 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59464 - "POST /api/agents/deadline/calculate HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:65126 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52307 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53243 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63254 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53241 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57375 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53240 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60708 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51250 - "POST /api/agents/deadline/calculate HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:61469 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61469 - "POST /api/agents/deadline/calculate HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:60449 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60451 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60448 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60453 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51733 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59005 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51735 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51967 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51967 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55798 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61560 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61303 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60313 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61301 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54126 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53726 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53728 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53725 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53730 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62901 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52131 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52129 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49982 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49984 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49985 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49983 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52776 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57850 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57851 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57712 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49986 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56309 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56133 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53243 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49977 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49981 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52621 - "GET /api/canonical/patients?page=1&page_size=10&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52619 - "GET /api/canonical/patients?page=1&page_size=10&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52690 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53287 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52689 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60463 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55635 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49976 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+GROQ ERROR: APIConnectionError: Connection error.
+DOCUMENT EVIDENCE ERROR: APIConnectionError: Connection error.
+INFO:     127.0.0.1:56093 - "POST /api/detection/candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51713 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59266 - "POST /api/agents/audit/events HTTP/1.1" 201 Created
+INFO:     127.0.0.1:62694 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62694 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60460 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62696 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50212 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62718 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60411 - "GET /api/agents/form-rendering/df2a31c3aa8d4ae680f5bc9da2897432 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61016 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61019 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61020 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61023 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57192 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55291 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56442 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59018 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59020 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56352 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55869 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55871 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61024 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53289 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64950 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54731 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58319 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58317 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58318 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58320 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54511 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64421 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52596 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52594 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50164 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61637 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61639 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60880 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60882 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60878 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60090 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53409 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53411 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61591 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55683 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51945 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51949 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51947 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54014 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54015 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54018 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54019 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61854 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63010 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61976 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63012 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54020 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62897 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51170 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57909 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59259 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54016 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55169 - "GET /api/canonical/patients?page=1&page_size=10&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52699 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54392 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64242 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59489 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64240 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59408 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+GROQ ERROR: APIConnectionError: Connection error.
+DOCUMENT EVIDENCE ERROR: APIConnectionError: Connection error.
+INFO:     127.0.0.1:65347 - "POST /api/detection/candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55308 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63097 - "POST /api/agents/audit/events HTTP/1.1" 201 Created
+INFO:     127.0.0.1:59151 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56757 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56758 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55268 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55270 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58860 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51945 - "GET /api/agents/form-rendering/a9c7edff67cd40f59dac86a76c64687e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51253 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51257 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51258 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51255 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61596 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51254 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63189 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56622 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62236 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51450 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51448 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52019 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51256 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52522 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59921 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59434 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59436 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49971 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58963 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58965 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59433 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57651 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57649 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49340 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63861 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58294 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62132 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54401 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62130 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62517 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55127 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55126 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55129 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55131 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55641 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55645 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55644 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54134 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56875 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54704 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61603 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54702 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49369 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53963 - "GET /api/admin/queue/11111111-1111-4111-8111-111111111111 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62959 - "GET /api/admin/queue/11111111-1111-4111-8111-111111111111 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65395 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62877 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63438 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62875 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55819 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51221 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63531 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54482 - "GET /api/admin/queue/22222222-2222-4222-8222-222222222222 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60819 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61240 - "GET /api/admin/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59793 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61247 - "GET /api/admin/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61248 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60314 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56504 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49971 - "GET /api/admin/audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49278 - "POST /api/admin/demo/reset-jordan HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53531 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53527 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53530 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53528 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57816 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64080 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64082 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55813 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53241 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52031 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53529 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64079 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53526 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58936 - "GET /api/canonical/patients?page=1&page_size=10&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55992 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64582 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54810 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62958 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54812 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50297 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+GROQ ERROR: APIConnectionError: Connection error.
+DOCUMENT EVIDENCE ERROR: APIConnectionError: Connection error.
+INFO:     127.0.0.1:53512 - "POST /api/detection/candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54033 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52307 - "POST /api/agents/audit/events HTTP/1.1" 201 Created
+INFO:     127.0.0.1:61697 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63130 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63129 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52855 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64696 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50322 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60008 - "GET /api/agents/form-rendering/ac0629b82cc24aad9a6e94e06e66ae15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64132 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64131 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64134 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64136 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64138 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53283 - "GET /api/agents/form-rendering/f226979b920f4ac58b3325c629682991 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55551 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55550 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55553 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55555 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55557 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63886 - "GET /api/agents/form-rendering/dd529d78f50b4d368544510a160956d2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56601 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56600 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56603 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56605 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61374 - "GET /api/agents/form-rendering/b90c228d5c0f4a18ad17e2c5cf2ec7db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63398 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63397 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63400 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63402 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63404 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65144 - "GET /api/agents/form-rendering/bf308c21d818493f88cb84e9f53a0bfb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56439 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56440 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56442 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56444 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56446 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56448 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61125 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58524 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52628 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58129 - "GET /api/agents/form-rendering/153544b2511d4be3bb772554ba7b0090 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58300 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65079 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62052 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58186 - "GET /api/agents/form-rendering/ab89287f52f2498980edfa964b370c08 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49971 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61083 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61084 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61086 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61087 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61085 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52565 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52567 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65246 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65248 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51217 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49972 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60930 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59323 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57476 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:55431 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:60314 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 201 Created
+INFO:     127.0.0.1:60098 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65274 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55156 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/queue HTTP/1.1" 201 Created
+INFO:     127.0.0.1:55955 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55958 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55957 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55956 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61576 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57132 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57131 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52517 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52522 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53241 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50700 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65058 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56612 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60993 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56614 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58614 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63696 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54615 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63586 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:53808 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53807 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53810 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61790 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51988 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52281 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49356 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59497 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56030 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60108 - "GET /api/agents/form-rendering/8e826bfe7aac498598a6d7bf30e8f5db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62261 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62263 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65249 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:57629 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:65262 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:62820 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62822 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65289 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:60692 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60696 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60695 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51599 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58443 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63740 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54573 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62066 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62064 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64682 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60699 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53700 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60694 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60697 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62739 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57936 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58913 - "GET /api/canonical/patients?page=1&page_size=10&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52546 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56219 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52545 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53554 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+GROQ ERROR: APIConnectionError: Connection error.
+DOCUMENT EVIDENCE ERROR: APIConnectionError: Connection error.
+INFO:     127.0.0.1:51249 - "POST /api/detection/candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60871 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64791 - "POST /api/agents/audit/events HTTP/1.1" 201 Created
+INFO:     127.0.0.1:62814 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55561 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55559 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60321 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60323 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61327 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60491 - "GET /api/agents/form-rendering/ecccefe6bed745dc8c6ece8c31486637 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51292 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63853 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49971 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63126 - "GET /api/agents/form-rendering/9986b0c1e2f5413d8471b1f2a6b6922e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64634 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52098 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52104 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60741 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60740 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60737 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52099 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63956 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58537 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54996 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52105 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59213 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59411 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:61580 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:57868 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 201 Created
+INFO:     127.0.0.1:51210 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62876 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54579 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/queue HTTP/1.1" 201 Created
+INFO:     127.0.0.1:63618 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63615 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63617 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63616 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51288 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64590 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64589 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64594 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64593 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51597 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65528 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49971 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52158 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53782 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52160 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61127 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55022 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58616 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57554 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:62302 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62303 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62305 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54989 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50615 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49971 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62100 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63098 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61579 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57592 - "GET /api/agents/form-rendering/20796b815ab14a92811e9807a1614a8d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53943 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59342 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54273 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54275 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59766 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:62162 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51014 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62163 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51017 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59685 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59683 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63288 - "GET /api/dashboard/deadlines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57955 - "GET /api/dashboard/quality HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62676 - "GET /api/dashboard/reporting-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61866 - "GET /api/dashboard/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52993 - "GET /api/dashboard/jurisdictions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61865 - "GET /api/dashboard/submissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51015 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62164 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54628 - "GET /api/dashboard/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53287 - "GET /api/canonical/patients?page=1&page_size=100&condition=measles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64610 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64680 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64609 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54465 - "GET /api/canonical/patients/bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+GROQ ERROR: APIConnectionError: Connection error.
+DOCUMENT EVIDENCE ERROR: APIConnectionError: Connection error.
+INFO:     127.0.0.1:55642 - "POST /api/detection/candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53419 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63881 - "POST /api/agents/audit/events HTTP/1.1" 201 Created
+INFO:     127.0.0.1:50368 - "GET /api/agents/audit/events?entity_type=PATIENT&entity_id=bb06202b-79bc-58c9-a8d6-be96e0775fdb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56936 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58234 - "GET /api/agents/form-rendering/forms/TX_MEASLES_OUTBREAK_CRF_2025 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56934 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60316 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52870 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56561 - "GET /api/agents/form-rendering/19e14adc8a24419b8f9d99b36dda53e5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60316 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/report-fields HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51125 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56060 - "POST /api/agents/form-rendering/render HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56968 - "GET /api/agents/form-rendering/70821715ef3a42bf9ad96465edef071d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60083 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60496 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60498 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60497 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60499 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60500 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58814 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50936 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59420 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59418 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51948 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51952 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/immediate-notification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51951 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62495 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:55142 - "PATCH /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:56785 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 201 Created
+INFO:     127.0.0.1:65410 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51735 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51503 - "POST /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/queue HTTP/1.1" 201 Created
+INFO:     127.0.0.1:63959 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63960 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63956 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63957 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50464 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/validation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53240 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/submission-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59922 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58163 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58161 - "GET /api/workflow/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/journey HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59572 - "POST /api/agents/deadline/calculate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64370 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50694 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65480 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59121 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65479 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63950 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56560 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54639 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63246 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:63844 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:55022 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55022 - "GET /api/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/attestation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55022 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52139 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49971 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:58606 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58608 - "GET /api/admin/queue/c98d3386-8a6e-479a-bc78-cc7236a71eb3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56372 - "POST /api/admin/cases/c98d3386-8a6e-479a-bc78-cc7236a71eb3/dispatch HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:56646 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64110 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59603 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56006 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56123 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53319 - "GET /api/admin/dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53291 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55357 - "GET /api/admin/batches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53290 - "GET /api/admin/queue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63014 - "GET /api/admin/queue HTTP/1.1" 200 OK

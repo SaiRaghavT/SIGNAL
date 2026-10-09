@@ -298,14 +298,16 @@ export default function QueueAcknowledgementPage() {
         setCalculatedDeadline(null);
       } else {
         setCalculatedDeadline(null);
-        const disease = String(loadedCase?.disease_display || loadedCase?.condition_display || loadedCase?.disease || "").trim();
+        const disease = String(loadedCase?.disease || "").trim();
+        const code = disease.match(/(?:\||\/)(\d+)$/)?.[1];
+        const isMeasles = /^(measles|rubeola)$/i.test(disease) || ["14189004", "14168008", "7180009"].includes(code);
         const jurisdiction = String(loadedCase?.jurisdiction || "").trim();
-        if (disease && jurisdiction && loadedCase?.created_at) {
+        if (isMeasles && jurisdiction && loadedCase?.created_at) {
           try {
             const deadlineResponse = await calculateDeadline({
               event_time: loadedCase.created_at,
-              disease,
-              jurisdiction,
+              disease: "measles",
+              jurisdiction: /^texas$/i.test(jurisdiction) ? "TX" : jurisdiction,
             });
             setCalculatedDeadline(responseData(deadlineResponse));
           } catch {
@@ -380,7 +382,7 @@ export default function QueueAcknowledgementPage() {
 
   const deadlineSubtitle = caseData?.deadline || caseData?.reporting_deadline
     ? "Configured reporting deadline"
-    : calculatedDeadline?.reporting_timeline || calculatedDeadline?.calculation_basis || "No reporting deadline rule is available";
+    : calculatedDeadline?.calculation_basis || "No reporting deadline rule is available";
 
 
   /* =======================================================
@@ -390,16 +392,21 @@ export default function QueueAcknowledgementPage() {
   const queueRecord =
     readiness?.record || null;
 
+  const demoSubmission =
+    queueRecord?.payload?.demo_submission === true ||
+    location.state?.queueResult?.demo_submission === true ||
+    location.state?.demoSubmission === true;
+
   const queuedForCompletion =
     queueRecord?.status === "QUEUED";
 
-  const queueConfirmed =
+  const queueConfirmed = demoSubmission || (
     readiness?.ready === true &&
-    ["READY", "QUEUED"].includes(queueRecord?.status);
+    ["READY", "QUEUED", "READY_FOR_SUBMISSION"].includes(queueRecord?.status)
+  );
 
   const queueReference =
-    queueRecord?.record_id ||
-    "Pending queue reference";
+    queueRecord?.record_id || (demoSubmission ? "Demo handoff persisted" : "Pending queue reference");
 
 
   /* =======================================================
@@ -409,7 +416,7 @@ export default function QueueAcknowledgementPage() {
   const validationStage =
     stage(journey, "VALIDATION");
 
-  const validated =
+  const validated = demoSubmission ||
     validation?.valid === true ||
     validationStage?.data?.valid === true ||
     validationStage?.status ===
@@ -647,6 +654,12 @@ export default function QueueAcknowledgementPage() {
             public-health acknowledgement.
           </p>
 
+          {demoSubmission && (
+            <p className="queue-demo-notice" role="status">
+              Demo queue handoff saved for demonstration. External dispatch is disabled.
+            </p>
+          )}
+
         </div>
 
 
@@ -794,7 +807,7 @@ export default function QueueAcknowledgementPage() {
                     ? queuedForCompletion
                       ? "Complete the missing reporting details before Super Admin review or dispatch."
                       : "Super Admin review is the next step before any dispatch to Texas DSHS."
-                    : "Return to Review & Validation and complete the required queue handoff."}
+                    : "Return to Reporting Review and complete the required queue handoff."}
                 </p>
 
               </div>

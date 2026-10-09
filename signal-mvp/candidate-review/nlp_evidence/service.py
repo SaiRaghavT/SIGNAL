@@ -85,15 +85,12 @@ _EVIDENCE_SCHEMA = {
                     "temporality",
                     "confidence",
                 ],
-                "additionalProperties": False,
             },
         },
     },
     "required": [
         "evidence",
     ],
-    "additionalProperties": False,
-
 }
 
 
@@ -216,7 +213,6 @@ def _extract_with_gemini(
                 config={
                     "temperature": 0,
                     "response_mime_type": "application/json",
-                    "response_schema": _EVIDENCE_SCHEMA,
                 },
             )
 

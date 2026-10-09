@@ -1,0 +1,558 @@
+.admin-queue-page {
+  min-height: 100%;
+  padding: 28px 32px 40px;
+  background: #f7f9fa;
+  color: #17324d;
+}
+
+/* =========================================================
+   PAGE HEADER
+   ========================================================= */
+
+.admin-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.admin-page-kicker {
+  margin-bottom: 6px;
+  color: #7a8b9b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.admin-page-header h1 {
+  margin: 0;
+  color: #153a5b;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.admin-page-header p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: #6b7f93;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.admin-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #d5dfe6;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #153a5b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-refresh-button:hover:not(:disabled) {
+  border-color: #b9c8d5;
+  background: #f9fbfc;
+}
+
+.admin-refresh-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+.admin-error-state {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid #efcaca;
+  border-radius: 6px;
+  background: #fdf0f0;
+  color: #a63838;
+}
+
+.admin-error-state > svg {
+  flex: 0 0 auto;
+}
+
+.admin-error-state div {
+  flex: 1;
+}
+
+.admin-error-state strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.admin-error-state p {
+  margin: 0;
+  font-size: 11px;
+}
+
+.admin-error-state button {
+  padding: 6px 11px;
+  border: 1px solid #dcaeae;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #a63838;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* =========================================================
+   REPORTING MODE CARDS
+   ========================================================= */
+
+.admin-queue-mode-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.admin-mode-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  min-height: 112px;
+  padding: 17px;
+  border: 1px solid #dce4ea;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #17324d;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.admin-mode-card:hover {
+  border-color: #bccbd7;
+  box-shadow: 0 2px 7px rgba(21, 58, 91, 0.06);
+}
+
+.admin-mode-card.active {
+  border-color: #ff6b3d;
+  box-shadow: 0 0 0 1px #ff6b3d;
+}
+
+.admin-mode-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+}
+
+.admin-mode-icon.immediate {
+  background: #fff0eb;
+  color: #d9552d;
+}
+
+.admin-mode-icon.individual {
+  background: #eef4fb;
+  color: #4f7fbf;
+}
+
+.admin-mode-icon.batch {
+  background: #f3eef9;
+  color: #8c5bc7;
+}
+
+.admin-mode-content {
+  min-width: 0;
+}
+
+.admin-mode-content > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #718396;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.admin-mode-content > strong {
+  display: block;
+  color: #153a5b;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.admin-mode-content > p {
+  margin: 6px 0 0;
+  color: #7a8b9b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* =========================================================
+   MAIN QUEUE CARD
+   ========================================================= */
+
+.admin-queue-card {
+  overflow: hidden;
+  border: 1px solid #dce4ea;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.admin-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e1e7ec;
+}
+
+.admin-section-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: #8a9aab;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.admin-section-header h2 {
+  margin: 0;
+  color: #17324d;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.admin-section-description {
+  max-width: 700px;
+  margin: 5px 0 0;
+  color: #7a8b9b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.admin-record-count {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid #dbe3e9;
+  border-radius: 12px;
+  background: #f8fafb;
+  color: #6b7f93;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.admin-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-queue-table {
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: collapse;
+}
+
+.admin-queue-table thead {
+  background: #f7f9fa;
+}
+
+.admin-queue-table th {
+  padding: 10px 14px;
+  border-bottom: 1px solid #dfe6eb;
+  color: #718396;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-queue-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf0f3;
+  color: #40566c;
+  font-size: 11px;
+  vertical-align: middle;
+}
+
+.admin-queue-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-queue-table tbody tr:hover {
+  background: #fafcfd;
+}
+
+/* =========================================================
+   VALUES
+   ========================================================= */
+
+.patient-name {
+  color: #17324d;
+  font-weight: 600;
+}
+
+.case-id {
+  color: #153a5b;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.batch-record-id {
+  display: block;
+  margin-top: 3px;
+  color: #8191a0;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.deadline-value {
+  color: #526a7f;
+  white-space: nowrap;
+}
+
+.batch-case-count {
+  color: #153a5b;
+  font-weight: 700;
+}
+
+/* =========================================================
+   PILLS
+   ========================================================= */
+
+.status-pill,
+.priority-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 11px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.status-warning {
+  border: 1px solid #efd4a7;
+  background: #fff4e5;
+  color: #b56b17;
+}
+
+.status-success {
+  border: 1px solid #bfe4d2;
+  background: #e8f7f0;
+  color: #177c56;
+}
+
+.status-danger {
+  border: 1px solid #efc0c0;
+  background: #fdecec;
+  color: #b53e3e;
+}
+
+.status-neutral {
+  border: 1px solid #d9e1e7;
+  background: #f4f7f9;
+  color: #64798b;
+}
+
+.priority-urgent {
+  border: 1px solid #efc0c0;
+  background: #fdecec;
+  color: #b53e3e;
+}
+
+.priority-high {
+  border: 1px solid #efd2aa;
+  background: #fff4e5;
+  color: #b56b17;
+}
+
+.priority-medium {
+  border: 1px solid #d8d1e8;
+  background: #f3eff9;
+  color: #73559b;
+}
+
+.priority-normal {
+  border: 1px solid #d9e1e7;
+  background: #f4f7f9;
+  color: #64798b;
+}
+
+/* =========================================================
+   ACTION
+   ========================================================= */
+
+.admin-review-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #d9552d;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-review-link:hover {
+  color: #b84421;
+  text-decoration: underline;
+}
+
+.admin-review-link:focus-visible {
+  outline: 2px solid #ff6b3d;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.unavailable-action {
+  color: #9aa8b5;
+}
+
+/* =========================================================
+   EMPTY / LOADING
+   ========================================================= */
+
+.admin-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 260px;
+  color: #6b7f93;
+  font-size: 12px;
+}
+
+.admin-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 275px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.admin-empty-state > svg {
+  margin-bottom: 12px;
+  color: #8a9aab;
+}
+
+.admin-empty-state h3 {
+  margin: 0 0 7px;
+  color: #17324d;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-empty-state p {
+  max-width: 520px;
+  margin: 0;
+  color: #7a8b9b;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   ANIMATION
+   ========================================================= */
+
+.spinning {
+  animation: admin-queue-spin 0.9s linear infinite;
+}
+
+@keyframes admin-queue-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .admin-queue-page {
+    padding: 22px 20px 32px;
+  }
+
+  .admin-page-header {
+    flex-direction: column;
+  }
+
+  .admin-refresh-button {
+    align-self: flex-start;
+  }
+
+  .admin-queue-mode-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-queue-page {
+    padding: 18px 14px 28px;
+  }
+
+  .admin-page-header h1 {
+    font-size: 24px;
+  }
+
+  .admin-section-header {
+    flex-direction: column;
+  }
+
+  .admin-record-count {
+    align-self: flex-start;
+  }
+
+  .admin-error-state {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}

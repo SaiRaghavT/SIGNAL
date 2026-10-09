@@ -156,7 +156,7 @@
 .review-submit-card p { max-width: 680px; margin: 7px 0 0; color: var(--signal-text-secondary); font-size: 12px; line-height: 1.55; }
 .review-submit-card .review-primary-button { flex: 0 0 auto; }
 
-/* Keep Review & Validation aligned with the compact Patient Reporting Form. */
+/* Keep Reporting Review aligned with the compact Patient Reporting Form. */
 .case-workspace-page.review-validation-page {
   max-width: none;
   padding: 24px clamp(16px, 3vw, 44px) 40px;

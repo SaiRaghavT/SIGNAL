@@ -69,7 +69,17 @@ def test_rendered_form_can_be_retrieved_as_pdf(tmp_path, monkeypatch):
             "city": "Austin",
         },
         provider={},
-        report_fields={},
+        facility={},
+        clinical_evidence={},
+        laboratory_evidence=[],
+        ai_evidence={},
+        report_fields={
+            "reporting.investigated_by": "Clinical Staff",
+            "reporting.investigating_agency": "County Health",
+            "reporting.investigating_agency_email": "staff@example.org",
+            "reporting.investigating_agency_phone": "555-0123",
+            "reporting.investigation_start_date": "2026-10-01",
+        },
     )
     workflow_records = [
         SimpleNamespace(status="APPROVE", payload={"reviewer_id": "reviewer"}),
@@ -98,6 +108,15 @@ def test_rendered_form_can_be_retrieved_as_pdf(tmp_path, monkeypatch):
 
     assert response.status_code == 200
     rendered = response.json()
+    assert rendered["missing_required_fields"] == []
+    rendered_values = {item["value"] for item in rendered["fields"]}
+    assert {
+        "Clinical Staff",
+        "County Health",
+        "staff@example.org",
+        "555-0123",
+        "2026-10-01",
+    } <= rendered_values
     render_id = rendered["render_id"]
     retrieval_url = f"/api/agents/form-rendering/{render_id}"
     assert rendered["retrieval_url"] == retrieval_url

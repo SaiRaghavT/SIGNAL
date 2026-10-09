@@ -10,7 +10,13 @@ from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import CaseWorkflowRecord
 from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
 from backend.app.agents.deadline_escalation.service import DeadlineEscalationService
+from backend.app.canonical.query_service import resolve_case_deadline
 from backend.app.case.workflow_api import _validation
+from backend.app.demo.synthetic_jordan_reporting import apply_synthetic_jordan_reporting_defaults
+from backend.app.demo.admin_demo_reporting import (
+    apply_admin_demo_reporting_defaults,
+    canonical_patient_for_case,
+)
 from .report_fields import available_case_report_fields, missing_report_fields
 
 from .schemas import CaseDetailResponse, CaseListItem, CaseListResponse
@@ -20,6 +26,17 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
     case = db.query(Case).filter(Case.case_id == case_id).first()
     if case is None:
         return None
+
+    # Normalize the checked-in synthetic Jordan fixture into its Case record
+    # before returning it to Clinical Staff. The helper is exact-case scoped
+    # and idempotent, so opening the form never creates another Case.
+    demo_changes = apply_synthetic_jordan_reporting_defaults(case)
+    demo_changes.extend(
+        apply_admin_demo_reporting_defaults(case, canonical_patient_for_case(db, case))
+    )
+    if demo_changes:
+        db.commit()
+        db.refresh(case)
 
     report_fields = available_case_report_fields(case)
     missing_fields, required_missing_fields = missing_report_fields(report_fields)
@@ -43,6 +60,7 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
         .order_by(Submission.created_at.desc())
         .first()
     )
+    deadline_data, _deadline_reason = resolve_case_deadline(db, case)
     return CaseDetailResponse(
         case_id=str(case.case_id),
         candidate_id=case.candidate_id,
@@ -66,7 +84,7 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
         required_missing_fields=required_missing_fields,
         created_at=case.created_at,
         updated_at=case.updated_at,
-        deadline=getattr(case, "deadline", None),
+        deadline=(deadline_data.get("deadline") if deadline_data else getattr(case, "deadline", None)),
         severity=getattr(case, "severity", None),
         submission=(
             {
@@ -135,8 +153,10 @@ def list_cases(
         .all()
     )
 
-    items = [
-        CaseListItem(
+    items = []
+    for case in records:
+        deadline_data, _deadline_reason = resolve_case_deadline(db, case)
+        item = CaseListItem(
             case_id=str(case.case_id),
             candidate_id=case.candidate_id,
             disease=case.disease,
@@ -149,10 +169,9 @@ def list_cases(
             updated_at=case.updated_at,
             warnings=case.warnings or [],
             severity=getattr(case, "severity", None),
-            deadline=getattr(case, "deadline", None),
+            deadline=(deadline_data.get("deadline") if deadline_data else getattr(case, "deadline", None)),
         )
-        for case in records
-    ]
+        items.append(item)
 
     all_cases = db.query(Case).all()
     case_by_id = {str(case.case_id): case for case in all_cases}
@@ -201,7 +220,7 @@ def list_cases(
         for case_id, readiness_status in latest_readiness.items()
         if readiness_status == "READY"
         and case_id in case_by_id
-        and _validation(case_by_id[case_id])["valid"]
+        and _validation(case_by_id[case_id], db)["valid"]
     }
     review_case_ids = {
         str(case.case_id)
