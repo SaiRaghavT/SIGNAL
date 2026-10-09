@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { listSubmissions } from "../api/submissions.js";
+import { cleanPatientName } from "../utils/patientNames.js";
 import { PageHeader } from "../components/ui/PageHeader.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import "../styles/submissions.css";
@@ -19,10 +20,10 @@ const FILTERS = [
 
 function patientName(patient = {}) {
   const direct = patient.name || patient.full_name || patient.patient_name;
-  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  if (typeof direct === "string" && direct.trim()) return cleanPatientName(direct);
   const first = patient.first_name || patient.given_name || "";
   const last = patient.last_name || patient.family_name || "";
-  return [first, last].filter(Boolean).join(" ") || EMPTY_VALUE;
+  return cleanPatientName([first, last].filter(Boolean).join(" ")) || EMPTY_VALUE;
 }
 
 function formatDate(value) {

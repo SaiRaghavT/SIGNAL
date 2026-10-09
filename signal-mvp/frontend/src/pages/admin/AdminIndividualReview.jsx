@@ -8,6 +8,7 @@ import {
 import { ensureSubmissionFollowUp } from "../../api/followups.js";
 import { upsertClinicalInformationRequest } from "../../utils/clinicalInformationRequests.js";
 import { demoPatientName } from "../../utils/adminDemoPatientNames.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
 import "../../styles/AdminIndividualReview.css";
 
 function valueOrDash(value) {
@@ -157,10 +158,10 @@ function normalizeCase(response) {
   const condition = valueOrDash(
     source.disease || source.condition || caseData.disease || caseData.condition,
   );
-  const patientName = valueOrDash(
+  const patientName = valueOrDash(cleanPatientName(
     source.patient_name || source.patientName || patient.name ||
       [patient.first_name, patient.last_name].filter(Boolean).join(" "),
-  );
+  ));
 
   return {
     caseId: valueOrDash(

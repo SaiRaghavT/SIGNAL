@@ -17,6 +17,7 @@ import { getDashboardSummary } from "../api/dashboard.js";
 import { request } from "../api/client.js";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { useDailyRefresh } from "../hooks/useDailyRefresh.js";
+import { cleanPatientName } from "../utils/patientNames.js";
 import "../styles/dashboard.css";
 
 const EMPTY_VALUE = "—";
@@ -82,7 +83,7 @@ function formatDeadline(value) {
 
 function patientName(patient) {
   return [patient?.first_name, patient?.last_name]
-    .map((name) => String(name || "").replace(/\d+/g, "").replace(/\s+/g, " ").trim())
+    .map(cleanPatientName)
     .filter(Boolean)
     .join(" ") || "Patient name unavailable";
 }

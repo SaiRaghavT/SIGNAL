@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAdminSubmissions } from "../../services/adminService.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
 import "../../styles/AdminSubmissions.css";
 
 const STATUS_OPTIONS = [
@@ -145,14 +146,14 @@ function normalizeSubmission(item) {
       caseData.caseId,
     ),
 
-    patient: textValue(
+    patient: cleanPatientName(textValue(
       payload.patient_name,
       payload.patientName,
       patient.name,
       [patient.first_name, patient.last_name]
         .filter(Boolean)
         .join(" "),
-    ),
+    )),
 
     patientId,
 

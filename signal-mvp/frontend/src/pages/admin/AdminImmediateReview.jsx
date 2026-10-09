@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { getAdminQueueCase } from "../../services/adminService.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
 import "../../styles/AdminImmediateReview.css";
 
 const DEMO_CASE_DETAILS = {
@@ -147,12 +148,12 @@ function getPatientName(data) {
     "name"
   );
 
-  if (typeof directName === "string") return directName;
+  if (typeof directName === "string") return cleanPatientName(directName);
 
   const firstName = getField(record, "first_name", "firstName");
   const lastName = getField(record, "last_name", "lastName");
 
-  return [firstName, lastName].filter(Boolean).join(" ") || "—";
+  return cleanPatientName([firstName, lastName].filter(Boolean).join(" ")) || "—";
 }
 
 function getPatientId(data) {

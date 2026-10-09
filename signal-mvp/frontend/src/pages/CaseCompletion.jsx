@@ -3,13 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { useDemoWorkflow } from "../hooks/useDemoWorkflow.js";
 import { getCase, getJourney } from "../api/signal.js";
+import { cleanPatientName } from "../utils/patientNames.js";
 import "../styles/CaseCompletion.css";
 
 const array = (value) => Array.isArray(value) ? value : [];
 const text = (value) => value === null || value === undefined || value === "" ? "Not recorded" : String(value);
 const findStage = (journey, name) => array(journey?.journey).find((item) => item.stage === name) || null;
 const latest = (values) => values.length ? values[values.length - 1] : null;
-const patientName = (patient) => [patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name || "Patient name not returned";
+const patientName = (patient) => cleanPatientName([patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name) || "Patient name not returned";
 const readable = (value) => String(value || "").replaceAll("_", " ");
 
 const WORKFLOW_STAGES = [

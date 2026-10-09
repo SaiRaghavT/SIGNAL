@@ -3,6 +3,7 @@ import { CheckCircle2, Clock3, FileText, RotateCw } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { listFollowUps } from "../../api/followups.js";
 import { getAdminQueueCase, getAdminSubmission } from "../../services/adminService.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
 import "../../styles/AdminSubmissionAcknowledgement.css";
 
 function value(value, fallback = "—") {
@@ -72,7 +73,7 @@ export default function AdminSubmissionAcknowledgement() {
   const simulated = /mock|simulat/i.test(String(destination || ""))
     || warnings.some((warning) => /mock|simulat/i.test(String(warning)));
   const patient = submission?.patient || caseData?.patient || {};
-  const patientName = patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" ");
+  const patientName = cleanPatientName(patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" "));
   const condition = caseData?.clinical_evidence?.diagnosis
     || caseData?.condition
     || submission?.disease;

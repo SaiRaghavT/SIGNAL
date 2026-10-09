@@ -21,6 +21,7 @@ import {
 } from "../api/workflow.js";
 
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { cleanPatientName } from "../utils/patientNames.js";
 import {
   CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT,
   getOpenClinicalInformationRequest,
@@ -95,7 +96,7 @@ function formatDate(value) {
 
 
 function patientName(patient) {
-  return (
+  return cleanPatientName(
     [
       patient?.first_name,
       patient?.last_name,

@@ -6,6 +6,7 @@ import {
   getAdminQueueCase,
 } from "../../services/adminService.js";
 import "../../styles/AdminCaseReview.css";
+import { cleanPatientName } from "../../utils/patientNames.js";
 
 function firstDefined(...values) {
   return values.find(
@@ -227,11 +228,11 @@ export default function AdminCaseReview() {
   const clinical = caseData?.clinical || {};
   const reportability = caseData?.reportability || {};
 
-  const patientName = firstDefined(
+  const patientName = cleanPatientName(firstDefined(
     caseData?.patient_name,
     patient?.name,
     [patient?.first_name, patient?.last_name].filter(Boolean).join(" ")
-  );
+  ));
 
   const patientId = firstDefined(
     caseData?.patient_id,

@@ -39,6 +39,7 @@ import {
 
 
 import { deletePatientDocument, uploadPatientDocument } from "../api/documents.js";
+import { cleanPatientName } from "../utils/patientNames.js";
 
 
 
@@ -321,12 +322,7 @@ function removePatientNameNumbers(value) {
       ? getPatientName({ name: value })
       : String(value || "");
 
-  return rawName
-    .replace(/\d+/g, " ")
-    .replace(/[|#,:;]+/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/^[\s_-]+|[\s_-]+$/g, "")
-    .trim();
+  return cleanPatientName(rawName);
 }
 
 function getDocuments(context) {
@@ -644,20 +640,6 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
       .toUpperCase() || "P";
 
-  const reportingDeadline = patient?.deadline || patientData.deadline;
-  const deadlineDate = reportingDeadline?.deadline
-    ? new Date(reportingDeadline.deadline)
-    : null;
-  const deadlineDateLabel = deadlineDate && !Number.isNaN(deadlineDate.getTime())
-    ? deadlineDate.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : null;
-
 
 
   return (
@@ -886,13 +868,6 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
 
 
-      {reportingDeadline?.reporting_timeline && (
-        <div className="patient-reporting-deadline">
-          <span>Reporting deadline</span>
-          <strong>{reportingDeadline.reporting_timeline}</strong>
-          {deadlineDateLabel && <small>Due {deadlineDateLabel}</small>}
-        </div>
-      )}
     </header>
 
   );
@@ -5102,6 +5077,63 @@ export default function PatientWorkspace() {
 
 
 
+      {/* Immediate-reporting warning and consent overlay temporarily disabled.
+      {hasMeasles && showMeaslesWarning && !consentAcknowledged && (
+        <div className="measles-consent-backdrop">
+          <section
+            className="measles-consent-gate"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="measles-consent-title"
+          >
+            <section className="measles-reporting-warning" role="alert">
+              <div className="measles-warning-heading">
+                <span aria-hidden="true">!</span>
+                <div>
+                  <p className="section-label">TEXAS MEASLES REPORTING</p>
+                  <h2>Suspected measles must be reported immediately</h2>
+                </div>
+              </div>
+              <p>
+                Texas requires suspected measles cases to be reported right away.
+                Do not wait for laboratory confirmation. Please call the Texas
+                DSHS reporting line yourself; SIGNAL will not call the patient
+                or place the report for you.
+              </p>
+              <p className="measles-reporting-number">
+                Texas DSHS reporting line: <strong>1-800-705-8868</strong>
+              </p>
+            </section>
+            <h2 id="measles-consent-title">Consent is required to continue</h2>
+            <p>
+              Confirm that the patient or their authorized representative has
+              consented to continue in this workspace.
+            </p>
+            <label className="measles-consent-check">
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(event) =>
+                  setConsentCheckPatientId(
+                    event.target.checked ? patientId : null
+                  )
+                }
+              />
+              <span>Patient consent to continue has been provided.</span>
+            </label>
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!consentChecked}
+              onClick={() => setConsentedPatientId(patientId)}
+            >
+              Continue to patient workspace
+            </button>
+          </section>
+        </div>
+      )}
+      */}
+
       <div
         className="workspace-gated-content"
       >
@@ -5276,7 +5308,7 @@ export default function PatientWorkspace() {
           <div className="workspace-content">
 
             <PatientAnatomyCard
-              patientName={getPatientName(context?.patient || context?.data || context)}
+              patientName={cleanPatientName(getPatientName(context?.patient || context?.data || context))}
               conditions={conditions}
               documents={documents}
             />
@@ -5594,9 +5626,9 @@ export default function PatientWorkspace() {
 
 
               />
-          )}
+            )}
 
-        </div>
+          </div>
 
 
 

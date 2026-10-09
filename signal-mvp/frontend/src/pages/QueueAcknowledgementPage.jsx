@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { cleanPatientName } from "../utils/patientNames.js";
 
 import {
   getCase,
@@ -107,7 +108,7 @@ function patientLabel(patient) {
     )
     .join(" ");
 
-  return (
+  return cleanPatientName(
     name ||
     patient?.name ||
     "Patient name not returned"

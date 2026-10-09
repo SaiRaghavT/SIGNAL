@@ -13,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import "../../styles/AdminSubmissionJourney.css";
+import { cleanPatientName } from "../../utils/patientNames.js";
 
 const STAGES = [
   { id: "ADMIN", label: "AUTHORIZE", subtitle: "SIGNAL Admin" },
@@ -55,7 +56,7 @@ function getPatientName(data) {
     "patient_full_name"
   );
 
-  if (directName) return directName;
+  if (directName) return cleanPatientName(directName);
 
   const nestedName = getField(
     patient,
@@ -75,7 +76,7 @@ function getPatientName(data) {
     getField(patient, "last_name") ??
     getField(data, "last_name", "patient_last_name");
 
-  return [firstName, lastName].filter(Boolean).join(" ") || "—";
+  return cleanPatientName([firstName, lastName].filter(Boolean).join(" ")) || "—";
 }
 
 function display(value) {
@@ -471,14 +472,6 @@ export default function AdminSubmissionJourney() {
           </div>
         </div>
 
-        <button
-          type="button"
-          className="journey-primary-button"
-          onClick={handleBack}
-        >
-          <ArrowLeft size={14} />
-          Back to Queue
-        </button>
       </section>
 
       <section className="journey-followup-card">
