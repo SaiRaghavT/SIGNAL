@@ -10,12 +10,14 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
-import { useBackendHealth } from "../../hooks/useBackendHealth.js";
+// Chatbot temporarily disabled:
+// import ChatWidget from "../assistant/ChatWidget.jsx";
 import {
   clearAdminSessionSubmissions,
   getAdminSubmissions,
 } from "../../services/adminService.js";
 import "../../styles/AdminShell.css";
+import { WorkflowBreadcrumb } from "../navigation/WorkflowBreadcrumb.jsx";
 
 const ADMIN_SESSION_SUBMISSION_BASELINE = "signal:admin-session:submission-baseline";
 
@@ -65,9 +67,8 @@ const NAVIGATION = [
   },
 ];
 
-export default function AdminShell({ children }) {
+export default function AdminShell() {
   const navigate = useNavigate();
-  const backendHealth = useBackendHealth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const submissionBaselinePromise = useRef(null);
@@ -211,11 +212,11 @@ export default function AdminShell({ children }) {
         {/* BOTTOM USER AREA */}
         <div className="admin-sidebar-bottom">
           <div className="admin-system-status">
-            <span className={`admin-status-dot${backendHealth === "online" ? "" : ` backend-health-${backendHealth}`}`} />
+            <span className="admin-status-dot" />
 
             <div>
-              <strong>{backendHealth === "online" ? "System Operational" : backendHealth === "checking" ? "Connecting to backend" : "Backend unavailable"}</strong>
-              <small>{backendHealth === "online" ? "Reporting services active" : backendHealth === "checking" ? "Checking API health" : "Check that the API is running"}</small>
+              <strong>System Operational</strong>
+              <small>Reporting services active</small>
             </div>
           </div>
 
@@ -252,15 +253,18 @@ export default function AdminShell({ children }) {
           </div>
 
           <div className="admin-topbar-status">
-            <span className={`admin-topbar-dot${backendHealth === "online" ? "" : ` backend-health-${backendHealth}`}`} />
-            {backendHealth === "online" ? "Backend connected" : backendHealth === "checking" ? "Connecting…" : "Backend unavailable"}
+            <span className="admin-topbar-dot" />
+            Operational
           </div>
         </header>
 
+        <WorkflowBreadcrumb admin />
+
         <div className="admin-content">
-          {children || <Outlet />}
+          <Outlet />
         </div>
       </div>
+      {/* Chatbot temporarily disabled: <ChatWidget /> */}
     </div>
   );
 }

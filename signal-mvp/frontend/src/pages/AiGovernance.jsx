@@ -47,7 +47,6 @@ const links = [
   ['Model Evaluation', '/governance/evaluation'],
   ['Explainability', '/governance/explainability'],
   ['Agent Governance', '/governance/agents'],
-  ['Outcome Learning', '/governance/outcome-learning'],
 ]
 
 const field = value =>
@@ -210,12 +209,6 @@ export function GovernanceOverview() {
           label="AUDIT FAILURE STATUS"
           value={d?.execution_failures}
           note="Persisted events marked failure"
-        />
-
-        <Metric
-          label="EVALUATION RUNS"
-          value="not_available"
-          note="No benchmark records"
         />
 
         <Metric

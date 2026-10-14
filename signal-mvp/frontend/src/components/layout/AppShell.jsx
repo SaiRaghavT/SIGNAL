@@ -1,6 +1,8 @@
 import { Activity, BarChart3, FolderKanban, LayoutDashboard, ScrollText, Send, ShieldCheck, Users } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useBackendHealth } from "../../hooks/useBackendHealth.js";
+import { WorkflowBreadcrumb } from "../navigation/WorkflowBreadcrumb.jsx";
+// Chatbot temporarily disabled:
+// import ChatWidget from "../assistant/ChatWidget.jsx";
 
 const nav = [
   ["/dashboard", "Dashboard", LayoutDashboard],
@@ -15,7 +17,6 @@ const nav = [
 export function AppShell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const backendHealth = useBackendHealth();
   const onPatients = pathname === "/patients" || pathname.startsWith("/patients/");
   const onCaseWorkspace = /^\/cases\/[^/]+(?:\/(?:reporting-form|completion))?$/.test(pathname);
 
@@ -41,31 +42,15 @@ export function AppShell() {
             localStorage.removeItem("signal-user");
             navigate("/login", { replace: true });
           }}>Sign out</button>
-          <span className={`backend-health backend-health-${backendHealth}`} role="status">
-            <span className={`dot${backendHealth === "online" ? " ok" : ""}`} />
-            {backendHealth === "online"
-              ? "Backend connected"
-              : backendHealth === "checking"
-                ? "Checking backend…"
-                : "Backend unavailable"}
-          </span>
+          <span><span className="dot ok" /> Backend connected through API</span>
         </div>
       </aside>
       <main className="main">
-        <header className="topbar">
-          <div>
-            <span className="eyebrow">{onPatients ? "Workspace / Patients" : onCaseWorkspace ? "Workspace / Cases / Case Workspace" : "SIGNAL MVP"}</span>
-            {!onPatients && <h1>Public Health Reporting Intelligence Layer</h1>}
-          </div>
-          {onPatients ? (
-            <div className={`role-chip backend-health-${backendHealth}`}>
-              <span className={`dot${backendHealth === "online" ? " ok" : ""}`} />
-              {backendHealth === "online" ? "System Online" : backendHealth === "checking" ? "Connecting…" : "System Offline"}
-            </div>
-          ) : <div className="role-chip">Reporting User</div>}
-        </header>
+       
+        <WorkflowBreadcrumb />
         <Outlet />
       </main>
+      {/* Chatbot temporarily disabled: <ChatWidget /> */}
     </div>
   );
 }

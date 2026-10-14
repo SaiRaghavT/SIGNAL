@@ -29,6 +29,7 @@ from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
 from backend.app.agents.ecr_submission.schemas import ECRSubmissionRequest
 from backend.app.agents.ecr_submission.service import ECRSubmissionService
+from backend.app.canonical.condition_mapper import clean_condition_display
 from backend.app.canonical.query_service import _case_patient_id, _patient_deadline
 
 from .schemas import (
@@ -141,12 +142,12 @@ def _condition_display(case: Case) -> str | None:
     clinical_evidence = case.clinical_evidence or {}
     diagnosis = clinical_evidence.get("diagnosis")
     if isinstance(diagnosis, str) and diagnosis.strip() and "|" not in diagnosis:
-        return diagnosis.strip()
+        return clean_condition_display(diagnosis)
 
     disease = case.disease
     if disease and disease.rsplit("|", 1)[-1] == "14189004":
         return "Measles"
-    return disease
+    return clean_condition_display(disease)
 
 
 def _submission_mode(case: Case, queue: CaseWorkflowRecord | None = None) -> str:

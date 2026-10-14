@@ -5,7 +5,9 @@ import {
   dispatchCase,
   getAdminQueueCase,
 } from "../../services/adminService.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminCaseReview.css";
+import { cleanPatientName } from "../../utils/patientNames.js";
 
 function firstDefined(...values) {
   return values.find(
@@ -227,11 +229,11 @@ export default function AdminCaseReview() {
   const clinical = caseData?.clinical || {};
   const reportability = caseData?.reportability || {};
 
-  const patientName = firstDefined(
+  const patientName = cleanPatientName(firstDefined(
     caseData?.patient_name,
     patient?.name,
     [patient?.first_name, patient?.last_name].filter(Boolean).join(" ")
-  );
+  ));
 
   const patientId = firstDefined(
     caseData?.patient_id,
@@ -382,13 +384,10 @@ export default function AdminCaseReview() {
   if (loading) {
     return (
       <div className="admin-review-page">
-        <div className="admin-review-loading">
-          <div className="admin-review-spinner" />
-          <div>
-            <strong>Loading case review</strong>
-            <p>Retrieving the reporting package...</p>
-          </div>
-        </div>
+        <SignalLoading
+          title="Loading Case Review"
+          message="Retrieving the reporting package and clinical evidence."
+        />
       </div>
     );
   }

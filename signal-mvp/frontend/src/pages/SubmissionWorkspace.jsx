@@ -2,14 +2,16 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { getCase, getJourney, getCaseReview, getCaseAttestation, submitEcr, trackSubmission, processAcknowledgement, retrySubmission } from "../api/signal.js";
+import { cleanPatientName } from "../utils/patientNames.js";
+import { cleanConditionDisplay } from "../utils/conditionDisplay.js";
 import "../styles/submission-workspace.css";
 
 const list = (value) => Array.isArray(value) ? value : [];
-const display = (value) => value === null || value === undefined || value === "" ? "Not recorded" : String(value);
+const display = (value) => value === null || value === undefined || value === "" ? "Not recorded" : cleanConditionDisplay(String(value));
 const getStage = (journey, name) => list(journey?.journey).find((item) => item.stage === name);
 const tone = (value) => /REJECT|FAIL|ERROR/i.test(value || "") ? "bad" : /ACKNOWLEDG|COMPLETE|SUBMITTED|APPROV|ATTEST|READY/i.test(value || "") ? "good" : /PENDING|CURRENT|PROCESS|NEEDS|INVALID/i.test(value || "") ? "wait" : "unknown";
 const latestSubmission = (journey) => list(getStage(journey, "SUBMISSION")?.data?.submissions).at(-1) || null;
-const patientLabel = (patient) => [patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name || "Patient name not returned";
+const patientLabel = (patient) => cleanPatientName([patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name) || "Patient name not returned";
 
 function Detail({ label, value }) { return <div className="submission-detail"><span>{label}</span><strong>{display(value)}</strong></div>; }
 function ResponseItems({ title, items }) {
@@ -134,7 +136,6 @@ export default function SubmissionWorkspace() {
     <header className="submission-header">
       <div className="submission-heading">
         <button className="submission-back" onClick={() => navigate(`${caseWorkspacePath}/reporting-form`)}>← Back to Reporting Form</button>
-        <div className="submission-steps"><span>Case Workspace</span><i>›</i><span>Reporting Form</span><i>›</i><b>Submission</b></div>
         <span className="submission-kicker">SUBMISSION WORKSPACE</span>
         <h2>Texas Measles Electronic Reporting</h2>
         <p>Review submission readiness, submit through the configured electronic reporting channel, and track destination acknowledgement.</p>
@@ -144,7 +145,7 @@ export default function SubmissionWorkspace() {
 
     {working && <SignalLoading
       title={operation === "Tracking" ? "Checking Submission" : operation === "Acknowledgement" ? "Processing Response" : operation === "Retry" ? "Retrying Submission" : "Preparing Submission"}
-      message={operation === "Tracking" ? "Retrieving the current submission status." : operation === "Acknowledgement" ? "Processing the public-health acknowledgement." : operation === "Retry" ? "Retrying the submission through its configured destination." : "Preparing the case for electronic reporting."}
+      message={operation === "Tracking" ? "Retrieving the current ACKNOWLEDGEMENT STATUS." : operation === "Acknowledgement" ? "Processing the public-health acknowledgement." : operation === "Retry" ? "Retrying the submission through its configured destination." : "Preparing the case for electronic reporting."}
     />}
 
     {simulated && <div className="simulation-banner"><strong>SIMULATION ENVIRONMENT</strong><span>This submission is handled by SIGNAL’s mock public-health destination. No real Texas DSHS transmission has occurred.</span></div>}
@@ -157,7 +158,7 @@ export default function SubmissionWorkspace() {
     <div className="submission-kpis">
       <div><span>REPORTING JURISDICTION</span><strong>{display(caseData.jurisdiction)}</strong><small>Configured for this case</small></div>
       <div><span>REPORTABLE CONDITION</span><strong>{display(caseData.disease)}</strong><small>Rule: {display(caseData.rule_id)}</small></div>
-      <div><span>SUBMISSION STATUS</span><strong className={`status-text ${tone(status)}`}>{display(status)}</strong><small>{submission?.submission_id || "No submission ID recorded"}</small></div>
+      <div><span>ACKNOWLEDGEMENT STATUS</span><strong className={`status-text ${tone(status)}`}>{display(status)}</strong><small>{submission?.submission_id || "No submission ID recorded"}</small></div>
       <div><span>REPORTING CHANNEL</span><strong>{display(submission?.channel)}</strong><small>{display(destination)}</small></div>
     </div>
 

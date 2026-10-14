@@ -17,7 +17,7 @@ export function buildEvidencePatterns(reviewedRows) {
     if (['REJECT', 'REQUEST_INFORMATION'].includes(row.reviewer_decision)) record('Case returned or rejected by reviewer', row)
     if (row.submission_errors?.length) record('Submission reported errors', row, row.pha_outcome)
     if (row.pha_outcome === 'ACKNOWLEDGED') record('PHA acknowledgement', row, row.pha_outcome)
-    else if (row.pha_outcome !== 'not_available' && row.pha_outcome) record(`Submission status: ${row.pha_outcome}`, row, row.pha_outcome)
+    else if (row.pha_outcome !== 'not_available' && row.pha_outcome) record(`ACKNOWLEDGEMENT STATUS: ${row.pha_outcome}`, row, row.pha_outcome)
     if (row.correction_reason && row.correction_reason !== 'not_available' && !row.submission_errors?.length && !row.validation_errors?.length) record('Correction or reviewer note recorded', row)
   })
   return [...patterns.values()].map(pattern => ({

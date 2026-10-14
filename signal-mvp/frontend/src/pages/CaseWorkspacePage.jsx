@@ -21,6 +21,7 @@ import {
 } from "../api/workflow.js";
 
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { cleanPatientName } from "../utils/patientNames.js";
 import {
   CLINICAL_INFORMATION_REQUEST_UPDATED_EVENT,
   getOpenClinicalInformationRequest,
@@ -95,7 +96,7 @@ function formatDate(value) {
 
 
 function patientName(patient) {
-  return (
+  return cleanPatientName(
     [
       patient?.first_name,
       patient?.last_name,
@@ -953,36 +954,6 @@ export default function CaseWorkspacePage() {
         </div>
 
       </header>
-
-
-      {/* BREADCRUMB */}
-
-      <nav
-        className="review-validation-breadcrumb"
-        aria-label="Reporting workflow"
-      >
-        {[
-          "Patient",
-          "Active Patient",
-          "Data Extraction",
-          "Texas Measles CRF",
-        ].map((item) => (
-          <span
-            key={item}
-            className="review-validation-breadcrumb-item"
-          >
-            {item}
-          </span>
-        ))}
-
-        <span className="review-validation-breadcrumb-separator">
-          ›
-        </span>
-
-        <span className="review-validation-breadcrumb-item active">
-          Reporting Review
-        </span>
-      </nav>
 
       {demoReviewPreview && (
         <div className="review-validation-demo-notice" role="status">

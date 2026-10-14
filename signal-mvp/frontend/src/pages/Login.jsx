@@ -5,15 +5,13 @@ import { Eye, EyeOff } from "lucide-react";
 import "../styles/login.css";
 
 const USERS = {
-  clinical: {
-    email: "report@signal.local",
+  "report@signal.local": {
     password: "SIGNAL2026",
     name: "SIGNAL Clinical Staff",
     role: "Clinical Staff",
     redirect: "/dashboard",
   },
-  admin: {
-    email: "admin@signal.local",
+  "admin@signal.local": {
     password: "SIGNALADMIN2026",
     name: "SIGNAL Administrator",
     role: "Administrator",
@@ -21,26 +19,22 @@ const USERS = {
   },
 };
 
+function clearStoredAuth() {
+  sessionStorage.removeItem("signal-auth");
+  sessionStorage.removeItem("signal-user");
+  localStorage.removeItem("signal-auth");
+  localStorage.removeItem("signal-user");
+}
+
 export default function Login() {
   const navigate = useNavigate();
 
-  const [selectedRole, setSelectedRole] = useState("clinical");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const user = USERS[selectedRole];
-
-  function changeRole(role) {
-    setSelectedRole(role);
-    setEmail("");
-    setPassword("");
-    setShowPassword(false);
-    setError("");
-  }
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -49,48 +43,51 @@ export default function Login() {
 
     setError("");
 
-    if (!email.trim() || !password) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) {
       setError("Please enter your work email and password.");
       return;
     }
 
-    const selectedUser = USERS[selectedRole];
+    const user = USERS[normalizedEmail];
 
-    // Demo authentication using the accounts configured above.
-    if (
-      email.trim().toLowerCase() !== selectedUser.email.toLowerCase() ||
-      password !== selectedUser.password
-    ) {
+    if (!user || password !== user.password) {
       setError("Invalid email or password.");
       return;
     }
 
     setLoading(true);
 
-    // Clear any previous role from both storage locations.
-    sessionStorage.removeItem("signal-auth");
-    sessionStorage.removeItem("signal-user");
-    localStorage.removeItem("signal-auth");
-    localStorage.removeItem("signal-user");
+    try {
+      // Remove any previously stored account.
+      clearStoredAuth();
 
-    const storage = rememberMe ? localStorage : sessionStorage;
+      // Store the authenticated demo account.
+      const storage = rememberMe ? localStorage : sessionStorage;
 
-    storage.setItem("signal-auth", "true");
-    storage.setItem(
-      "signal-user",
-      JSON.stringify({
-        name: selectedUser.name,
-        email: selectedUser.email,
-        role: selectedUser.role,
-      })
-    );
+      storage.setItem("signal-auth", "true");
+      storage.setItem(
+        "signal-user",
+        JSON.stringify({
+          name: user.name,
+          email: normalizedEmail,
+          role: user.role,
+        })
+      );
 
-    // Administrator and Clinical Staff use different applications.
-    navigate(selectedUser.redirect, { replace: true });
+      // Redirect according to the account's assigned role.
+      navigate(user.redirect, { replace: true });
+    } catch {
+      clearStoredAuth();
+      setError("Unable to sign in. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (
     <main className="login-page">
+      {/* Left panel */}
       <section className="login-left">
         <div className="login-brand">
           <div className="login-brand-mark">S</div>
@@ -104,7 +101,9 @@ export default function Login() {
         </div>
 
         <div className="login-content">
-          <div className="login-kicker">PUBLIC HEALTH REPORTING</div>
+          <div className="login-kicker">
+            PUBLIC HEALTH REPORTING
+          </div>
 
           <h1>
             Intelligent public health reporting
@@ -113,9 +112,9 @@ export default function Login() {
           </h1>
 
           <p>
-            AI-assisted intelligence that transforms clinical and laboratory
-            information into complete, jurisdiction-aware public health
-            reporting workflows.
+            AI-assisted intelligence that transforms clinical and
+            laboratory information into complete, jurisdiction-aware
+            public health reporting workflows.
           </p>
 
           <div className="login-flow">
@@ -143,7 +142,9 @@ export default function Login() {
               <span>03</span>
               <div>
                 <strong>Report</strong>
-                <small>Track reporting and acknowledgement.</small>
+                <small>
+                  Track reporting and acknowledgement.
+                </small>
               </div>
             </div>
           </div>
@@ -154,52 +155,27 @@ export default function Login() {
         </div>
       </section>
 
+      {/* Right panel */}
       <section className="login-right">
         <form className="login-card" onSubmit={handleSubmit}>
-          <div className="login-role-tabs" aria-label="Choose your role">
-            <button
-              type="button"
-              className={`login-role-tab ${
-                selectedRole === "clinical" ? "active" : ""
-              }`}
-              aria-pressed={selectedRole === "clinical"}
-              onClick={() => changeRole("clinical")}
-              disabled={loading}
-            >
-              Clinical Staff
-            </button>
-
-            <button
-              type="button"
-              className={`login-role-tab ${
-                selectedRole === "admin" ? "active" : ""
-              }`}
-              aria-pressed={selectedRole === "admin"}
-              onClick={() => changeRole("admin")}
-              disabled={loading}
-            >
-              Administrator
-            </button>
-          </div>
-
           <div className="login-card-header">
             <div className="login-card-mark">S</div>
 
             <div className="login-card-heading">
               <div className="login-card-kicker">
-                {user.role.toUpperCase()}
+                SECURE WORKSPACE ACCESS
               </div>
 
-              <h2>Sign in to your workspace</h2>
+              <h2>Sign in to SIGNAL</h2>
 
               <p>
-                Enter your credentials to access the{" "}
-                {selectedRole === "admin" ? "administrative" : "clinical"}{" "}
-                reporting workspace.
+                Enter your credentials to access your assigned
+                workspace.
               </p>
             </div>
           </div>
 
+          {/* Email */}
           <div className="login-form-group">
             <label htmlFor="email">Work Email</label>
 
@@ -216,6 +192,7 @@ export default function Login() {
             />
           </div>
 
+          {/* Password */}
           <div className="login-form-group">
             <label htmlFor="password">Password</label>
 
@@ -235,8 +212,12 @@ export default function Login() {
               <button
                 type="button"
                 className="password-visibility-toggle"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() =>
+                  setShowPassword((value) => !value)
+                }
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
                 disabled={loading}
               >
                 {showPassword ? (
@@ -248,14 +229,18 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Login options */}
           <div className="login-options">
             <label className="login-remember">
               <input
                 type="checkbox"
                 checked={rememberMe}
-                onChange={(event) => setRememberMe(event.target.checked)}
+                onChange={(event) =>
+                  setRememberMe(event.target.checked)
+                }
                 disabled={loading}
               />
+
               <span>Remember me</span>
             </label>
 
@@ -263,7 +248,9 @@ export default function Login() {
               type="button"
               className="forgot-password"
               onClick={() =>
-                setError("Password recovery is not enabled yet.")
+                setError(
+                  "Password recovery is not enabled yet."
+                )
               }
               disabled={loading}
             >
@@ -271,12 +258,14 @@ export default function Login() {
             </button>
           </div>
 
+          {/* Error message */}
           {error && (
             <div className="login-error" role="alert">
               {error}
             </div>
           )}
 
+          {/* Submit */}
           <button
             type="submit"
             className="login-submit"
