@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import String, cast, func, inspect, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only, selectinload
 
 from backend.app.agents.deadline_calculation.schemas import DeadlineCalculationRequest
 from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
@@ -18,6 +18,7 @@ from backend.app.models.case import Case
 from backend.app.models.patient import Patient
 from backend.app.models.encounter import Encounter
 from backend.app.models.condition import Condition
+from backend.app.canonical.condition_mapper import clean_condition_display
 from backend.app.models.observation import Observation
 from backend.app.models.lab_result import LabResult
 from backend.app.models.clinical_document import ClinicalDocument
@@ -331,7 +332,7 @@ def _condition_disease(condition: Condition) -> str | None:
         if code_match or disease.casefold() in display:
             return disease
     if condition.condition_display and condition.condition_display.strip():
-        return condition.condition_display.strip()
+        return clean_condition_display(condition.condition_display)
     if condition.condition_system and condition.condition_code:
         return f"{condition.condition_system}|{condition.condition_code}"
     return None
@@ -597,6 +598,7 @@ def list_patients(
     search: str | None = None,
     facility: str | None = None,
     condition: str | None = None,
+    include_facilities: bool = True,
 ) -> dict[str, Any]:
     """Return a paginated patient list using fields present in canonical models."""
     query = db.query(Patient)
@@ -630,38 +632,43 @@ def list_patients(
     ordered_query = query.order_by(Patient.created_at.desc(), Patient.patient_id.asc())
     is_measles_worklist = condition_text.casefold() == "measles"
     if is_measles_worklist:
-        worklist_patients = ordered_query.all()
-        total = len(worklist_patients)
-        start = (page - 1) * page_size
-        patients = worklist_patients[start:start + page_size]
+        # Eligibility is still resolved across the full cohort before this
+        # point. Count that cohort in SQL, then fetch only the requested page;
+        # deadlines and related timelines are needed only for returned rows.
+        total = query.count()
+        patients = ordered_query.offset((page - 1) * page_size).limit(page_size).all()
+        worklist_patients = patients
     else:
         total = query.count()
         patients = ordered_query.offset((page - 1) * page_size).limit(page_size).all()
         worklist_patients = patients
     patient_ids = [patient.patient_id for patient in worklist_patients]
 
-    facilities = [
-        row[0]
-        for row in (
-            db.query(Encounter.facility_id)
-            .filter(Encounter.facility_id.isnot(None))
-            .distinct()
-            .order_by(Encounter.facility_id.asc())
-            .all()
-        )
-        if row[0]
-    ]
+    facilities = []
+    if include_facilities:
+        facilities = [
+            row[0]
+            for row in (
+                db.query(Encounter.facility_id)
+                .filter(Encounter.facility_id.isnot(None))
+                .distinct()
+                .order_by(Encounter.facility_id.asc())
+                .all()
+            )
+            if row[0]
+        ]
 
     encounters = []
     conditions = []
     lab_results = []
     if patient_ids:
-        encounters = (
-            db.query(Encounter)
-            .filter(Encounter.patient_id.in_(patient_ids))
-            .order_by(Encounter.start_time.desc().nullslast())
-            .all()
-        )
+        if include_facilities:
+            encounters = (
+                db.query(Encounter)
+                .filter(Encounter.patient_id.in_(patient_ids))
+                .order_by(Encounter.start_time.desc().nullslast())
+                .all()
+            )
         conditions = (
             db.query(Condition)
             .filter(Condition.patient_id.in_(patient_ids))
@@ -702,11 +709,11 @@ def list_patients(
         if condition.condition_display or condition.condition_code:
             value = {
                 "code": condition.condition_code,
-                "display": condition.condition_display,
+                "display": clean_condition_display(condition.condition_display),
             }
             conditions_by_patient.setdefault(condition.patient_id, []).append(value)
             is_measles = _is_measles_condition(condition)
-            label = condition.condition_display or ("Measles" if is_measles else condition.condition_code)
+            label = clean_condition_display(condition.condition_display) or ("Measles" if is_measles else condition.condition_code)
             current = condition_label_by_patient.get(condition.patient_id)
             if label and (current is None or (is_measles and condition.patient_id not in measles_by_patient)):
                 condition_label_by_patient[condition.patient_id] = label
@@ -802,7 +809,7 @@ def list_patients(
                 "deadline_reason": deadlines_by_patient[patient.patient_id][1],
                 "facility": facility_by_patient.get(patient.patient_id),
                 "conditions": [
-                    {"code": item.condition_code, "display": item.condition_display}
+                    {"code": item.condition_code, "display": clean_condition_display(item.condition_display)}
                     for item in condition_rows_by_patient.get(patient.patient_id, [])
                 ],
             }
@@ -817,6 +824,153 @@ def list_patients(
     }
 
 
+def get_patient_deadline_summary(db: Session) -> dict[str, int]:
+    """Count patients due today without assembling a full patient-list payload.
+
+    Reuses the canonical deadline calculation and resolves the same latest
+    candidate/case and ordered condition sources as ``list_patients``. Lab
+    timelines are fetched only for patients whose other records cannot resolve
+    a deadline, since the deadline service otherwise never reads their labs.
+    """
+    total = db.query(Patient.patient_id).count()
+    patients = db.query(Patient).order_by(
+        Patient.created_at.desc(), Patient.patient_id.asc()
+    ).all()
+    patient_ids = [patient.patient_id for patient in patients]
+    if not patient_ids:
+        return {"total_patients": total, "patients_due_today": 0}
+
+    conditions = (
+        db.query(Condition)
+        .filter(Condition.patient_id.in_(patient_ids))
+        .order_by(Condition.recorded_time.desc().nullslast())
+        .all()
+    )
+    conditions_by_patient: dict[UUID, list[Condition]] = {}
+    for condition in conditions:
+        conditions_by_patient.setdefault(condition.patient_id, []).append(condition)
+
+    last_encounter_by_patient = dict(
+        db.query(
+            Encounter.patient_id,
+            func.max(func.coalesce(Encounter.end_time, Encounter.start_time)),
+        )
+        .filter(
+            Encounter.patient_id.in_(patient_ids),
+            func.coalesce(Encounter.end_time, Encounter.start_time).isnot(None),
+        )
+        .group_by(Encounter.patient_id)
+        .all()
+    )
+
+    candidates_by_patient: dict[str, Candidate] = {}
+    for candidate in (
+        db.query(Candidate)
+        .filter(Candidate.patient_id.in_([str(patient_id) for patient_id in patient_ids]))
+        .order_by(Candidate.updated_at.desc())
+        .all()
+    ):
+        candidates_by_patient.setdefault(candidate.patient_id, candidate)
+
+    cases_by_candidate: dict[str, Case] = {}
+    cases_by_patient: dict[UUID, Case] = {}
+    candidate_ids = [candidate.candidate_id for candidate in candidates_by_patient.values()]
+    if inspect(db.get_bind()).has_table(Case.__tablename__):
+        case_query = db.query(Case)
+        if candidate_ids:
+            case_query = case_query.filter(
+                or_(Case.candidate_id.in_(candidate_ids), func.lower(Case.disease) == "measles")
+            )
+        else:
+            case_query = case_query.filter(func.lower(Case.disease) == "measles")
+        for case in case_query.order_by(Case.updated_at.desc()).all():
+            cases_by_candidate.setdefault(case.candidate_id, case)
+            case_patient_id = _case_patient_id(case)
+            if case_patient_id is not None:
+                cases_by_patient.setdefault(case_patient_id, case)
+
+    patient_by_id = {patient.patient_id: patient for patient in patients}
+    case_by_id = cases_by_patient
+    deadlines: dict[UUID, tuple[dict[str, Any] | None, str | None]] = {}
+    lab_needed: set[UUID] = set()
+    for patient in patients:
+        candidate = candidates_by_patient.get(str(patient.patient_id))
+        case = (cases_by_candidate.get(candidate.candidate_id) if candidate else None) or case_by_id.get(patient.patient_id)
+        deadline, reason = _patient_deadline(
+            patient=patient,
+            conditions=conditions_by_patient.get(patient.patient_id, []),
+            lab_results=[],
+            candidate=candidate,
+            case=case,
+            last_encounter=last_encounter_by_patient.get(patient.patient_id),
+        )
+        deadlines[patient.patient_id] = (deadline, reason)
+        if deadline is None and reason in {
+            "No disease could be resolved from the patient's condition or workflow data.",
+            "No clinical event timestamp is available to calculate a reporting deadline.",
+        }:
+            lab_needed.add(patient.patient_id)
+
+    labs_by_patient: dict[UUID, list[LabResult]] = {}
+    if lab_needed:
+        labs = (
+            db.query(LabResult)
+            .options(
+                selectinload(LabResult.observations).load_only(
+                    Observation.observation_id,
+                    Observation.source_observation_id,
+                    Observation.observation_code,
+                    Observation.observation_system,
+                    Observation.observation_display,
+                    Observation.status,
+                    Observation.value_numeric,
+                    Observation.value_text,
+                    Observation.unit,
+                    Observation.value_system,
+                    Observation.value_code,
+                    Observation.effective_time,
+                )
+            )
+            .filter(LabResult.patient_id.in_(lab_needed))
+            .order_by(LabResult.issued_time.desc().nullslast())
+            .all()
+        )
+        for lab in labs:
+            labs_by_patient.setdefault(lab.patient_id, []).append(lab)
+
+    due_today = 0
+    today = datetime.now().astimezone().date()
+    for patient_id, patient in patient_by_id.items():
+        deadline, reason = deadlines[patient_id]
+        if patient_id in lab_needed:
+            candidate = candidates_by_patient.get(str(patient_id))
+            case = (cases_by_candidate.get(candidate.candidate_id) if candidate else None) or case_by_id.get(patient_id)
+            deadline, reason = _patient_deadline(
+                patient=patient,
+                conditions=conditions_by_patient.get(patient_id, []),
+                lab_results=labs_by_patient.get(patient_id, []),
+                candidate=candidate,
+                case=case,
+                last_encounter=last_encounter_by_patient.get(patient_id),
+            )
+        deadline_data = deadline
+        value = deadline_data.get("deadline") if isinstance(deadline_data, dict) else deadline_data
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+        if not isinstance(value, datetime):
+            continue
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        try:
+            local_date = value.astimezone().date()
+        except (OSError, OverflowError, ValueError):
+            local_date = value.date()
+        if local_date == today:
+            due_today += 1
+    return {"total_patients": total, "patients_due_today": due_today}
 def _patient_to_dict(patient: Patient) -> dict[str, Any]:
     return {
         "patient_id": str(patient.patient_id),
@@ -884,7 +1038,7 @@ def _condition_to_dict(condition: Condition) -> dict[str, Any]:
         "code": {
             "system": condition.condition_system,
             "code": condition.condition_code,
-            "display": condition.condition_display,
+            "display": clean_condition_display(condition.condition_display),
         },
         "clinical_status": condition.clinical_status,
         "verification_status": condition.verification_status,

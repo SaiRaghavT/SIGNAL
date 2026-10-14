@@ -73,8 +73,9 @@ from backend.app.agents.retry_resubmission.router import (
 
 from backend.app.workflow.router import router as workflow_router
 from backend.app.admin.router import router as admin_router
-from backend.app.assistant.api import demo_router as assistant_demo_router
-from backend.app.assistant.api import router as assistant_router
+# Chatbot temporarily disabled:
+# from backend.app.assistant.api import demo_router as assistant_demo_router
+# from backend.app.assistant.api import router as assistant_router
 
 app = FastAPI(
     title="SIGNAL MVP",
@@ -176,8 +177,9 @@ app.include_router(workflow_router)
 app.include_router(agent_status_router)
 app.include_router(analytics_router)
 app.include_router(admin_router)
-app.include_router(assistant_router)
-app.include_router(assistant_demo_router)
+# Chatbot temporarily disabled; re-enable the routes above when needed.
+# app.include_router(assistant_router)
+# app.include_router(assistant_demo_router)
 # ---------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------

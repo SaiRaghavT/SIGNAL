@@ -9,6 +9,7 @@ import { ensureSubmissionFollowUp } from "../../api/followups.js";
 import { upsertClinicalInformationRequest } from "../../utils/clinicalInformationRequests.js";
 import { demoPatientName } from "../../utils/adminDemoPatientNames.js";
 import { cleanPatientName } from "../../utils/patientNames.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminIndividualReview.css";
 
 function valueOrDash(value) {
@@ -388,9 +389,10 @@ export default function AdminIndividualReview() {
   if (loading) {
     return (
       <main className="admin-individual-review-page">
-        <div className="admin-individual-state">
-          Loading individual review...
-        </div>
+        <SignalLoading
+          title="Loading Individual Review"
+          message="Retrieving case details and reporting evidence for review."
+        />
       </main>
     );
   }
@@ -504,6 +506,13 @@ export default function AdminIndividualReview() {
           </strong>
         </div>
       </section>
+
+      {submitting && (
+        <SignalLoading
+          title="Authorizing Case"
+          message="Authorizing and dispatching case report to public health destination."
+        />
+      )}
 
       <div className="admin-individual-grid">
         <div className="admin-individual-main">

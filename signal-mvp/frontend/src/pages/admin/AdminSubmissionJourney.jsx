@@ -12,6 +12,7 @@ import {
   Send,
   UserRound,
 } from "lucide-react";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminSubmissionJourney.css";
 import { cleanPatientName } from "../../utils/patientNames.js";
 
@@ -301,7 +302,7 @@ export default function AdminSubmissionJourney() {
 
         <div className="journey-kpi">
           <div className="journey-kpi-heading">
-            <span>SUBMISSION STATUS</span>
+            <span>ACKNOWLEDGEMENT STATUS</span>
             <Clock3 size={17} />
           </div>
           <strong>IN PROGRESS</strong>

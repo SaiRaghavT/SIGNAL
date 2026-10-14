@@ -955,36 +955,6 @@ export default function CaseWorkspacePage() {
 
       </header>
 
-
-      {/* BREADCRUMB */}
-
-      <nav
-        className="review-validation-breadcrumb"
-        aria-label="Reporting workflow"
-      >
-        {[
-          "Patient",
-          "Active Patient",
-          "Data Extraction",
-          "Texas Measles CRF",
-        ].map((item) => (
-          <span
-            key={item}
-            className="review-validation-breadcrumb-item"
-          >
-            {item}
-          </span>
-        ))}
-
-        <span className="review-validation-breadcrumb-separator">
-          ›
-        </span>
-
-        <span className="review-validation-breadcrumb-item active">
-          Reporting Review
-        </span>
-      </nav>
-
       {demoReviewPreview && (
         <div className="review-validation-demo-notice" role="status">
           Demo preview: sample values only. They are not saved to this Case. Workflow API actions are disabled; the button below opens a simulated queue acknowledgement.

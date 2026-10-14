@@ -13,6 +13,7 @@ import {
   getAdminQueue,
 } from "../../services/adminService";
 import { cleanPatientName } from "../../utils/patientNames.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminQueue.css";
 
 const MODES = {
@@ -589,16 +590,10 @@ export default function AdminQueue() {
         </div>
 
         {loading ? (
-          <div className="admin-loading-state">
-            <RefreshCw
-              size={20}
-              className="spinning"
-            />
-
-            <span>
-              Loading reporting operations...
-            </span>
-          </div>
+          <SignalLoading
+            title="Loading Reporting Operations"
+            message="Retrieving queued cases, reporting deadlines, and administrative batches."
+          />
         ) : activeMode === MODES.BATCH ? (
           batches.items.length === 0 ? (
             <div className="admin-empty-state">

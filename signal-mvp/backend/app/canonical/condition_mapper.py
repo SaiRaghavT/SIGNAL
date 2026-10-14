@@ -1,8 +1,24 @@
+import re
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from backend.app.models.condition import Condition
+
+
+_SYNTHETIC_DIAGNOSIS_NOTE = re.compile(
+    r"\s*\(\s*synthetic test diagnosis;\s*"
+    r"terminology mapping to be confirmed by local profile\s*\)\s*$",
+    re.IGNORECASE,
+)
+
+
+def clean_condition_display(value: str | None) -> str | None:
+    """Remove the test-only terminology note from a displayed diagnosis."""
+    if not isinstance(value, str):
+        return value
+    cleaned = _SYNTHETIC_DIAGNOSIS_NOTE.sub("", value).strip()
+    return cleaned or None
 
 
 def parse_fhir_datetime(
@@ -84,6 +100,7 @@ def map_fhir_condition(
     ) = extract_coding(
         resource.get("code")
     )
+    condition_display = clean_condition_display(condition_display)
 
     clinical_status = None
 

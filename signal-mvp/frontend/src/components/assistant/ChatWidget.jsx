@@ -7,7 +7,7 @@ const PROMPTS = [
   "Summarize patient DEMO-P001",
   "Give me the summary for Alex Morgan",
   "Explain the reporting deadline for DEMO-P001",
-  "Show submission status for DEMO-P001",
+  "Show ACKNOWLEDGEMENT STATUS for DEMO-P001",
 ];
 
 const WELCOME = "Explore patient summaries using predefined synthetic records. Try ‘Summarize patient DEMO-P001’.";

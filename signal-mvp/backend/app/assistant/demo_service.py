@@ -166,7 +166,7 @@ def _format_summary(patient: dict) -> dict:
         ]},
         {"title": "Case, submission, and follow-up", "items": [
             ["Case review status", patient["case_status"]],
-            ["Submission status", patient["submission_status"]],
+            ["ACKNOWLEDGEMENT STATUS", patient["submission_status"]],
             ["Follow-up", patient["follow_ups"]],
         ]},
     ]
