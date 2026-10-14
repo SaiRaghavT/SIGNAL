@@ -7,6 +7,7 @@ from .schemas import DashboardSummaryResponse
 from .service import (
     get_dashboard_activity,
     get_dashboard_deadlines,
+    get_dashboard_measles_priority,
     get_dashboard_summary,
     get_reporting_status,
 )
@@ -20,6 +21,11 @@ def dashboard_summary(
     db: Session = Depends(get_db),
 ) -> DashboardSummaryResponse:
     return get_dashboard_summary(db)
+
+
+@router.get("/measles-priority")
+def dashboard_measles_priority(db: Session = Depends(get_db)) -> dict:
+    return get_dashboard_measles_priority(db)
 
 
 @router.get("/activity")

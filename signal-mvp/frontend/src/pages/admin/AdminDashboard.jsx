@@ -15,6 +15,8 @@ import { Link } from "react-router-dom";
 import { request } from "../../api/client.js";
 import { getAdminDashboard, getAdminQueue, getAdminSubmissions } from "../../services/adminService.js";
 import { DEMO_DEADLINES } from "./AdminDeadlines.jsx";
+import { cleanConditionDisplay } from "../../utils/conditionDisplay.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminDashboard.css";
 
 const DASHBOARD_FIELDS = [
@@ -52,7 +54,7 @@ function conditionLabel(value) {
   if (typeof value === "number") return value === 14189004 ? "Measles" : "—";
   if (typeof value !== "string" || !value.trim()) return "—";
 
-  const candidate = value.trim();
+  const candidate = cleanConditionDisplay(value.trim());
   const code = candidate.match(/(?:^|[|/])\s*(\d{5,})\s*$/)?.[1];
   if (code) return code === "14189004" ? "Measles" : "—";
   if (/^\d+$/.test(candidate) || /(?:snomed|^https?:\/\/)/i.test(candidate)) return "—";
@@ -270,6 +272,24 @@ function AdminDashboard() {
   const submissionService = serviceStatus(agentMap.ecr_submission);
   const acknowledgementService = serviceStatus(agentMap.acknowledgement);
 
+  if (loading && !dashboard) {
+    return (
+      <section className="admin-dashboard-page">
+        <header className="admin-dashboard-header">
+          <div>
+            <span className="admin-page-kicker">SUPER ADMIN</span>
+            <h1>Dashboard</h1>
+            <p>Real-time overview of reporting operations, pending submissions, deadlines and SIGNAL Engine activity.</p>
+          </div>
+        </header>
+        <SignalLoading
+          title="Loading Admin Dashboard"
+          message="Retrieving administrative reporting metrics and queue status."
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="admin-dashboard-page">
       <header className="admin-dashboard-header">
@@ -315,7 +335,7 @@ function AdminDashboard() {
           tone="warning"
         />
         <KpiCard
-          label="SUBMISSION STATUS"
+          label="ACKNOWLEDGEMENT STATUS"
           value={submissionRows ? submissionRows.length : "—"}
           subtitle={statusCounts
             ? `Acknowledged ${statusCounts.acknowledged} · Completed cases ${displayCount(dashboard?.completed_submissions)} · Pending ${statusCounts.pending} · Follow-up ${statusCounts.followUp} · Dispatched ${displayCount(dashboard?.dispatched_reports)}`

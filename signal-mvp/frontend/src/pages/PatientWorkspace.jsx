@@ -9,6 +9,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 
 import { getCanonicalPatient } from "../api/canonical.js";
+import { cleanConditionDisplay } from "../utils/conditionDisplay.js";
 
 
 
@@ -185,7 +186,7 @@ function displayClinicalValue(value, fallback = String.fromCharCode(0x2014)) {
     value = value.display ?? value.text ?? value.code ?? value.numeric ?? value.value ?? value.name;
     if (value === null || value === undefined || value === "") return fallback;
   }
-  const raw = String(value).trim();
+  const raw = cleanConditionDisplay(String(value).trim());
   const labels = { f: "Female", female: "Female", m: "Male", male: "Male", ambulatory: "Ambulatory visit", available: "Available", finished: "Finished", active: "Active", provisional: "Provisional", final: "Final", present: "Present", completed: "Completed", clinical_note: "Clinical Note", clinical_document: "Clinical Document", diagnostic_report: "Diagnostic Report", "http://hl7.org/fhir/sid/icd-10-cm": "ICD-10-CM", "http://loinc.org": "LOINC", "http://snomed.info/sct": "SNOMED CT" };
   return labels[raw.toLowerCase()] || raw;
 }
@@ -1373,7 +1374,7 @@ function RecordSummary({
           {condition ? (
             <>
               <h3>
-                {condition?.code?.display || condition?.display || condition?.code?.code || "Condition"}
+                {displayClinicalValue(condition?.code?.display || condition?.display || condition?.code?.code || "Condition")}
               </h3>
 
               <div className="patient-record-meta">
@@ -3491,7 +3492,7 @@ function EvidenceTab({
       getKey: (item) => item?.condition_id || item?.source_condition_id,
       getDate: (item) => item?.onset_time || item?.recorded_time,
       renderItem: (item) =>
-        item?.code?.display || item?.display || item?.name || item?.code?.text || "Condition",
+        cleanConditionDisplay(item?.code?.display || item?.display || item?.name || item?.code?.text || "Condition"),
       renderMeta: (item) =>
         formatEvidenceMeta(
           item?.clinical_status && `Status: ${displayClinicalValue(item.clinical_status)}`,
@@ -3565,7 +3566,9 @@ function EvidenceTab({
       </div>
 
       {groups.length ? (
-        groups.map((group) => <EvidenceGroup key={group.title} groupKey={group.key} {...group} />)
+        groups.map(({ key: groupKey, ...group }) => (
+          <EvidenceGroup key={group.title} groupKey={groupKey} {...group} />
+        ))
       ) : (
         <p className="evidence-empty">No patient evidence is available.</p>
       )}
@@ -5137,6 +5140,15 @@ export default function PatientWorkspace() {
       <div
         className="workspace-gated-content"
       >
+        <AiDocumentUploadCard
+          documents={documents}
+          onUpload={() => setShowDocumentModal(true)}
+          onRemove={handleRemoveDocument}
+          removingDocumentId={removingDocumentId}
+          actionError={documentActionError}
+          disabled={detectionState === "running" || Boolean(removingDocumentId)}
+        />
+
         <div className="workspace-tabs">
 
 
@@ -5312,17 +5324,6 @@ export default function PatientWorkspace() {
               conditions={conditions}
               documents={documents}
             />
-
-            {detectionState !== "completed" && !showDocumentModal && (
-              <AiDocumentUploadCard
-                documents={documents}
-                onUpload={() => setShowDocumentModal(true)}
-                onRemove={handleRemoveDocument}
-                removingDocumentId={removingDocumentId}
-                actionError={documentActionError}
-                disabled={detectionState === "running" || Boolean(removingDocumentId)}
-              />
-            )}
 
             {detectionState === "idle" && (
 

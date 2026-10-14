@@ -1757,8 +1757,13 @@ section h2,
 }
 
 .patient-workspace-page > .patient-header,
+.patient-workspace-page .workspace-gated-content > .ai-document-upload-card,
 .patient-workspace-page .workspace-gated-content > .workspace-tabs {
   max-width: 1320px;
+}
+
+.patient-workspace-page .workspace-gated-content > .ai-document-upload-card {
+  margin-top: 18px;
 }
 
 /* =========================================================

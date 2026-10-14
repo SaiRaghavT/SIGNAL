@@ -5,6 +5,7 @@ import {
   dispatchCase,
   getAdminQueueCase,
 } from "../../services/adminService.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminCaseReview.css";
 import { cleanPatientName } from "../../utils/patientNames.js";
 
@@ -383,13 +384,10 @@ export default function AdminCaseReview() {
   if (loading) {
     return (
       <div className="admin-review-page">
-        <div className="admin-review-loading">
-          <div className="admin-review-spinner" />
-          <div>
-            <strong>Loading case review</strong>
-            <p>Retrieving the reporting package...</p>
-          </div>
-        </div>
+        <SignalLoading
+          title="Loading Case Review"
+          message="Retrieving the reporting package and clinical evidence."
+        />
       </div>
     );
   }

@@ -22,6 +22,7 @@ import {
 
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { cleanPatientName } from "../utils/patientNames.js";
+import { cleanConditionDisplay } from "../utils/conditionDisplay.js";
 
 import {
   getCase,
@@ -58,10 +59,10 @@ const prettify = (value) =>
 
 
 function conditionLabel(value, displayValue) {
-  const display = String(displayValue || "").trim();
+  const display = cleanConditionDisplay(String(displayValue || "").trim());
   if (display) return prettify(display);
 
-  const raw = String(value || "").trim();
+  const raw = cleanConditionDisplay(String(value || "").trim());
   const snomedCode = raw.match(/(?:\||\/)(\d+)$/)?.[1];
   if (/^(measles|rubeola)$/i.test(raw) || ["14189004", "14168008", "7180009"].includes(snomedCode)) {
     return "Measles";
@@ -868,7 +869,7 @@ export default function QueueAcknowledgementPage() {
 
               <div>
                 <span className="queue-eyebrow">
-                  SUBMISSION STATUS
+                  ACKNOWLEDGEMENT STATUS
                 </span>
 
                 <h3>

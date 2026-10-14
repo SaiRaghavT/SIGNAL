@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import { getAdminAudit } from "../../services/adminService.js";
 import { cleanPatientName } from "../../utils/patientNames.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminAudit.css";
 
 const DASH = "\u2014";
@@ -207,7 +208,12 @@ export default function AdminAudit() {
           </select>
         </div>
 
-        {loading ? <div className="admin-audit-state">Loading audit trails...</div> : error ? (
+        {loading ? (
+          <SignalLoading
+            title="Loading Audit Trails"
+            message="Retrieving administrative audit records and system events."
+          />
+        ) : error ? (
           <div className="admin-audit-state">Unable to display audit events.</div>
         ) : filteredEvents.length === 0 ? (
           <div className="admin-audit-state"><strong>No audit events found.</strong></div>

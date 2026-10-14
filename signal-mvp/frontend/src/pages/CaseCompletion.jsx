@@ -124,7 +124,6 @@ export default function CaseCompletion() {
     <header className="completion-header">
       <div>
         <button className="completion-back" onClick={() => navigate(submissionPath)}>← Back to Submission</button>
-        <nav className="completion-breadcrumb" aria-label="Workflow"><span>Case Workspace</span><i>›</i><span>Reporting Form</span><i>›</i><span>Submission</span><i>›</i><b>Completion</b></nav>
         <span className="completion-eyebrow">PUBLIC HEALTH CASE OPERATIONS</span>
         <h2>Case Completion &amp; Audit</h2>
         <p>Final workflow status, reporting outcome, and available audit information for this case.</p>
@@ -161,7 +160,7 @@ export default function CaseCompletion() {
         <article className="completion-card">
           <header className="completion-card-header"><div><span className="completion-index">02</span><div><h3>Reporting Outcome</h3><p>Submission and acknowledgement details returned by the case journey.</p></div></div></header>
           {submission ? <dl className="completion-fields">
-            <Field label="Disease" value={disease} /><Field label="Jurisdiction" value={jurisdiction} /><Field label="Reportability Decision" value={caseData.reportability_decision} /><Field label="Reporting Rule" value={caseData.rule_id} /><Field label="Destination" value={submission.destination} /><Field label="Submission Status" value={submission.status} /><Field label="ECR ID" value={submission.ecr_id} /><Field label="Submission ID" value={submission.submission_id} /><Field label="Acknowledgement Status" value={submission.acknowledgement_status || (/ACKNOWLEDGED/i.test(submission.status || "") ? "ACKNOWLEDGED" : undefined)} /><Field label="Created" value={submission.created_at} /><Field label="Updated" value={submission.updated_at} />
+            <Field label="Disease" value={disease} /><Field label="Jurisdiction" value={jurisdiction} /><Field label="Reportability Decision" value={caseData.reportability_decision} /><Field label="Reporting Rule" value={caseData.rule_id} /><Field label="Destination" value={submission.destination} /><Field label="ACKNOWLEDGEMENT STATUS" value={submission.status} /><Field label="ECR ID" value={submission.ecr_id} /><Field label="Submission ID" value={submission.submission_id} /><Field label="Acknowledgement Status" value={submission.acknowledgement_status || (/ACKNOWLEDGED/i.test(submission.status || "") ? "ACKNOWLEDGED" : undefined)} /><Field label="Created" value={submission.created_at} /><Field label="Updated" value={submission.updated_at} />
           </dl> : <p className="completion-empty">No submission record is available in the journey or case response.</p>}
           {array(submission?.warnings).length > 0 && <div className="completion-response-list"><strong>Backend warnings</strong><ul>{array(submission.warnings).map((warning, index) => <li key={`warning-${index}`}>{warning}</li>)}</ul></div>}
           {array(submission?.errors).length > 0 && <div className="completion-response-list errors"><strong>Backend errors</strong><ul>{array(submission.errors).map((entry, index) => <li key={`error-${index}`}>{typeof entry === "string" ? entry : JSON.stringify(entry)}</li>)}</ul></div>}

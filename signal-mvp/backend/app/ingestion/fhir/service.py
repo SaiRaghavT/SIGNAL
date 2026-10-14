@@ -2,7 +2,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from backend.app.ingestion.fhir.parser import parse_fhir_bundle
+from backend.app.ingestion.fhir.parser import (
+    BundleReferenceIndex,
+    build_bundle_reference_index,
+    parse_fhir_bundle,
+)
 from backend.app.ingestion.fhir.validator import validate_fhir_bundle
 
 from backend.app.canonical.patient_mapper import map_fhir_patient
@@ -33,6 +37,7 @@ from backend.app.quality.fhir_quality import (
 def _get_reference_id(
     reference_data: dict[str, Any] | None,
     resource_type: str,
+    reference_index: BundleReferenceIndex | None = None,
 ) -> str | None:
     """
     Extract a source resource ID from a FHIR reference.
@@ -55,6 +60,12 @@ def _get_reference_id(
     reference = reference.strip()
 
     if not reference:
+        return None
+
+    if reference_index is not None:
+        resolution = reference_index.resolve(reference, resource_type)
+        if resolution.resource is not None:
+            return resolution.reference_id
         return None
 
     # ---------------------------------------------------------
@@ -145,12 +156,16 @@ def ingest_fhir_bundle(
     # =========================================================
 
     resources = parse_fhir_bundle(payload)
+    bundle_reference_index = build_bundle_reference_index(payload.get("entry", []))
 
     # =========================================================
     # 3. Validate FHIR data quality
     # =========================================================
 
-    quality_result = validate_fhir_data_quality(resources)
+    quality_result = validate_fhir_data_quality(
+        resources,
+        payload.get("entry", []),
+    )
 
     if quality_result["status"] == "failed":
         raise ValueError(
@@ -232,6 +247,7 @@ def ingest_fhir_bundle(
             patient_source_id = _get_reference_id(
                 resource.get("subject"),
                 "Patient",
+                bundle_reference_index,
             )
 
             if not patient_source_id:
@@ -288,6 +304,7 @@ def ingest_fhir_bundle(
             patient_source_id = _get_reference_id(
                 resource.get("subject"),
                 "Patient",
+                bundle_reference_index,
             )
 
             if not patient_source_id:
@@ -314,6 +331,7 @@ def ingest_fhir_bundle(
             encounter_source_id = _get_reference_id(
                 resource.get("encounter"),
                 "Encounter",
+                bundle_reference_index,
             )
 
             encounter_id = None
@@ -365,6 +383,7 @@ def ingest_fhir_bundle(
             patient_source_id = _get_reference_id(
                 resource.get("subject"),
                 "Patient",
+                bundle_reference_index,
             )
 
             if not patient_source_id:
@@ -391,6 +410,7 @@ def ingest_fhir_bundle(
             encounter_source_id = _get_reference_id(
                 resource.get("encounter"),
                 "Encounter",
+                bundle_reference_index,
             )
 
             encounter_id = None
@@ -450,6 +470,7 @@ def ingest_fhir_bundle(
             patient_source_id = _get_reference_id(
                 resource.get("subject"),
                 "Patient",
+                bundle_reference_index,
             )
 
             if not patient_source_id:
@@ -478,6 +499,7 @@ def ingest_fhir_bundle(
             encounter_source_id = _get_reference_id(
                 resource.get("encounter"),
                 "Encounter",
+                bundle_reference_index,
             )
 
             encounter_id = None
@@ -545,6 +567,7 @@ def ingest_fhir_bundle(
             patient_source_id = _get_reference_id(
                 resource.get("subject"),
                 "Patient",
+                bundle_reference_index,
             )
 
             if not patient_source_id:
@@ -589,6 +612,7 @@ def ingest_fhir_bundle(
                     encounter_source_id = _get_reference_id(
                         encounter_references[0],
                         "Encounter",
+                        bundle_reference_index,
                     )
 
                     if encounter_source_id:

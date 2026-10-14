@@ -10,11 +10,14 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
+// Chatbot temporarily disabled:
+// import ChatWidget from "../assistant/ChatWidget.jsx";
 import {
   clearAdminSessionSubmissions,
   getAdminSubmissions,
 } from "../../services/adminService.js";
 import "../../styles/AdminShell.css";
+import { WorkflowBreadcrumb } from "../navigation/WorkflowBreadcrumb.jsx";
 
 const ADMIN_SESSION_SUBMISSION_BASELINE = "signal:admin-session:submission-baseline";
 
@@ -255,10 +258,13 @@ export default function AdminShell() {
           </div>
         </header>
 
+        <WorkflowBreadcrumb admin />
+
         <div className="admin-content">
           <Outlet />
         </div>
       </div>
+      {/* Chatbot temporarily disabled: <ChatWidget /> */}
     </div>
   );
 }

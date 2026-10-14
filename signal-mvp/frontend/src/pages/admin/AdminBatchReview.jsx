@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, ChevronDown, Clock3, FileCheck2, Layers3, Refr
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { dispatchAdminBatch, getAdminBatch, getAdminQueueCase } from "../../services/adminService.js";
 import { cleanPatientName } from "../../utils/patientNames.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminBatchReview.css";
 
 const DASH = "—";
@@ -174,12 +175,21 @@ export default function AdminBatchReview() {
     }
   }
 
-  if (loading) return <main className="admin-batch-review-page"><div className="batch-state"><RefreshCw className="batch-spin" size={20} /> Loading batch review…</div></main>;
+  if (loading) {
+    return (
+      <main className="admin-batch-review-page">
+        <SignalLoading
+          title="Loading Batch Review"
+          message="Retrieving reporting batch and linked case details."
+        />
+      </main>
+    );
+  }
   if (!batch) return <main className="admin-batch-review-page"><button className="batch-back" type="button" onClick={() => navigate("/admin/queue")}><ArrowLeft size={16} /> Return to Queue</button><div className="batch-alert error" role="alert">{error || "Batch not found."}</div></main>;
 
   return (
     <main className="admin-batch-review-page">
-      <div className="batch-topbar"><button className="batch-back" type="button" onClick={() => navigate("/admin/queue")}><ArrowLeft size={16} /> Reporting Queue</button><span>Reporting Queue <b>›</b> Batch Review</span></div>
+      <div className="batch-topbar"><button className="batch-back" type="button" onClick={() => navigate("/admin/queue")}><ArrowLeft size={16} /> Reporting Queue</button></div>
       <header className="batch-header">
         <div><div className="batch-eyebrow">ADMINISTRATOR / BATCH REPORTING</div><h1>Batch Review</h1><p>Review the backend-generated reporting batch before authorization and dispatch.</p></div>
         <div className="batch-id"><span>BATCH RECORD ID</span><strong>{batchIdValue}</strong></div>

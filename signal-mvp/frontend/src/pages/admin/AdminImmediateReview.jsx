@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { getAdminQueueCase } from "../../services/adminService.js";
 import { cleanPatientName } from "../../utils/patientNames.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminImmediateReview.css";
 
 const DEMO_CASE_DETAILS = {
@@ -288,6 +289,7 @@ export default function AdminImmediateReview() {
 
   const [backendCase, setBackendCase] = useState(null);
   const [patientLoading, setPatientLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -377,7 +379,9 @@ export default function AdminImmediateReview() {
   const jurisdiction =
     getField(caseData, "jurisdiction", "state") ?? "Texas";
 
-  const handleAuthorizeAndSubmit = () => {
+    const handleAuthorizeAndSubmit = () => {
+    if (submitting) return;
+    setSubmitting(true);
     const submissionId = `SUB-DEMO-${Date.now()}`;
 
     const submission = {
@@ -404,6 +408,35 @@ export default function AdminImmediateReview() {
       }
     );
   };
+  if (patientLoading) {
+    return (
+      <div className="admin-immediate-review-page">
+        <header className="admin-immediate-review-header">
+          <button
+            type="button"
+            className="admin-immediate-back-button"
+            onClick={() => navigate("/admin/queue")}
+          >
+            <ArrowLeft size={16} />
+            Back to Queue
+          </button>
+          <div className="admin-immediate-review-title-row">
+            <div>
+              <span className="admin-immediate-eyebrow">
+                SIGNAL / ADMINISTRATOR
+              </span>
+              <h1>Immediate Reporting Review</h1>
+              <p>Review the reporting evidence before authorization.</p>
+            </div>
+          </div>
+        </header>
+        <SignalLoading
+          title="Loading Immediate Review"
+          message="Retrieving patient details and immediate reporting evidence."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="admin-immediate-review-page">
@@ -454,6 +487,13 @@ export default function AdminImmediateReview() {
           </span>
         </div>
       </div>
+
+      {submitting && (
+        <SignalLoading
+          title="Authorizing Case"
+          message="Authorizing and preparing immediate report submission."
+        />
+      )}
 
       <div className="admin-immediate-review-grid">
         <div className="admin-immediate-review-main">
@@ -529,9 +569,10 @@ export default function AdminImmediateReview() {
               type="button"
               className="admin-immediate-authorize-button"
               onClick={handleAuthorizeAndSubmit}
+              disabled={submitting}
             >
               <CheckCircle2 size={17} />
-              Authorize &amp; Submit
+              {submitting ? "Submitting..." : "Authorize & Submit"}
             </button>
 
             <p className="admin-immediate-demo-note">

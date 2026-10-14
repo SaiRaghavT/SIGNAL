@@ -312,7 +312,7 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
             entity_reference=submissions[-1].submission_id if submissions else None,
             data={"submissions": [_submission_data(item) for item in submissions]},
             limitations=(
-                ["A stored submission status does not establish actual public-health delivery."]
+                ["A stored ACKNOWLEDGEMENT STATUS does not establish actual public-health delivery."]
                 + (["The destination is simulated (MOCK_PHA)."] if any(item.destination == "MOCK_PHA" for item in submissions) else [])
                 if submissions
                 else []

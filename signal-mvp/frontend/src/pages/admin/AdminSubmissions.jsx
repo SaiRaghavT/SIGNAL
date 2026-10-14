@@ -3,6 +3,8 @@ import { RefreshCw, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAdminSubmissions } from "../../services/adminService.js";
 import { cleanPatientName } from "../../utils/patientNames.js";
+import { cleanConditionDisplay } from "../../utils/conditionDisplay.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminSubmissions.css";
 
 const STATUS_OPTIONS = [
@@ -56,7 +58,7 @@ function conditionValueLabel(value) {
   }
   if (typeof value !== "string" || !value.trim()) return "\u2014";
 
-  const candidate = value.trim();
+  const candidate = cleanConditionDisplay(value.trim());
   const codeMatch = candidate.match(/(?:^|[|/])\s*(\d{5,})\s*$/);
   if (codeMatch) return codeMatch[1] === "14189004" ? "Measles" : "\u2014";
   if (/^\d+$/.test(candidate) || /(?:snomed|^https?:\/\/)/i.test(candidate)) return "\u2014";
@@ -466,9 +468,10 @@ export default function AdminSubmissions() {
         )}
 
         {loading ? (
-          <div className="submission-state">
-            Loading submissions...
-          </div>
+          <SignalLoading
+            title="Loading Submissions"
+            message="Retrieving electronic case reporting submissions and acknowledgements."
+          />
         ) : filteredSubmissions.length === 0 ? (
           <div className="submission-empty">
             <strong>No submissions yet</strong>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Clock3, ShieldCheck } from "lucide-react";
+import { AlertCircle, Clock3, RefreshCw, ShieldCheck } from "lucide-react";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminDeadlines.css";
 
 // UI-only POC data. Replace this array with getAdminDeadlines() when that API is ready.
@@ -53,6 +54,7 @@ export default function AdminDeadlines() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [jurisdictionFilter, setJurisdictionFilter] = useState("ALL");
+  const [loading, setLoading] = useState(false);
 
   const metrics = useMemo(() => ({
     overdue: DEMO_DEADLINES.filter((row) => row.status === "OVERDUE").length,
@@ -60,6 +62,11 @@ export default function AdminDeadlines() {
     soon: DEMO_DEADLINES.filter((row) => row.status === "DUE SOON").length,
     onTrack: DEMO_DEADLINES.filter((row) => row.status === "ON TRACK").length,
   }), []);
+
+  const handleRefresh = () => {
+    setLoading(true);
+    setTimeout(() => setLoading(false), 450);
+  };
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -84,6 +91,10 @@ export default function AdminDeadlines() {
           <div className="admin-deadlines-title-line"><h1>Deadlines</h1><span className="admin-deadlines-demo-label">DEMO DATA</span></div>
           <p>Review reporting deadlines and prioritize cases requiring timely action.</p>
         </div>
+        <button type="button" className="admin-deadlines-refresh" onClick={handleRefresh} disabled={loading} aria-label="Refresh deadlines">
+          <RefreshCw size={15} className={loading ? "admin-deadlines-spin" : ""} />
+          Refresh
+        </button>
       </header>
 
       <section className="admin-deadlines-metrics" aria-label="Deadline summary">
@@ -102,22 +113,31 @@ export default function AdminDeadlines() {
         </div>
 
         <div className="admin-deadlines-table-wrap">
-          <table className="admin-deadlines-table">
-            <thead><tr><th>Patient</th><th>Case ID</th><th>Condition</th><th>Jurisdiction</th><th>Deadline</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>{rows.map((row) => (
-              <tr key={row.caseId}>
-                <td><strong>{row.patient}</strong></td>
-                <td className="admin-deadlines-mono">{row.caseId}</td>
-                <td>{row.condition}</td>
-                <td>{row.jurisdiction}</td>
-                <td>{formatDeadline(row.deadline)}</td>
-                <td><span className={`admin-deadlines-priority ${priorityClass(row.priority)}`}>{row.priority}</span></td>
-                <td><span className={`admin-deadlines-status ${statusClass(row.status)}`}>{row.status}</span></td>
-                <td><button type="button" className="admin-deadlines-view" onClick={() => openCase(row)} disabled={!row.realCase} title={row.realCase ? "View case review" : "Demo row; no live case record"}>View</button></td>
-              </tr>
-            ))}</tbody>
-          </table>
-          {rows.length === 0 && <div className="admin-deadlines-empty">No demo deadlines match these filters.</div>}
+          {loading ? (
+            <SignalLoading
+              title="Loading Deadlines"
+              message="Retrieving compliance and reporting deadline records."
+            />
+          ) : (
+            <>
+              <table className="admin-deadlines-table">
+                <thead><tr><th>Patient</th><th>Case ID</th><th>Condition</th><th>Jurisdiction</th><th>Deadline</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>{rows.map((row) => (
+                  <tr key={row.caseId}>
+                    <td><strong>{row.patient}</strong></td>
+                    <td className="admin-deadlines-mono">{row.caseId}</td>
+                    <td>{row.condition}</td>
+                    <td>{row.jurisdiction}</td>
+                    <td>{formatDeadline(row.deadline)}</td>
+                    <td><span className={`admin-deadlines-priority ${priorityClass(row.priority)}`}>{row.priority}</span></td>
+                    <td><span className={`admin-deadlines-status ${statusClass(row.status)}`}>{row.status}</span></td>
+                    <td><button type="button" className="admin-deadlines-view" onClick={() => openCase(row)} disabled={!row.realCase} title={row.realCase ? "View case review" : "Demo row; no live case record"}>View</button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+              {rows.length === 0 && <div className="admin-deadlines-empty">No demo deadlines match these filters.</div>}
+            </>
+          )}
         </div>
       </section>
     </main>
