@@ -1,3 +1,6 @@
+from backend.app.detection.disease_concepts import canonical_disease_id
+
+
 REPORTING_MISSING_INFO_FIELDS = [
     "reporting.investigated_by",
     "reporting.investigating_agency",
@@ -11,10 +14,12 @@ DEMO_FORM_INPUT_FIELDS = REPORTING_MISSING_INFO_FIELDS
 
 
 TEXAS_MEASLES_FORM = {
+    "name": "Texas Measles Reporting Form",
     "form_id": "TX_MEASLES_OUTBREAK_CRF_2025",
     "form_version": "2025-05-07",
     "disease": "measles",
     "jurisdiction": "TX",
+    "staff_entry_fields": REPORTING_MISSING_INFO_FIELDS,
     "fields": [
         # Page 1 — Case / Patient
         {
@@ -107,27 +112,27 @@ TEXAS_MEASLES_FORM = {
         {
             "field": "reporting.investigated_by",
             "source": "reporting.investigated_by",
-            "required": False,
+            "required": True,
         },
         {
             "field": "reporting.investigating_agency",
             "source": "reporting.investigating_agency",
-            "required": False,
+            "required": True,
         },
         {
             "field": "reporting.investigating_agency_email",
             "source": "reporting.investigating_agency_email",
-            "required": False,
+            "required": True,
         },
         {
             "field": "reporting.investigating_agency_phone",
             "source": "reporting.investigating_agency_phone",
-            "required": False,
+            "required": True,
         },
         {
             "field": "reporting.investigation_start_date",
             "source": "reporting.investigation_start_date",
-            "required": False,
+            "required": True,
         },
 
         # Page 1 — Clinical / Hospitalization
@@ -257,3 +262,23 @@ TEXAS_MEASLES_FORM = {
         },
     ],
 }
+
+# Registry used by the case reporting workflow. Add a jurisdiction/disease
+# configuration here when its template and field mappings are available.
+REPORTING_FORMS = (TEXAS_MEASLES_FORM,)
+
+
+def reporting_form_for_case(disease: str | None, jurisdiction: str | None) -> dict | None:
+    normalized_disease = canonical_disease_id(
+        " ".join((disease or "").casefold().replace("(disorder)", "").split())
+    )
+    normalized_jurisdiction = (jurisdiction or "").strip().casefold()
+    for form in REPORTING_FORMS:
+        configured_disease = canonical_disease_id(form["disease"])
+        configured_jurisdiction = form["jurisdiction"].casefold()
+        if normalized_disease == configured_disease and normalized_jurisdiction in {
+            configured_jurisdiction,
+            "texas" if configured_jurisdiction == "tx" else configured_jurisdiction,
+        }:
+            return form
+    return None

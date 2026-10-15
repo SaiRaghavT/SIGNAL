@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { cleanPatientName } from "../utils/patientNames.js";
 import {
   getCase,
-  getFormDefinition,
+  getFormDefinitionForCase,
   renderForm,
   updateCaseReport,
   renderUrl,
@@ -12,21 +13,12 @@ import {
 } from "../api/signal.js";
 import "../styles/reporting-form.css";
 
-const FORM_ID = "TX_MEASLES_OUTBREAK_CRF_2025";
-const FORM_VERSION = "2025-05-07";
 const PAGE_SIZE = 5;
-const REPORTING_MISSING_INFO_FIELDS = [
-  "reporting.investigated_by",
-  "reporting.investigating_agency",
-  "reporting.investigating_agency_email",
-  "reporting.investigating_agency_phone",
-  "reporting.investigation_start_date",
-];
 const pendingFormRenders = new Map();
 const responseData = (response) => response?.data ?? response;
 const toList = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
-const isFilled = (value) => value !== null && value !== undefined && value !== "";
-const hasRequiredValue = (value) => isFilled(value) && String(value).trim() !== "";
+const isFilled = (value) => value !== null && value !== undefined &&
+  (typeof value !== "string" || value.trim() !== "");
 const isRecord = (value) => value && typeof value === "object" && !Array.isArray(value);
 
 function errorText(error) {
@@ -123,6 +115,9 @@ function patientName(patient) {
 export default function ReportingFormPage() {
   const { patientId: routePatientId = "", caseId = "" } = useParams();
   const navigate = useNavigate();
+  const activeRouteKey = `${routePatientId}:${caseId}`;
+  const activeRouteKeyRef = useRef(activeRouteKey);
+  activeRouteKeyRef.current = activeRouteKey;
   const [caseData, setCaseData] = useState(null);
   const [formDefinition, setFormDefinition] = useState(null);
   const [renderResult, setRenderResult] = useState(null);
@@ -130,6 +125,7 @@ export default function ReportingFormPage() {
   const [savedFieldValues, setSavedFieldValues] = useState({});
   const [visiblePage, setVisiblePage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadedRouteKey, setLoadedRouteKey] = useState("");
   const [working, setWorking] = useState(false);
   const [operation, setOperation] = useState("");
   const [error, setError] = useState("");
@@ -142,53 +138,62 @@ export default function ReportingFormPage() {
     ? `/patients/${encodeURIComponent(actualPatientId)}/case/${encodeURIComponent(caseId)}`
     : `/cases/${encodeURIComponent(caseId)}`;
   const definitions = toList(formDefinition?.fields);
-  // Existing case values populate the rest of the form from the backend.
-  // This panel is only for the five investigation fields entered by staff.
-  const requiredFields = REPORTING_MISSING_INFO_FIELDS;
-  const missingFields = requiredFields.filter((field) => !hasRequiredValue(savedFieldValues[field]));
-  const missingMessages = [];
-  const pageCount = Math.ceil(missingFields.length / PAGE_SIZE);
-  const visibleFields = missingFields.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE);
+  // These staff entry fields remain editable even after values are saved.
+  const staffEntryFields = toList(formDefinition?.staff_entry_fields);
+  const savedStaffFieldCount = staffEntryFields.filter((field) => isFilled(savedFieldValues[field])).length;
+  const changedStaffFields = staffEntryFields.filter(
+    (field) => String(fieldValues[field] ?? "") !== String(savedFieldValues[field] ?? ""),
+  );
+  const allStaffFieldsSaved = staffEntryFields.length > 0 &&
+    savedStaffFieldCount === staffEntryFields.length && changedStaffFields.length === 0;
+  const missingMessages = [
+    ...staffEntryFields
+      .filter((field) => !isFilled(fieldValues[field]))
+      .map((field) => `${fieldLabel(field, definitions)} is required.`),
+    ...changedStaffFields
+      .map((field) => `${fieldLabel(field, definitions)} must be saved before continuing.`),
+  ];
+  const pageCount = Math.ceil(staffEntryFields.length / PAGE_SIZE);
+  const visibleFields = staffEntryFields.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE);
   const renderId = renderResult?.render_id;
   const pdfUrl = renderId ? renderUrl(renderId) : "";
   const downloadUrl = renderId ? downloadRenderUrl(renderId) : "";
   async function loadBackendData() {
-    const [caseResponse, formResponse] = await Promise.all([
-      getCase(caseId),
-      getFormDefinition(FORM_ID),
-    ]);
+    const caseResponse = await getCase(caseId);
     let data = responseData(caseResponse);
+    const formResponse = await getFormDefinitionForCase(caseId);
     const definition = responseData(formResponse);
-    setCaseData(data);
-    setFormDefinition(definition);
     const initialValues = Object.fromEntries(toList(definition?.fields).map((field) => [
       field.field,
-      REPORTING_MISSING_INFO_FIELDS.includes(field.field)
-        ? ""
-        : initialFieldValue(data, field),
+      initialFieldValue(data, field),
     ]));
-    setFieldValues(initialValues);
-    setSavedFieldValues(initialValues);
     return { data, definition, initialValues };
   }
 
-  async function generateForm(isRegeneration = false, force = false, fieldValues = {}) {
+  async function generateForm(isRegeneration = false, force = false, fieldValues = {}, definition = formDefinition, isCurrent = () => true) {
     if (!caseId || (working && !force)) return null;
+    if (!definition?.form_id) {
+      setError("No reporting form is configured for this case.");
+      return null;
+    }
     setWorking(true);
     setOperation(isRegeneration ? "regenerate" : "generate");
     setError("");
     setRenderResult(null);
     try {
-      const rendered = responseData(await renderFormOnce(caseId, FORM_ID, FORM_VERSION, fieldValues));
+      const rendered = responseData(await renderFormOnce(caseId, definition.form_id, definition.form_version, fieldValues));
       if (!rendered?.render_id || (!rendered?.demo_mode && !rendered?.report_id)) throw new Error("The backend did not return the generated PDF identifier.");
+      if (!isCurrent()) return null;
       setRenderResult(rendered);
       return rendered;
     } catch (requestError) {
-      setError(`Unable to generate the Texas Measles Reporting Form. ${errorText(requestError)}`);
+      if (isCurrent()) setError(`Unable to generate ${definition?.name || "the reporting form"}. ${errorText(requestError)}`);
       return null;
     } finally {
-      setWorking(false);
-      setOperation("");
+      if (isCurrent()) {
+        setWorking(false);
+        setOperation("");
+      }
     }
   }
 
@@ -196,7 +201,17 @@ export default function ReportingFormPage() {
     let active = true;
     async function initialize() {
       setLoading(true);
+      setLoadedRouteKey("");
       setError("");
+      setCaseData(null);
+      setFormDefinition(null);
+      setRenderResult(null);
+      setFieldValues({});
+      setSavedFieldValues({});
+      setVisiblePage(0);
+      setWorking(false);
+      setOperation("");
+      setMessage("");
       let loaded = false;
       let pageData;
       try {
@@ -205,14 +220,24 @@ export default function ReportingFormPage() {
         if (routePatientId && casePatientId && String(routePatientId) !== String(casePatientId)) {
           throw new Error("The case does not belong to the patient in this route.");
         }
+        if (active) {
+          setCaseData(pageData.data);
+          setFormDefinition(pageData.definition);
+          setFieldValues(pageData.initialValues);
+          setSavedFieldValues(pageData.initialValues);
+          setVisiblePage(0);
+        }
         loaded = true;
       } catch (requestError) {
         if (active) setError(errorText(requestError));
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoadedRouteKey(activeRouteKey);
+          setLoading(false);
+        }
       }
       if (active && loaded) {
-        await generateForm();
+        await generateForm(false, false, {}, pageData.definition, () => active);
       }
     }
     initialize();
@@ -222,7 +247,9 @@ export default function ReportingFormPage() {
   }, [caseId, routePatientId]);
 
   async function saveMissingInformation() {
-    if (working || !visibleFields.length) return;
+    if (working || !changedStaffFields.length) return;
+    const savingRouteKey = activeRouteKey;
+    const isSameRoute = () => activeRouteKeyRef.current === savingRouteKey;
     let saved = false;
     let persistedFieldValues = null;
     setWorking(true);
@@ -230,13 +257,8 @@ export default function ReportingFormPage() {
     setError("");
     setMessage("");
     try {
-      const savedFields = Object.fromEntries(visibleFields
-        .filter((field) => isFilled(fieldValues[field]) && String(fieldValues[field]).trim())
+      const savedFields = Object.fromEntries(changedStaffFields
         .map((field) => [field, fieldValues[field]]));
-      if (!Object.keys(savedFields).length) {
-        setError("Enter at least one missing value before saving.");
-        return;
-      }
       await updateCaseReport(caseId, { report_fields: savedFields });
       const refreshedCase = responseData(await getCase(caseId));
       const unverifiedFields = Object.entries(savedFields).filter(
@@ -246,10 +268,11 @@ export default function ReportingFormPage() {
         throw new Error(`SIGNAL did not return the saved reporting values: ${unverifiedFields.map(([field]) => field).join(", ")}`);
       }
 
+      if (!isSameRoute()) return;
       setCaseData(refreshedCase);
       persistedFieldValues = {
         ...fieldValues,
-        ...Object.fromEntries(REPORTING_MISSING_INFO_FIELDS.map((field) => [
+        ...Object.fromEntries(staffEntryFields.map((field) => [
           field,
           refreshedCase?.report_fields?.[field] ?? "",
         ])),
@@ -259,20 +282,22 @@ export default function ReportingFormPage() {
       setVisiblePage(0);
       saved = true;
     } catch (requestError) {
-      setError(`Unable to save missing information. ${errorText(requestError)}`);
+      if (isSameRoute()) setError(`Unable to save missing information. ${errorText(requestError)}`);
     } finally {
-      setWorking(false);
-      setOperation("");
+      if (isSameRoute()) {
+        setWorking(false);
+        setOperation("");
+      }
     }
     if (saved) {
-      const updated = await generateForm(true, true);
-      setMessage(updated
+      const updated = await generateForm(true, true, {}, formDefinition, isSameRoute);
+      if (isSameRoute()) setMessage(updated
         ? "Your entries are saved to the case and verified from SIGNAL."
         : "");
     }
   }
 
-  if (loading) return <section className="reporting-form-page"><SignalLoading title="Loading Patient Reporting Form" message="Loading the official form and case fields from SIGNAL." /></section>;
+  if (loading || loadedRouteKey !== activeRouteKey) return <section className="reporting-form-page"><SignalLoading title="Loading Patient Reporting Form" message="Loading the official form and case fields from SIGNAL." /></section>;
 
   if (!caseData) return <section className="reporting-form-page"><div className="reporting-form-error" role="alert"><h2>Unable to load patient reporting data.</h2><p>{error || "The requested case could not be loaded."}</p><button type="button" className="button" onClick={() => navigate(patientPath)}>Back to Patient</button></div></section>;
 
@@ -282,40 +307,41 @@ export default function ReportingFormPage() {
         <button type="button" className="reporting-form-back" onClick={() => navigate(patientPath)}>← Back</button>
         <span className="reporting-form-eyebrow">SIGNAL · PATIENT WORKSPACE</span>
         <h1>Patient Reporting Form</h1>
-        <p>Texas Measles Reporting Form · {patientName(patient)}</p>
+        <p>{formDefinition?.name || "Reporting Form"} · {patientName(patient)}</p>
       </div>
     </header>
 
-    {working && <SignalLoading
-      title={operation === "save" ? "Saving reporting values" : operation === "regenerate" ? "Updating the form preview" : "Generating Texas Measles Reporting Form"}
-      message={operation === "save" ? "Saving values to the case and verifying them from SIGNAL." : "SIGNAL is updating the form preview from saved case data."}
+    {working && operation === "save" && <SignalLoading
+      title="Saving reporting values"
+      message="Saving values to the case and verifying them from SIGNAL."
     />}
-    {error && <div className="reporting-form-message is-error" role="alert"><strong>Reporting form error</strong><span>{error.replace(/^Unable to generate the Texas Measles Reporting Form\.\s*/, "")}</span>{error.startsWith("Unable to generate") && <button type="button" className="button" disabled={working} onClick={() => generateForm()}>Retry</button>}</div>}
+    {error && <div className="reporting-form-message is-error" role="alert"><strong>Reporting form error</strong><span>{error}</span>{error.startsWith("Unable to generate") && <button type="button" className="button" disabled={working} onClick={() => generateForm()}>Retry</button>}</div>}
     {message && <div className="reporting-form-message is-success" role="status">{message}</div>}
 
     <div className="reporting-form-columns">
-      <section className="reporting-form-pdf-card" aria-label="Official Texas Measles Reporting Form">
-        <header className="reporting-form-card-header"><div><span>BACKEND-GENERATED PDF</span><h2>Texas Measles Reporting Form</h2><p>{renderResult?.form_id || FORM_ID} · Version {renderResult?.form_version || FORM_VERSION}</p></div>{renderResult && <span className="reporting-form-rendered-badge">Generated</span>}</header>
-        {renderResult?.render_id ? <div className="reporting-form-pdf-frame"><iframe src={pdfUrl} title="Backend-generated Texas Measles Reporting Form" className="reporting-form-pdf-viewer" /></div> : <div className="reporting-form-pdf-empty"><strong>Form preview unavailable</strong><span>Retry to request the official PDF from the backend.</span></div>}
+      <section className="reporting-form-pdf-card" aria-label={formDefinition?.name || "Reporting Form"}>
+        <header className="reporting-form-card-header"><div><span>BACKEND-GENERATED PDF</span><h2>{formDefinition?.name || "Reporting Form"}</h2><p>{renderResult?.form_id || formDefinition?.form_id} · Version {renderResult?.form_version || formDefinition?.form_version}</p></div>{renderResult && <span className="reporting-form-rendered-badge">Generated</span>}</header>
+        {renderResult?.render_id ? <div className="reporting-form-pdf-frame"><iframe src={pdfUrl} title={`Backend-generated ${formDefinition?.name || "Reporting Form"}`} className="reporting-form-pdf-viewer" /></div> : working && (operation === "generate" || operation === "regenerate") ? <div className="reporting-form-pdf-empty is-loading" role="status" aria-live="polite"><RefreshCw className="reporting-form-preview-spinner" size={20} aria-hidden="true" /><div><strong>{operation === "regenerate" ? "Updating form preview" : "Loading form preview"}</strong><span>SIGNAL is preparing the reporting form PDF.</span></div></div> : <div className="reporting-form-pdf-empty"><strong>Form preview unavailable</strong><span>Retry to request the configured PDF from the backend.</span></div>}
         {renderResult?.render_id && <div className="reporting-form-actions"><a className="button" href={pdfUrl} target="_blank" rel="noreferrer">Open PDF</a><a className="button" href={downloadUrl}>Download PDF</a></div>}
       </section>
 
       <aside className="reporting-form-missing-card" aria-labelledby="missing-info-heading">
-        <header><span>MISSING INFORMATION</span><h2 id="missing-info-heading">Complete Required Fields</h2><p>Enter missing values here. Saving refreshes the PDF from the backend.</p></header>
-        <div className="reporting-form-missing-count"><strong>{missingFields.length + missingMessages.length}</strong><span>items remaining</span></div>
+        <header><span>REQUIRED REPORTING INFORMATION</span><h2 id="missing-info-heading">Investigation Details</h2><p>Complete these required reporting fields before continuing. Patient and clinical details are populated from the case; investigation details are entered here.</p></header>
+        <div className="reporting-form-missing-count"><strong>{savedStaffFieldCount}/{staffEntryFields.length}</strong><span>required fields saved</span></div>
+        {allStaffFieldsSaved && <p className="reporting-form-saved-summary" role="status">All required fields are saved for this patient. You can review or edit them below.</p>}
         {visibleFields.length ? <div className="reporting-form-missing-fields">
           {visibleFields.map((field) => {
             const metadata = definitions.find((item) => item?.field === field);
-            return <label className="reporting-form-field" key={field}><span>{fieldLabel(field, definitions)} <b aria-hidden="true">*</b></span><FieldEditor field={field} definition={metadata} value={fieldValues[field] ?? initialFieldValue(caseData, metadata || { field })} onChange={(value) => setFieldValues((current) => ({ ...current, [field]: value }))} /></label>;
+            return <label className="reporting-form-field" key={field}><span>{fieldLabel(field, definitions)} <small>Required</small></span><FieldEditor field={field} definition={metadata} value={fieldValues[field] ?? ""} onChange={(value) => setFieldValues((current) => ({ ...current, [field]: value }))} /></label>;
           })}
-          {pageCount > 1 && <div className="reporting-form-pager"><span>Showing {visiblePage * PAGE_SIZE + 1}–{Math.min((visiblePage + 1) * PAGE_SIZE, missingFields.length)} of {missingFields.length}</span><button type="button" className="button" onClick={() => setVisiblePage((page) => (page + 1) % pageCount)}>Next 5</button></div>}
-          <button type="button" className="button button-primary reporting-form-save" disabled={working} onClick={saveMissingInformation}>Save &amp; Update Form</button>
-        </div> : <div className="reporting-form-no-missing">No required fields are missing.</div>}
-        {missingMessages.length > 0 && <div className="reporting-form-requirements"><strong>Other requirements</strong><ul>{missingMessages.map((item) => <li key={item}>{item}</li>)}</ul></div>}
+          {pageCount > 1 && <div className="reporting-form-pager"><span>Showing {visiblePage * PAGE_SIZE + 1}–{Math.min((visiblePage + 1) * PAGE_SIZE, staffEntryFields.length)} of {staffEntryFields.length}</span><button type="button" className="button" onClick={() => setVisiblePage((page) => (page + 1) % pageCount)}>Next 5</button></div>}
+          <button type="button" className="button button-primary reporting-form-save" disabled={working || !changedStaffFields.length} onClick={saveMissingInformation}>Save Required Fields &amp; Update Form</button>
+        </div> : <div className="reporting-form-no-missing">No additional staff fields are configured for this form.</div>}
+        {missingMessages.length > 0 && <div className="reporting-form-requirements"><strong>Required fields remaining</strong><ul>{missingMessages.map((item) => <li key={item}>{item}</li>)}</ul></div>}
         <button
           type="button"
           className="button reporting-form-continue-review"
-          disabled={working || missingFields.length > 0 || missingMessages.length > 0}
+          disabled={working || missingMessages.length > 0}
           onClick={() => navigate(caseWorkspacePath)}
         >
           Continue to Review

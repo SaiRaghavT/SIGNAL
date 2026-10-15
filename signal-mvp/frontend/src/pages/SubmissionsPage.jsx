@@ -14,6 +14,7 @@ const RETRYABLE_STATUSES = ["FAILED", "REJECTED", "ERROR"];
 const FILTERS = [
   { id: "all", label: "All" },
   { id: "pending", label: "Pending" },
+  { id: "queued", label: "Queued for Admin" },
   { id: "acknowledged", label: "Acknowledged" },
   { id: "failed", label: "Failed" },
 ];
@@ -46,8 +47,13 @@ function normalizedStatus(item) {
 function statusTone(status) {
   if (status === "ACKNOWLEDGED") return "acknowledged";
   if (status === "SUBMITTED") return "pending";
+  if (status === "QUEUED_FOR_ADMIN") return "pending";
   if (RETRYABLE_STATUSES.includes(status)) return "failed";
   return "neutral";
+}
+
+function statusLabel(item) {
+  return normalizedStatus(item) === "QUEUED_FOR_ADMIN" ? "Queued for Admin" : (item.status || EMPTY_VALUE);
 }
 
 async function loadAllSubmissions() {
@@ -87,6 +93,7 @@ export function SubmissionsPage() {
   const counts = useMemo(() => ({
     all: submissions.length,
     pending: submissions.filter((item) => normalizedStatus(item) === "SUBMITTED").length,
+    queued: submissions.filter((item) => normalizedStatus(item) === "QUEUED_FOR_ADMIN").length,
     acknowledged: submissions.filter((item) => normalizedStatus(item) === "ACKNOWLEDGED").length,
     failed: submissions.filter((item) => RETRYABLE_STATUSES.includes(normalizedStatus(item))).length,
   }), [submissions]);
@@ -97,6 +104,7 @@ export function SubmissionsPage() {
       const status = normalizedStatus(item);
       const matchesStatus = statusFilter === "all"
         || (statusFilter === "pending" && status === "SUBMITTED")
+        || (statusFilter === "queued" && status === "QUEUED_FOR_ADMIN")
         || (statusFilter === "acknowledged" && status === "ACKNOWLEDGED")
         || (statusFilter === "failed" && RETRYABLE_STATUSES.includes(status));
       if (!matchesStatus) return false;
@@ -125,7 +133,7 @@ export function SubmissionsPage() {
     <section className="submissions-page">
       <PageHeader
         title="Submissions"
-        subtitle="Track report packages dispatched to public-health authorities and monitor their acknowledgement status."
+        subtitle="Track cases handed to Admin for review alongside report packages dispatched to public-health authorities."
       />
 
       {loading ? (
@@ -140,7 +148,7 @@ export function SubmissionsPage() {
         <>
           <div className="submissions-kpis" aria-label="Submission metrics">
             <article className="submissions-kpi">
-              <span>TOTAL SUBMISSIONS</span><strong>{counts.all}</strong><small>All submission records returned by the backend.</small>
+              <span>TOTAL RECORDS</span><strong>{counts.all}</strong><small>Admin queue handoffs and public-health submissions.</small>
             </article>
             <article className="submissions-kpi pending">
               <span>PENDING ACKNOWLEDGEMENT</span><strong>{counts.pending}</strong><small>Dispatched submissions awaiting acknowledgement.</small>
@@ -157,7 +165,7 @@ export function SubmissionsPage() {
             <header className="submissions-operations-header">
               <div>
                 <h2 id="submission-operations-title">Submission Operations</h2>
-                <p>Track reports dispatched through approved reporting channels and monitor acknowledgement outcomes.</p>
+                <p>Track cases queued for Admin and reports dispatched to public-health authorities.</p>
               </div>
               <span className="submissions-record-count">{counts.all} {counts.all === 1 ? "record" : "records"}</span>
             </header>
@@ -216,8 +224,8 @@ export function SubmissionsPage() {
                           <td>{item.jurisdiction || EMPTY_VALUE}</td>
                           <td>{formatDate(item.created_at)}</td>
                           <td>{item.channel || EMPTY_VALUE}</td>
-                          <td><span className={`submissions-status ${statusTone(status)}`}>{item.status || EMPTY_VALUE}</span></td>
-                          <td><Link className="submissions-view" to={`/submissions/case/${encodeURIComponent(item.case_id)}`}>View →</Link></td>
+                          <td><span className={`submissions-status ${statusTone(status)}`}>{statusLabel(item)}</span></td>
+                          <td><Link className="submissions-view" to={status === "QUEUED_FOR_ADMIN" ? `/cases/${encodeURIComponent(item.case_id)}` : `/submissions/case/${encodeURIComponent(item.case_id)}`}>View →</Link></td>
                         </tr>
                       );
                     })}

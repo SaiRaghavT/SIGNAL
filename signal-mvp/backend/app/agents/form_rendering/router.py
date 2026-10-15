@@ -11,16 +11,16 @@ from .schemas import (
 )
 from .service import FormRenderingService, get_rendered_pdf_path
 from backend.app.smart_field_population.form_config import (
-    REPORTING_MISSING_INFO_FIELDS,
-    TEXAS_MEASLES_FORM,
+    REPORTING_FORMS,
+    reporting_form_for_case,
 )
 from backend.app.database import get_db
 from backend.app.models.case import Case
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
 from backend.app.config.demo import is_demo_case
-from backend.app.detection.disease_concepts import canonical_disease_id
 from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
+from backend.app.case.report_fields import available_case_report_fields
 
 
 router = APIRouter(
@@ -32,11 +32,29 @@ public_router = APIRouter(tags=["Reporting"])
 service = FormRenderingService()
 
 
+@router.get("/forms/for-case/{case_id}", response_model=FormDefinitionResponse)
+def get_form_definition_for_case(
+    case_id: UUID,
+    db: Session = Depends(get_db),
+) -> FormDefinitionResponse:
+    case = db.query(Case).filter(Case.case_id == case_id).first()
+    if case is None:
+        raise HTTPException(status_code=404, detail=f"Case not found: {case_id}")
+    form = reporting_form_for_case(case.disease, case.jurisdiction)
+    if form is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"No reporting form is configured for {case.jurisdiction or 'unknown jurisdiction'} / {case.disease or 'unknown disease'}.",
+        )
+    return FormDefinitionResponse(**form)
+
+
 @router.get("/forms/{form_id}", response_model=FormDefinitionResponse)
 def get_form_definition(form_id: str) -> FormDefinitionResponse:
-    if form_id != TEXAS_MEASLES_FORM["form_id"]:
+    form = next((item for item in REPORTING_FORMS if item["form_id"] == form_id), None)
+    if form is None:
         raise HTTPException(status_code=404, detail=f"Reporting form not found: {form_id}")
-    return FormDefinitionResponse(**TEXAS_MEASLES_FORM)
+    return FormDefinitionResponse(**form)
 
 
 @router.post(
@@ -56,18 +74,12 @@ def render_form(
         case = db.query(Case).filter(Case.case_id == case_uuid).first()
         if case is None:
             raise HTTPException(status_code=404, detail=f"Case not found: {request.case_id}")
-        case_disease = " ".join((case.disease or "").casefold().replace("(disorder)", "").split())
-        form_disease = TEXAS_MEASLES_FORM["disease"].casefold()
-        case_jurisdiction = (case.jurisdiction or "").strip().casefold()
-        form_jurisdiction = TEXAS_MEASLES_FORM["jurisdiction"].casefold()
-        if (
-            case_jurisdiction not in {form_jurisdiction, "texas"}
-            or canonical_disease_id(case_disease) != canonical_disease_id(form_disease)
-        ):
-            raise HTTPException(status_code=422, detail="No Texas measles form is configured for this case.")
-        if request.form_id != TEXAS_MEASLES_FORM["form_id"]:
+        case_form = reporting_form_for_case(case.disease, case.jurisdiction)
+        if case_form is None:
+            raise HTTPException(status_code=422, detail="No reporting form is configured for this case.")
+        if request.form_id != case_form["form_id"]:
             raise HTTPException(status_code=422, detail=f"Unsupported form: {request.form_id}")
-        if request.form_version not in (None, TEXAS_MEASLES_FORM["form_version"]):
+        if request.form_version not in (None, case_form["form_version"]):
             raise HTTPException(status_code=422, detail=f"Unsupported form version: {request.form_version}")
         validation = (
             db.query(CaseWorkflowRecord)
@@ -101,7 +113,7 @@ def render_form(
             "rash_fever": clinical,
             "laboratory": laboratory,
         }
-        report_data.update(case.report_fields or {})
+        report_data.update(available_case_report_fields(case))
         derived_values = {
             "patient.first_name": patient.get("first_name"),
             "patient.last_name": patient.get("last_name"),
@@ -125,17 +137,18 @@ def render_form(
         for key, value in derived_values.items():
             if value not in (None, ""):
                 report_data.setdefault(key, value)
-        required_missing_fields = list(REPORTING_MISSING_INFO_FIELDS)
+        staff_entry_fields = case_form.get("staff_entry_fields", [])
+        required_missing_fields = list(staff_entry_fields)
         demo_case = is_demo_case(case)
         # Persisted report fields are authoritative. Explicit request values
         # remain supported for callers that intentionally request a preview.
         transient_fields = {
             field: value for field, value in request.field_values.items()
-            if field in REPORTING_MISSING_INFO_FIELDS and str(value or "").strip()
+            if field in staff_entry_fields and str(value or "").strip()
         }
         report_data.update(transient_fields)
         required_missing_fields = [
-            field for field in REPORTING_MISSING_INFO_FIELDS
+            field for field in staff_entry_fields
             if not report_data.get(field)
         ]
         result = service.render_form(
@@ -155,7 +168,7 @@ def render_form(
         retrieval_url = f"{router.prefix}/{result.render_id}"
         result.retrieval_url = retrieval_url
         result.rendered_document = retrieval_url
-        if not demo_case and not transient_preview:
+        if not transient_preview:
             report = Report(
                 case_id=str(case.case_id),
                 form_id=result.form_id,

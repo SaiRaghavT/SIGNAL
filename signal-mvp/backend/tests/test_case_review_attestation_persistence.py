@@ -67,9 +67,14 @@ class FakeSession:
         pass
 
     def refresh(self, record):
-        record.record_id = record.record_id or str(uuid4())
-        record.created_at = record.created_at or datetime.now(timezone.utc)
-        record.updated_at = record.updated_at or record.created_at
+        if hasattr(record, "record_id"):
+            record.record_id = record.record_id or str(uuid4())
+        if hasattr(record, "event_id"):
+            record.event_id = record.event_id or str(uuid4())
+        if hasattr(record, "created_at"):
+            record.created_at = record.created_at or datetime.now(timezone.utc)
+        if hasattr(record, "updated_at"):
+            record.updated_at = record.updated_at or record.created_at
 
 
 def test_review_and_attestation_are_persisted_and_used_for_readiness(monkeypatch):
@@ -313,3 +318,135 @@ def test_demo_defaults_do_not_apply_to_non_demo_cases():
     assert apply_admin_demo_reporting_defaults(case) == []
     assert case.report_fields == {}
     assert case.warnings == []
+
+
+def test_measles_report_fields_initialization_and_real_queue_workflow(monkeypatch):
+    from backend.app.case.report_fields import (
+        initialize_case_report_fields,
+        missing_report_fields,
+    )
+    from backend.app.smart_field_population.form_config import REPORTING_MISSING_INFO_FIELDS
+
+    case_id = uuid4()
+    case = SimpleNamespace(
+        case_id=case_id,
+        candidate_id="patient-wesley-001",
+        disease="measles",
+        jurisdiction="TX",
+        jurisdiction_status="RESOLVED",
+        patient={"first_name": "Wesley", "last_name": "Bernier", "patient_id": str(uuid4())},
+        facility={"name": "Austin Regional Clinic"},
+        provider={"name": "Dr. Sarah Jenkins"},
+        clinical_evidence={"onset_date": "2026-10-01", "rash": "Yes", "fever": "Yes"},
+        laboratory_evidence=[{"test_name": "Measles virus IgM", "result": "Positive"}],
+        ai_evidence={},
+        report_fields={},
+        status="REPORT",
+        reportability_decision="REPORT",
+        reportability_evidence_status="CONFIRMED",
+        final_decision="REPORT",
+        rule_id="MEASLES-TX-001",
+        deadline=None,
+        submission_mode="IMMEDIATE",
+        warnings=[],
+    )
+
+    # 1. Automatic initialization of 41 non-investigation fields
+    merged, changed = initialize_case_report_fields(case)
+    assert changed is True
+    assert len(merged) == 41
+    # Ensure the 5 human-investigation fields are absent from initialized defaults
+    for field in REPORTING_MISSING_INFO_FIELDS:
+        assert field not in merged
+
+    # 2. Staff enters and saves the 5 missing investigation fields
+    staff_entries = {
+        "reporting.investigated_by": "Dr. Sarah Jenkins",
+        "reporting.investigating_agency": "Austin Public Health",
+        "reporting.investigating_agency_phone": "512-555-0150",
+        "reporting.investigating_agency_email": "sarah.jenkins@austinhealth.org",
+        "reporting.investigation_start_date": "2026-10-02",
+    }
+    case.report_fields = {**merged, **staff_entries}
+    assert len(case.report_fields) == 46
+
+    # 3. Test real API workflow: Review -> Attestation -> Readiness -> Queue
+    session = FakeSession(case)
+    session.records[Report].append(SimpleNamespace(
+        report_id="report-real-001",
+        case_id=str(case_id),
+        status="GENERATED",
+        created_at=datetime.now(timezone.utc),
+    ))
+
+    def override_get_db():
+        yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    try:
+        # A. Validation
+        val_res = client.post(f"/api/cases/{case_id}/validate")
+        assert val_res.status_code == 200
+        assert val_res.json()["valid"] is True
+        assert val_res.json()["ready_for_review"] is True
+
+        # B. Real Human Review (no demo_simulation)
+        rev_res = client.post(
+            f"/api/cases/{case_id}/review",
+            json={
+                "reviewer_id": "sarah.jenkins@austinhealth.org",
+                "reviewer_role": "REPORTING_STAFF",
+                "decision": "APPROVE",
+                "review_confirmed": True,
+                "comments": "Reviewed clinical measles report.",
+            },
+        )
+        assert rev_res.status_code == 201
+        assert rev_res.json()["status"] == "APPROVE"
+
+        # C. Real Attestation (no demo_simulation)
+        att_res = client.post(
+            f"/api/cases/{case_id}/attestation",
+            json={
+                "reviewer_id": "sarah.jenkins@austinhealth.org",
+                "reviewer_role": "REPORTING_STAFF",
+                "attestation_status": "ATTESTED",
+                "comments": "I attest this case is accurate.",
+            },
+        )
+        assert att_res.status_code == 200
+        assert att_res.json()["status"] == "ATTESTED"
+
+        # D. Real Submission Readiness
+        ready_res = client.post(
+            f"/api/cases/{case_id}/submission-readiness",
+            json={
+                "actor_id": "sarah.jenkins@austinhealth.org",
+                "review_confirmed": True,
+                "attestation_confirmed": True,
+            },
+        )
+        assert ready_res.status_code == 200
+        assert ready_res.json()["ready"] is True
+
+        # E. Real Queue Submission (no demo_submission)
+        queue_res = client.post(
+            f"/api/cases/{case_id}/queue",
+            json={
+                "actor_id": "sarah.jenkins@austinhealth.org",
+                "submission_mode": "IMMEDIATE",
+            },
+        )
+        assert queue_res.status_code == 201
+        assert queue_res.json()["queue_status"] == "READY_FOR_SUBMISSION"
+        assert queue_res.json().get("demo_submission") is not True
+
+        # Verify persisted ADMIN_QUEUE record
+        queue_records = [r for r in session.records[CaseWorkflowRecord] if r.record_type == "ADMIN_QUEUE"]
+        assert len(queue_records) == 1
+        assert queue_records[0].status == "READY_FOR_SUBMISSION"
+        assert queue_records[0].payload["report_id"] == "report-real-001"
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+

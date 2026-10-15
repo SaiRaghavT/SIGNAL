@@ -1,7 +1,7 @@
 from .models import SubmissionResult
 
 
-def submit_ecr(ecr, validation, *, attested: bool = False) -> SubmissionResult:
+def submit_ecr(ecr, validation, *, reviewed: bool = False) -> SubmissionResult:
 
     if not validation.valid:
         return SubmissionResult(
@@ -39,12 +39,12 @@ def submit_ecr(ecr, validation, *, attested: bool = False) -> SubmissionResult:
             warnings=validation.warnings,
         )
 
-    if not attested:
+    if not reviewed:
         return SubmissionResult(
             submission_id=None,
             status="BLOCKED",
             destination="MOCK_PHA",
-            errors=["A current human attestation is required before submission."],
+            errors=["An approved human review is required before submission."],
             warnings=validation.warnings,
         )
 

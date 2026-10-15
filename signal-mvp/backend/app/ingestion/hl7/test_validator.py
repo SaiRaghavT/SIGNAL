@@ -1,4 +1,4 @@
-areimport pytest
+import pytest
 
 from backend.app.ingestion.hl7.parser import (
     parse_hl7_message,

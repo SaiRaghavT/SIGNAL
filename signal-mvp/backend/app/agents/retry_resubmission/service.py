@@ -7,7 +7,7 @@ from backend.app.models.case import Case
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report, SubmissionAttempt
 from backend.app.ecr.builder import build_ecr
 from backend.app.schemas.validation import validate_ecr
-from backend.app.submission.gates import case_has_current_attestation, smart_fields_for_case
+from backend.app.submission.gates import smart_fields_for_case
 from backend.app.submission.service import submit_ecr
 
 from .schemas import (
@@ -181,30 +181,12 @@ class RetryResubmissionService:
                 "An approved review is required before retrying submission.",
             )
 
-        attestation = (
-            db.query(CaseWorkflowRecord)
-            .filter(
-                CaseWorkflowRecord.case_id == submission.case_id,
-                CaseWorkflowRecord.record_type == "ATTESTATION",
-            )
-            .order_by(CaseWorkflowRecord.created_at.desc())
-            .first()
-        )
-        if attestation is None or attestation.status != "ATTESTED":
-            return self._record_blocked_attempt(
-                db,
-                request,
-                submission,
-                retry_count,
-                "A persisted attestation is required before retrying submission.",
-            )
-
         ecr = build_ecr(case)
         validation = validate_ecr(ecr, smart_fields_for_case(case))
         gate = submit_ecr(
             ecr,
             validation,
-            attested=case_has_current_attestation(db, case),
+            reviewed=True,
         )
         if gate.status != "SUBMITTED":
             return self._record_blocked_attempt(

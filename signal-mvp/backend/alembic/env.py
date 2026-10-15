@@ -15,6 +15,7 @@ from backend.app.models import (
     ClinicalDocument,
     Case,
     Submission,
+    PHAReviewDecision,
     AuditEvent,
     DeadlineEscalation,
     Candidate,

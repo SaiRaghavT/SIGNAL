@@ -267,12 +267,13 @@
 
 .admin-table-wrapper {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .admin-queue-table {
   width: 100%;
-  min-width: 1000px;
+  min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -298,6 +299,7 @@
   color: #40566c;
   font-size: 11px;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .admin-queue-table tbody tr:last-child td {
