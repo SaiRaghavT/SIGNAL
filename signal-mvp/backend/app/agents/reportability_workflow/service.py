@@ -17,6 +17,7 @@ from backend.app.jurisdiction.resolver import resolve_jurisdiction
 from backend.app.rckms.decision_support import evaluate_decision_support
 from backend.app.reportability.evaluator import evaluate_reportability
 from backend.app.reportability.models import ReportabilityInput
+from backend.app.rules.resolver import normalize_disease_name
 from backend.app.schemas.validation import validate_ecr
 from backend.app.smart_field_population.mapper import populate_report_fields
 from backend.app.submission.service import submit_ecr
@@ -501,6 +502,8 @@ def process_candidate(
         Submission
     """
 
+    disease = normalize_disease_name(request.disease)
+
     # =========================================================
     # 1. LOAD CANONICAL PATIENT CONTEXT
     # =========================================================
@@ -556,7 +559,7 @@ def process_candidate(
     relevant_encounter = (
         _select_relevant_encounter(
             canonical_context=canonical_context,
-            disease=request.disease,
+            disease=disease,
             laboratory_evidence=laboratory_evidence,
             clinical_evidence=clinical_evidence,
         )
@@ -639,7 +642,7 @@ def process_candidate(
             patient_county=patient_county,
             facility_state=facility_state,
             facility_county=facility_county,
-            disease=request.disease,
+            disease=disease,
         )
     )
 
@@ -652,7 +655,7 @@ def process_candidate(
             candidate_id=request.candidate_id,
             jurisdiction=jurisdiction.jurisdiction,
             jurisdiction_status=jurisdiction.status,
-            disease=request.disease,
+            disease=disease,
             clinical_evidence=clinical_evidence,
             laboratory_evidence=laboratory_evidence,
             ai_evidence=ai_evidence,
@@ -665,7 +668,7 @@ def process_candidate(
 
     rule_result = evaluate_decision_support(
         candidate_id=request.candidate_id,
-        disease=request.disease,
+        disease=disease,
         jurisdiction=jurisdiction.jurisdiction,
         laboratory_evidence=laboratory_evidence,
         clinical_evidence=clinical_evidence,
@@ -683,12 +686,12 @@ def process_candidate(
 
     if (
         ai_condition
-        and request.disease
+        and disease
     ):
         ai_decision = (
             "POSITIVE"
             if str(ai_condition).casefold()
-            == request.disease.casefold()
+            == disease.casefold()
             else "NEGATIVE"
         )
 
@@ -738,7 +741,7 @@ def process_candidate(
 
     candidate_data = {
         "candidate_id": request.candidate_id,
-        "disease": request.disease,
+        "disease": disease,
 
         "patient": patient,
         "provider": provider,
@@ -825,7 +828,7 @@ def process_candidate(
             patient=patient,
             facility=facility,
             provider=provider,
-            disease=request.disease,
+            disease=disease,
             clinical_evidence=clinical_evidence,
             laboratory_evidence=laboratory_evidence,
             ai_evidence=ai_evidence,

@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Dict
 
+from backend.app.detection.disease_concepts import canonical_disease_id
+
 
 CATALOG_PATH = Path(__file__).resolve().parent / "rule_catalog.json"
 
@@ -14,6 +16,18 @@ class RuleResolutionError(Exception):
 def _load_catalog() -> Dict[str, Any]:
     with CATALOG_PATH.open("r", encoding="utf-8") as file:
         return json.load(file)
+
+
+def normalize_disease_name(disease: str | None) -> str | None:
+    """Return the catalog's canonical disease name for a known disease identity."""
+    if disease is None or not disease.strip():
+        return None
+    identity = canonical_disease_id(disease)
+    for rule in _load_catalog().get("rules", []):
+        configured_disease = rule.get("disease")
+        if canonical_disease_id(configured_disease) == identity:
+            return str(configured_disease)
+    return disease.strip()
 
 
 def _load_evaluator(path: str) -> Callable:
@@ -71,20 +85,21 @@ def resolve_rule(
 
     catalog = _load_catalog()
 
-    disease_key = disease.strip().casefold()
+    disease_key = canonical_disease_id(disease)
     jurisdiction_key = jurisdiction.strip().upper()
 
     for rule in catalog.get("rules", []):
         configured_disease = str(
             rule.get("disease", "")
         ).strip().casefold()
+        configured_disease_key = canonical_disease_id(configured_disease)
 
         configured_jurisdiction = str(
             rule.get("jurisdiction", "")
         ).strip().upper()
 
         if (
-            configured_disease == disease_key
+            configured_disease_key == disease_key
             and configured_jurisdiction == jurisdiction_key
         ):
             evaluator_path = rule.get("evaluator")

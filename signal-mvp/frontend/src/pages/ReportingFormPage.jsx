@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { cleanPatientName } from "../utils/patientNames.js";
 import {
   getCase,
   getFormDefinition,
@@ -116,7 +117,7 @@ function FieldEditor({ field, definition, value, onChange }) {
 }
 
 function patientName(patient) {
-  return [patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name || "Patient";
+  return cleanPatientName([patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name) || "Patient";
 }
 
 export default function ReportingFormPage() {
@@ -158,15 +159,6 @@ export default function ReportingFormPage() {
     ]);
     let data = responseData(caseResponse);
     const definition = responseData(formResponse);
-    const fieldsToReset = REPORTING_MISSING_INFO_FIELDS.filter((field) =>
-      hasRequiredValue(data?.report_fields?.[field]),
-    );
-    if (fieldsToReset.length) {
-      await updateCaseReport(caseId, {
-        report_fields: Object.fromEntries(fieldsToReset.map((field) => [field, ""])),
-      });
-      data = responseData(await getCase(caseId));
-    }
     setCaseData(data);
     setFormDefinition(definition);
     const initialValues = Object.fromEntries(toList(definition?.fields).map((field) => [

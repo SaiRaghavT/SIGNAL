@@ -99,7 +99,7 @@ class RetryResubmissionService:
                 retry_count=retry_count,
                 new_submission_id=None,
                 errors=[
-                    f"Submission status "
+                    f"ACKNOWLEDGEMENT STATUS "
                     f"'{submission.status}' "
                     f"is not eligible for retry."
                 ],

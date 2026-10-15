@@ -9,13 +9,15 @@ import {
   LogOut,
   ShieldCheck,
 } from "lucide-react";
-import { clearAdminQueueEntries } from "../../utils/adminQueueLocalStorage.js";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
+// Chatbot temporarily disabled:
+// import ChatWidget from "../assistant/ChatWidget.jsx";
 import {
   clearAdminSessionSubmissions,
   getAdminSubmissions,
 } from "../../services/adminService.js";
 import "../../styles/AdminShell.css";
+import { WorkflowBreadcrumb } from "../navigation/WorkflowBreadcrumb.jsx";
 
 const ADMIN_SESSION_SUBMISSION_BASELINE = "signal:admin-session:submission-baseline";
 
@@ -145,11 +147,13 @@ export default function AdminShell({ children }) {
       return;
     }
 
-    clearAdminQueueEntries();
     clearClinicalInformationRequests();
     clearTemporaryWorkflowValues();
-    sessionStorage.clear();
-    localStorage.clear();
+    sessionStorage.removeItem("signal-auth");
+    sessionStorage.removeItem("signal-user");
+    sessionStorage.removeItem(ADMIN_SESSION_SUBMISSION_BASELINE);
+    localStorage.removeItem("signal-auth");
+    localStorage.removeItem("signal-user");
 
     navigate("/login", { replace: true });
   };
@@ -187,6 +191,7 @@ export default function AdminShell({ children }) {
               <NavLink
                 key={item.path}
                 to={item.path}
+                end={item.path === "/admin/submissions"}
                 className={({ isActive }) =>
                   `admin-nav-item ${
                     isActive ? "active" : ""
@@ -253,10 +258,13 @@ export default function AdminShell({ children }) {
           </div>
         </header>
 
+        <WorkflowBreadcrumb admin />
+
         <div className="admin-content">
           {children || <Outlet />}
         </div>
       </div>
+      {/* Chatbot temporarily disabled: <ChatWidget /> */}
     </div>
   );
 }

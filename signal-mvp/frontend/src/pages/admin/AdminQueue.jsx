@@ -12,9 +12,8 @@ import {
   getAdminBatches,
   getAdminQueue,
 } from "../../services/adminService";
-import {
-  ADMIN_QUEUE_UPDATED_EVENT,
-} from "../../utils/adminQueueLocalStorage.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminQueue.css";
 
 const MODES = {
@@ -32,53 +31,6 @@ const EMPTY_BATCHES = {
   items: [],
   total: 0,
 };
-
-const DEMO_PATIENT_NAMES = [
-  "Avery Parker (Demo)",
-  "Morgan Ellis (Demo)",
-  "Riley Bennett (Demo)",
-  "Jamie Foster (Demo)",
-  "Cameron Hayes (Demo)",
-];
-
-function demoIndex(caseId) {
-  return Array.from(String(caseId || "")).reduce(
-    (total, character) => total + character.charCodeAt(0),
-    0,
-  );
-}
-
-function getDisplayPatientName(item) {
-  const name = getPatientName(item);
-  if (name !== "—" && name !== "â€”") return name;
-  const caseId = getCaseId(item);
-  return caseId ? DEMO_PATIENT_NAMES[demoIndex(caseId) % DEMO_PATIENT_NAMES.length] : name;
-}
-
-function getDisplayDeadline(item) {
-  const deadline = getDeadline(item);
-  if (deadline !== "—" && deadline !== "â€”") return deadline;
-
-  const caseId = getCaseId(item);
-  if (!caseId) return deadline;
-
-  const offsetDays = (demoIndex(caseId) % 5) + 1;
-  const fallback = new Date();
-  fallback.setDate(fallback.getDate() + offsetDays);
-  fallback.setHours(17 + (demoIndex(caseId) % 5), 0, 0, 0);
-  return `${fallback.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} (Demo)`;
-}
-
-function getDisplayPriority(item) {
-  const priority = getPriority(item);
-  if (priority !== "—" && priority !== "â€”") return priority;
-
-  const caseId = getCaseId(item);
-  if (!caseId) return priority;
-
-  const demoPriorities = ["HIGH", "MEDIUM", "URGENT", "LOW"];
-  return `${demoPriorities[demoIndex(caseId) % demoPriorities.length]} (Demo)`;
-}
 
 function getResponseItems(response) {
   if (Array.isArray(response)) {
@@ -201,9 +153,10 @@ function formatModeLabel(mode) {
 }
 
 function getPatientName(item) {
-  return (
+  return cleanPatientName(
     item?.patient_name ||
     item?.patientName ||
+    [item?.patient?.first_name, item?.patient?.last_name].filter(Boolean).join(" ") ||
     item?.patient?.name ||
     item?.patient?.full_name ||
     "—"
@@ -399,14 +352,6 @@ export default function AdminQueue() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    const refreshQueue = () => loadData(true);
-    window.addEventListener(ADMIN_QUEUE_UPDATED_EVENT, refreshQueue);
-    return () => {
-      window.removeEventListener(ADMIN_QUEUE_UPDATED_EVENT, refreshQueue);
-    };
   }, [loadData]);
 
   const modeCounts = useMemo(() => {
@@ -645,16 +590,10 @@ export default function AdminQueue() {
         </div>
 
         {loading ? (
-          <div className="admin-loading-state">
-            <RefreshCw
-              size={20}
-              className="spinning"
-            />
-
-            <span>
-              Loading reporting operations...
-            </span>
-          </div>
+          <SignalLoading
+            title="Loading Reporting Operations"
+            message="Retrieving queued cases, reporting deadlines, and administrative batches."
+          />
         ) : activeMode === MODES.BATCH ? (
           batches.items.length === 0 ? (
             <div className="admin-empty-state">
@@ -837,7 +776,7 @@ export default function AdminQueue() {
                       getCaseId(item);
 
                     const priority =
-                      getDisplayPriority(item);
+                      getPriority(item);
 
                     const status =
                       getStatus(item);
@@ -852,7 +791,7 @@ export default function AdminQueue() {
                       >
                         <td>
                           <span className="patient-name">
-                            {formatValue(getDisplayPatientName(item))}
+                            {formatValue(getPatientName(item))}
                           </span>
                         </td>
 
@@ -880,7 +819,7 @@ export default function AdminQueue() {
 
                         <td>
                           <span className="deadline-value">
-                            {formatValue(getDisplayDeadline(item))}
+                            {formatValue(getDeadline(item))}
                           </span>
                         </td>
 
@@ -902,9 +841,9 @@ export default function AdminQueue() {
                               status
                             )}`}
                           >
-                            {formatValue(
-                              status
-                            )}
+                            {String(status).toUpperCase() === "READY_FOR_SUBMISSION"
+                              ? "Ready to Submit"
+                              : formatValue(status)}
                           </span>
                         </td>
 

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 import { getAdminSubmissions } from "../../services/adminService.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
+import { cleanConditionDisplay } from "../../utils/conditionDisplay.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminSubmissions.css";
 
 const STATUS_OPTIONS = [
@@ -54,7 +58,7 @@ function conditionValueLabel(value) {
   }
   if (typeof value !== "string" || !value.trim()) return "\u2014";
 
-  const candidate = value.trim();
+  const candidate = cleanConditionDisplay(value.trim());
   const codeMatch = candidate.match(/(?:^|[|/])\s*(\d{5,})\s*$/);
   if (codeMatch) return codeMatch[1] === "14189004" ? "Measles" : "\u2014";
   if (/^\d+$/.test(candidate) || /(?:snomed|^https?:\/\/)/i.test(candidate)) return "\u2014";
@@ -144,14 +148,14 @@ function normalizeSubmission(item) {
       caseData.caseId,
     ),
 
-    patient: textValue(
+    patient: cleanPatientName(textValue(
       payload.patient_name,
       payload.patientName,
       patient.name,
       [patient.first_name, patient.last_name]
         .filter(Boolean)
         .join(" "),
-    ),
+    )),
 
     patientId,
 
@@ -464,9 +468,10 @@ export default function AdminSubmissions() {
         )}
 
         {loading ? (
-          <div className="submission-state">
-            Loading submissions...
-          </div>
+          <SignalLoading
+            title="Loading Submissions"
+            message="Retrieving electronic case reporting submissions and acknowledgements."
+          />
         ) : filteredSubmissions.length === 0 ? (
           <div className="submission-empty">
             <strong>No submissions yet</strong>
@@ -548,14 +553,7 @@ export default function AdminSubmissions() {
                       </td>
 
                       <td>
-                        <button
-                          type="button"
-                          className="view-submission-button"
-                          disabled
-                          title="Submission detail page will be added next"
-                        >
-                          View
-                        </button>
+                        <Link className="view-submission-button" to={`/admin/submission-journey/${encodeURIComponent(submission.submissionId)}`}>View</Link>
                       </td>
                     </tr>
                   ),

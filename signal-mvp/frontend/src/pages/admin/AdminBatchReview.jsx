@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, ChevronDown, Clock3, FileCheck2, Layers3, RefreshCw } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { dispatchAdminBatch, getAdminBatch, getAdminQueueCase } from "../../services/adminService.js";
-import { removeAdminQueueEntry } from "../../utils/adminQueueLocalStorage.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminBatchReview.css";
 
 const DASH = "—";
@@ -39,7 +40,7 @@ function caseIdOf(item) {
 
 function patientNameOf(item) {
   const patient = objectValue(item?.patient);
-  return item?.patient_name || item?.patientName || patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" ") || DASH;
+  return cleanPatientName(item?.patient_name || item?.patientName || patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" ")) || DASH;
 }
 
 function caseIdsOf(batch) {
@@ -80,6 +81,7 @@ function normalizeDispatchResult(response, caseIds) {
   return results.map((result, index) => ({
     ...result,
     case_id: result?.case_id || result?.caseId || caseIds[index] || "",
+    submission_id: result?.submission_id || result?.submissionId || "",
   }));
 }
 
@@ -160,23 +162,34 @@ export default function AdminBatchReview() {
       const response = await dispatchAdminBatch(batchId);
       const normalizedResults = normalizeDispatchResult(response, caseIdsOf(batch));
       const confirmedSuccesses = normalizedResults.filter((item) => String(item?.status || "").toUpperCase() === "SUBMITTED");
-      confirmedSuccesses.forEach((item) => removeAdminQueueEntry(item.case_id));
       const result = { ...response, results: normalizedResults };
       setDispatchResult(result);
       setBatch((current) => ({ ...current, ...response }));
+      if (confirmedSuccesses.length === 1 && confirmedSuccesses[0]?.submission_id) {
+        navigate(`/admin/submission-journey/${encodeURIComponent(confirmedSuccesses[0].submission_id)}`);
+      }
     } catch (dispatchError) {
-      setError(dispatchError?.message || "Batch dispatch failed. Local queue entries were retained.");
+      setError(dispatchError?.message || "Batch dispatch failed. The database queue record is still available for review.");
     } finally {
       setDispatching(false);
     }
   }
 
-  if (loading) return <main className="admin-batch-review-page"><div className="batch-state"><RefreshCw className="batch-spin" size={20} /> Loading batch review…</div></main>;
+  if (loading) {
+    return (
+      <main className="admin-batch-review-page">
+        <SignalLoading
+          title="Loading Batch Review"
+          message="Retrieving reporting batch and linked case details."
+        />
+      </main>
+    );
+  }
   if (!batch) return <main className="admin-batch-review-page"><button className="batch-back" type="button" onClick={() => navigate("/admin/queue")}><ArrowLeft size={16} /> Return to Queue</button><div className="batch-alert error" role="alert">{error || "Batch not found."}</div></main>;
 
   return (
     <main className="admin-batch-review-page">
-      <div className="batch-topbar"><button className="batch-back" type="button" onClick={() => navigate("/admin/queue")}><ArrowLeft size={16} /> Reporting Queue</button><span>Reporting Queue <b>›</b> Batch Review</span></div>
+      <div className="batch-topbar"><button className="batch-back" type="button" onClick={() => navigate("/admin/queue")}><ArrowLeft size={16} /> Reporting Queue</button></div>
       <header className="batch-header">
         <div><div className="batch-eyebrow">ADMINISTRATOR / BATCH REPORTING</div><h1>Batch Review</h1><p>Review the backend-generated reporting batch before authorization and dispatch.</p></div>
         <div className="batch-id"><span>BATCH RECORD ID</span><strong>{batchIdValue}</strong></div>
@@ -209,7 +222,7 @@ export default function AdminBatchReview() {
             <div><dt>Cases Submitted</dt><dd>{successfulResults.length} of {stats.total}</dd></div>
             <div><dt>Destination</dt><dd>{destination}</dd></div>
           </dl>
-          {successfulResults.length > 0 && <div className="batch-result-list"><strong>Submission IDs</strong><ul>{successfulResults.map((item, index) => <li key={item.submission_id || index}><span>{textValue(item.case_id)}</span><code>{textValue(item.submission_id)}</code></li>)}</ul></div>}
+          {successfulResults.length > 0 && <div className="batch-result-list"><strong>Submission IDs</strong><ul>{successfulResults.map((item, index) => <li key={item.submission_id || index}><span>{textValue(item.case_id)}</span>{item.submission_id ? <Link to={`/admin/submission-journey/${encodeURIComponent(item.submission_id)}`}><code>{item.submission_id}</code></Link> : <code>{textValue(item.submission_id)}</code>}</li>)}</ul></div>}
           {failedResults.length > 0 && <div className="batch-result-list errors"><strong>Cases not submitted</strong><ul>{failedResults.map((item, index) => <li key={`${item.case_id}-${index}`}><span>{textValue(item.case_id)} · {textValue(item.status)}</span><p>{(item.errors || []).map(displayValue).join("; ") || "The backend did not confirm submission for this case."}</p></li>)}</ul></div>}
           {errorItems.length > 0 && <div className="batch-result-list errors"><strong>Errors</strong><ul>{errorItems.map((item, index) => <li key={`${item.caseId}-${index}`}><span>{textValue(item.caseId)}</span><p>{displayValue(item.message)}</p></li>)}</ul></div>}
           {warningItems.length > 0 && <div className="batch-result-list"><strong>Warnings</strong><ul>{warningItems.map((item, index) => <li key={`${item.caseId}-${index}`}><span>{textValue(item.caseId)}</span><p>{displayValue(item.message)}</p></li>)}</ul></div>}

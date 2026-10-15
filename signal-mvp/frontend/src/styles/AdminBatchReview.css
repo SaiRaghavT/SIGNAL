@@ -117,3 +117,6 @@
   .batch-case-details[open] { min-width: min(340px, 75vw); }
   .batch-topbar { flex-wrap: wrap; }
 }
+
+.batch-result-list a { color: #d95d21; font-weight: 700; }
+.batch-result-list a:hover { text-decoration: underline; }

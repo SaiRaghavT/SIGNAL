@@ -109,6 +109,17 @@ export async function dispatchCase(caseId) {
   );
 }
 
+export async function simulateAdminDemoSubmission(caseId) {
+  if (!caseId) {
+    throw new Error("caseId is required");
+  }
+
+  return request(
+    `${API_BASE}/cases/${encodeURIComponent(caseId)}/demo-dispatch`,
+    { method: "POST" }
+  );
+}
+
 // ---------------------------------------------------------
 // SUBMISSIONS
 // ---------------------------------------------------------

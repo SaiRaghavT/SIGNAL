@@ -1,19 +1,17 @@
+
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import "../styles/login.css";
 
-const DEMO_USERS = {
-  clinical: {
-    email: "report@signal.local",
+const USERS = {
+  "report@signal.local": {
     password: "SIGNAL2026",
     name: "SIGNAL Clinical Staff",
     role: "Clinical Staff",
     redirect: "/dashboard",
   },
-
-  admin: {
-    email: "admin@signal.local",
+  "admin@signal.local": {
     password: "SIGNALADMIN2026",
     name: "SIGNAL Administrator",
     role: "Administrator",
@@ -21,10 +19,16 @@ const DEMO_USERS = {
   },
 };
 
-function Login() {
+function clearStoredAuth() {
+  sessionStorage.removeItem("signal-auth");
+  sessionStorage.removeItem("signal-user");
+  localStorage.removeItem("signal-auth");
+  localStorage.removeItem("signal-user");
+}
+
+export default function Login() {
   const navigate = useNavigate();
 
-  const [selectedRole, setSelectedRole] = useState("clinical");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -32,98 +36,64 @@ function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const selectedUser = DEMO_USERS[selectedRole];
-
-  const isAuthenticated =
-    sessionStorage.getItem("signal-auth") === "true" ||
-    localStorage.getItem("signal-auth") === "true";
-
-  if (isAuthenticated) {
-    const storedUser =
-      JSON.parse(
-        sessionStorage.getItem("signal-user") ||
-          localStorage.getItem("signal-user") ||
-          "null"
-      ) || {};
-
-    if (storedUser.role === "Administrator") {
-      return <Navigate to="/admin/dashboard" replace />;
-    }
-
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  const handleRoleChange = (role) => {
-    setSelectedRole(role);
-    setEmail("");
-    setPassword("");
-    setError("");
-  };
-
-  const handleSubmit = async (event) => {
+  function handleSubmit(event) {
     event.preventDefault();
 
+    if (loading) return;
+
     setError("");
 
-    if (!email.trim() || !password) {
-      setError("Please enter your email and password.");
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) {
+      setError("Please enter your work email and password.");
+      return;
+    }
+
+    const user = USERS[normalizedEmail];
+
+    if (!user || password !== user.password) {
+      setError("Invalid email or password.");
       return;
     }
 
     setLoading(true);
 
-    /*
-      TEMPORARY DEMO LOGIN
+    try {
+      // Remove any previously stored account.
+      clearStoredAuth();
 
-      Later this will become:
-
-      POST /api/auth/login
-
-      {
-        email,
-        password
-      }
-    */
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    if (
-      email.trim().toLowerCase() === selectedUser.email.toLowerCase() &&
-      password === selectedUser.password
-    ) {
+      // Store the authenticated demo account.
       const storage = rememberMe ? localStorage : sessionStorage;
 
       storage.setItem("signal-auth", "true");
-
       storage.setItem(
         "signal-user",
         JSON.stringify({
-          name: selectedUser.name,
-          email: selectedUser.email,
-          role: selectedUser.role,
+          name: user.name,
+          email: normalizedEmail,
+          role: user.role,
         })
       );
 
-      navigate(selectedUser.redirect, { replace: true });
-    } else {
-      setError(
-        `Invalid ${selectedUser.role.toLowerCase()} demo credentials.`
-      );
+      // Redirect according to the account's assigned role.
+      navigate(user.redirect, { replace: true });
+    } catch {
+      clearStoredAuth();
+      setError("Unable to sign in. Please try again.");
+      setLoading(false);
     }
-
-    setLoading(false);
-  };
+  }
 
   return (
     <main className="login-page">
-      {/* LEFT SIDE */}
+      {/* Left panel */}
       <section className="login-left">
         <div className="login-brand">
           <div className="login-brand-mark">S</div>
 
           <div>
             <div className="login-brand-title">SIGNAL</div>
-
             <div className="login-brand-subtitle">
               PUBLIC HEALTH INTELLIGENCE
             </div>
@@ -131,7 +101,9 @@ function Login() {
         </div>
 
         <div className="login-content">
-          <div className="login-kicker">PUBLIC HEALTH REPORTING</div>
+          <div className="login-kicker">
+            PUBLIC HEALTH REPORTING
+          </div>
 
           <h1>
             Intelligent public health reporting
@@ -140,18 +112,16 @@ function Login() {
           </h1>
 
           <p>
-            AI-assisted intelligence that transforms clinical
-            and laboratory information into complete,
-            jurisdiction-aware public health reporting workflows.
+            AI-assisted intelligence that transforms clinical and
+            laboratory information into complete, jurisdiction-aware
+            public health reporting workflows.
           </p>
 
           <div className="login-flow">
             <div className="login-flow-item">
               <span>01</span>
-
               <div>
                 <strong>Prepare</strong>
-
                 <small>
                   Organize clinical and laboratory information.
                 </small>
@@ -160,10 +130,8 @@ function Login() {
 
             <div className="login-flow-item">
               <span>02</span>
-
               <div>
                 <strong>Decide</strong>
-
                 <small>
                   Determine jurisdiction and reportability.
                 </small>
@@ -172,10 +140,8 @@ function Login() {
 
             <div className="login-flow-item">
               <span>03</span>
-
               <div>
                 <strong>Report</strong>
-
                 <small>
                   Track reporting and acknowledgement.
                 </small>
@@ -189,100 +155,57 @@ function Login() {
         </div>
       </section>
 
-      {/* RIGHT SIDE */}
+      {/* Right panel */}
       <section className="login-right">
-        <form
-          className="login-card"
-          onSubmit={handleSubmit}
-        >
-          {/* ROLE TABS */}
-          <div className="login-role-tabs">
-            <button
-              type="button"
-              className={`login-role-tab ${
-                selectedRole === "clinical"
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() => handleRoleChange("clinical")}
-              disabled={loading}
-            >
-              Clinical Staff
-            </button>
-
-            <button
-              type="button"
-              className={`login-role-tab ${
-                selectedRole === "admin"
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() => handleRoleChange("admin")}
-              disabled={loading}
-            >
-              Administrator
-            </button>
-          </div>
-
-          {/* HEADER */}
+        <form className="login-card" onSubmit={handleSubmit}>
           <div className="login-card-header">
             <div className="login-card-mark">S</div>
 
-            <div>
+            <div className="login-card-heading">
               <div className="login-card-kicker">
-                {selectedRole === "clinical"
-                  ? "CLINICAL STAFF"
-                  : "ADMINISTRATOR"}
+                SECURE WORKSPACE ACCESS
               </div>
 
               <h2>Sign in to SIGNAL</h2>
 
               <p>
-                Enter your credentials to access{" "}
-                {selectedRole === "clinical"
-                  ? "the clinical reporting workspace."
-                  : "the administrative reporting workspace."}
+                Enter your credentials to access your assigned
+                workspace.
               </p>
             </div>
           </div>
 
-          {/* EMAIL */}
+          {/* Email */}
           <div className="login-form-group">
-            <label htmlFor="email">
-              Work Email
-            </label>
+            <label htmlFor="email">Work Email</label>
 
             <input
               id="email"
+              name="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="name@hospital.org"
               autoComplete="username"
+              required
               disabled={loading}
             />
           </div>
 
-          {/* PASSWORD */}
+          {/* Password */}
           <div className="login-form-group">
-            <label htmlFor="password">
-              Password
-            </label>
+            <label htmlFor="password">Password</label>
 
             <div className="login-password-field">
               <input
                 id="password"
-                type={
-                  showPassword
-                    ? "text"
-                    : "password"
-                }
+                name="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
+                onChange={(event) => setPassword(event.target.value)}
                 placeholder="Enter your password"
                 autoComplete="current-password"
+                required
                 disabled={loading}
               />
 
@@ -290,43 +213,32 @@ function Login() {
                 type="button"
                 className="password-visibility-toggle"
                 onClick={() =>
-                  setShowPassword(
-                    (visible) => !visible
-                  )
+                  setShowPassword((value) => !value)
                 }
                 aria-label={
-                  showPassword
-                    ? "Hide password"
-                    : "Show password"
+                  showPassword ? "Hide password" : "Show password"
                 }
-                aria-pressed={showPassword}
-                aria-controls="password"
                 disabled={loading}
               >
                 {showPassword ? (
-                  <EyeOff
-                    size={19}
-                    aria-hidden="true"
-                  />
+                  <EyeOff size={19} />
                 ) : (
-                  <Eye
-                    size={19}
-                    aria-hidden="true"
-                  />
+                  <Eye size={19} />
                 )}
               </button>
             </div>
           </div>
 
-          {/* OPTIONS */}
+          {/* Login options */}
           <div className="login-options">
-            <label>
+            <label className="login-remember">
               <input
                 type="checkbox"
                 checked={rememberMe}
-                onChange={(e) =>
-                  setRememberMe(e.target.checked)
+                onChange={(event) =>
+                  setRememberMe(event.target.checked)
                 }
+                disabled={loading}
               />
 
               <span>Remember me</span>
@@ -340,29 +252,31 @@ function Login() {
                   "Password recovery is not enabled yet."
                 )
               }
+              disabled={loading}
             >
               Forgot password?
             </button>
           </div>
 
-          {/* ERROR */}
+          {/* Error message */}
           {error && (
-            <div className="login-error">
+            <div className="login-error" role="alert">
               {error}
             </div>
           )}
 
-          {/* SIGN IN */}
+          {/* Submit */}
           <button
             type="submit"
             className="login-submit"
             disabled={loading}
           >
-            {loading
-              ? "Signing in..."
-              : "Sign in to SIGNAL →"}
+            {loading ? "Signing in..." : "Sign in"}
           </button>
 
+          <p className="login-security-note">
+            Authorized access to the SIGNAL reporting workspace.
+          </p>
         </form>
 
         <div className="login-copyright">
@@ -372,5 +286,3 @@ function Login() {
     </main>
   );
 }
-
-export default Login;

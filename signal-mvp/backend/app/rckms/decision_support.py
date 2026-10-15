@@ -30,10 +30,45 @@ def evaluate_decision_support(
     # 1. Deterministic RCKMS/rules evaluation
     # ---------------------------------------------------------
 
-    result = evaluate_measles_rules(
-        disease=disease,
+    try:
+        rule = resolve_rule(
+            disease=disease,
+            jurisdiction=jurisdiction,
+        )
+
+    except RuleResolutionError as exc:
+        return DecisionSupportResult(
+            candidate_id=candidate_id,
+            decision="NEEDS_REVIEW",
+            rule_id="NO_RULE_AVAILABLE",
+            reasons=[
+                "No applicable reporting rule could be resolved."
+            ],
+            warnings=[
+                str(exc),
+                "Human review is required.",
+            ],
+            human_review_required=True,
+        )
+
+    # ---------------------------------------------------------
+    # 2. Evaluate the resolved deterministic rule
+    # ---------------------------------------------------------
+
+    evaluator = rule["evaluator"]
+
+    rule_result = evaluator(
+        disease=rule.get("disease") or disease,
         laboratory_evidence=laboratory_evidence,
         clinical_evidence=clinical_evidence,
+    )
+
+    result = DecisionSupportResult(
+        candidate_id=candidate_id,
+        decision=rule_result.decision,
+        rule_id=rule.get("rule_id") or rule_result.rule_id,
+        reasons=list(rule_result.reasons),
+        warnings=list(rule_result.warnings),
     )
 
     # ---------------------------------------------------------
@@ -120,17 +155,4 @@ Return JSON:
             f"LLM reasoning unavailable: {exc}"
         )
 
-    # ---------------------------------------------------------
-    # 3. Return combined decision-support result
-    # ---------------------------------------------------------
-
-    return DecisionSupportResult(
-        candidate_id=candidate_id,
-        decision=result.decision,
-        rule_id=result.rule_id,
-        reasons=result.reasons,
-        warnings=result.warnings,
-        llm_reasoning=llm_reasoning,
-        human_review_required=human_review_required,
-        conflicts=conflicts,
-    )
+    return result

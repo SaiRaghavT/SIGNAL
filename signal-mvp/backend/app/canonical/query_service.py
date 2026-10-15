@@ -4,11 +4,10 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import String, cast, func, inspect, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only, selectinload
 
 from backend.app.agents.deadline_calculation.schemas import DeadlineCalculationRequest
 from backend.app.agents.deadline_calculation.service import DeadlineCalculationService
-from backend.app.agents.deadline_escalation.service import DeadlineEscalationService
 from backend.app.detection.adapter import canonical_context_to_detection_input
 from backend.app.detection.structured_trigger import detect_structured_triggers
 from backend.app.detection.structured_trigger import STRUCTURED_TRIGGERS
@@ -19,10 +18,10 @@ from backend.app.models.case import Case
 from backend.app.models.patient import Patient
 from backend.app.models.encounter import Encounter
 from backend.app.models.condition import Condition
+from backend.app.canonical.condition_mapper import clean_condition_display
 from backend.app.models.observation import Observation
 from backend.app.models.lab_result import LabResult
 from backend.app.models.clinical_document import ClinicalDocument
-from backend.app.rules.resolver import RuleResolutionError, resolve_rule
 
 
 class CanonicalPatientNotFoundError(ValueError):
@@ -30,6 +29,41 @@ class CanonicalPatientNotFoundError(ValueError):
 
 
 deadline_calculation_service = DeadlineCalculationService()
+
+
+def _deadline_time_metadata(deadline: datetime) -> dict[str, Any]:
+    """Calculate time-relative fields from an authoritative deadline."""
+    now = datetime.now(timezone.utc)
+    normalized_deadline = deadline
+    if normalized_deadline.tzinfo is None:
+        normalized_deadline = normalized_deadline.replace(tzinfo=timezone.utc)
+    else:
+        normalized_deadline = normalized_deadline.astimezone(timezone.utc)
+
+    minutes_remaining = int((normalized_deadline - now).total_seconds() / 60)
+    if minutes_remaining <= 4 * 60:
+        urgency = "CRITICAL"
+    elif minutes_remaining <= 24 * 60:
+        urgency = "HIGH"
+    elif minutes_remaining <= 72 * 60:
+        urgency = "MEDIUM"
+    else:
+        urgency = "LOW"
+
+    if normalized_deadline < now:
+        deadline_status = "OVERDUE"
+    elif normalized_deadline.date() == now.date():
+        deadline_status = "DUE TODAY"
+    elif minutes_remaining <= 72 * 60:
+        deadline_status = "DUE SOON"
+    else:
+        deadline_status = "ON TRACK"
+
+    return {
+        "urgency": urgency,
+        "minutes_remaining": minutes_remaining,
+        "deadline_status": deadline_status,
+    }
 
 
 def _is_measles_condition(condition: Condition) -> bool:
@@ -101,7 +135,10 @@ def _patient_jurisdiction(
             disease="measles",
         )
     )
-    return result.jurisdiction if result.status == "RESOLVED" else None
+    if result.status != "RESOLVED":
+        return None
+    jurisdiction = str(result.jurisdiction or "").strip().upper()
+    return "TX" if jurisdiction == "TEXAS" else jurisdiction or None
 
 
 def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
@@ -167,27 +204,69 @@ def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
                     func.lower(LabResult.conclusion).like(pattern),
                 )
             )
-    if lab_match_predicates:
-        possible_positive_labs = (
-            db.query(LabResult)
-            .filter(or_(*lab_match_predicates))
-            .all()
+    # Include the canonical test name even when configured trigger terms are
+    # narrower (for example, a rule that lists IgM but the source says
+    # "Measles IgM").
+    lab_match_predicates.extend(
+        [
+            func.lower(LabResult.test_display).like("%measles%"),
+            func.lower(LabResult.test_code).like("%measles%"),
+            func.lower(LabResult.conclusion).like("%measles%"),
+        ]
+    )
+    possible_positive_labs = (
+        db.query(LabResult)
+        .filter(or_(*lab_match_predicates))
+        .all()
+    )
+    for lab_result in possible_positive_labs:
+        # Structured trigger detection is preferred, but canonical imported
+        # observations can carry the positive result separately from the
+        # DiagnosticReport conclusion. Recognize that established shape too.
+        lab_text = " ".join(
+            str(value or "")
+            for value in (
+                lab_result.test_display,
+                lab_result.test_code,
+                lab_result.conclusion,
+                *(observation.observation_display for observation in lab_result.observations),
+            )
+        ).casefold()
+        result_values = [lab_result.conclusion]
+        result_values.extend(
+            observation.value_text for observation in lab_result.observations
         )
-        for lab_result in possible_positive_labs:
+        positive_result = any(
+            any(
+                marker in str(value or "").casefold()
+                for marker in ("positive", "detected", "reactive")
+            )
+            for value in result_values
+        )
+        is_positive_measles = "measles" in lab_text and positive_result
+        if not is_positive_measles:
             normalized = canonical_context_to_detection_input(
                 {
                     "patient": {"patient_id": str(lab_result.patient_id)},
                     "lab_results": [_lab_result_to_dict(lab_result)],
                 }
             )
-            is_positive_measles = any(
-                str(signal.get("disease_id", "")).casefold() == "measles"
-                and str(signal.get("evidence", {}).get("source_id", ""))
-                == str(lab_result.lab_result_id)
-                for signal in detect_structured_triggers(normalized)
-            )
-            if is_positive_measles:
-                patient_ids.add(lab_result.patient_id)
+            for signal in detect_structured_triggers(normalized):
+                if str(signal.get("evidence", {}).get("source_id", "")) != str(lab_result.lab_result_id):
+                    continue
+                try:
+                    resolved_rule = deadline_calculation_service._load_rule(
+                        disease=str(signal.get("disease_id") or ""),
+                        jurisdiction="TX",
+                        rule_id=None,
+                    )
+                except ValueError:
+                    continue
+                is_positive_measles = resolved_rule.get("rule_id") == "MEASLES-TX"
+                if is_positive_measles:
+                    break
+        if is_positive_measles:
+            patient_ids.add(lab_result.patient_id)
 
     if not patient_ids:
         return set()
@@ -236,6 +315,8 @@ def _measles_worklist_patient_ids(db: Session) -> set[UUID]:
 
 def _condition_disease(condition: Condition) -> str | None:
     display = (condition.condition_display or "").casefold()
+    if "measles" in display or "rubeola" in display:
+        return "measles"
     system = (condition.condition_system or "").casefold()
     code = (condition.condition_code or "").casefold()
     for trigger in STRUCTURED_TRIGGERS:
@@ -250,6 +331,10 @@ def _condition_disease(condition: Condition) -> str | None:
         )
         if code_match or disease.casefold() in display:
             return disease
+    if condition.condition_display and condition.condition_display.strip():
+        return clean_condition_display(condition.condition_display)
+    if condition.condition_system and condition.condition_code:
+        return f"{condition.condition_system}|{condition.condition_code}"
     return None
 
 
@@ -297,27 +382,16 @@ def _patient_deadline(
     disease_filter: str | None = None,
     last_encounter: datetime | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
-    # The patient worklist's condition filter is the normalized disease name
-    # used by the reporting rule catalog. Prefer it over workflow codes such as
-    # SNOMED URIs when calculating a cohort deadline.
-    disease = (
-        disease_filter
-        or (case.disease if case else None)
-        or (candidate.disease_id if candidate else None)
-    )
-    measles_conditions = []
-    for condition in conditions:
-        condition_disease = _condition_disease(condition)
-        if disease and condition_disease and condition_disease.casefold() != disease.casefold():
-            continue
-        if not disease:
-            disease = condition_disease
-        if not disease or not condition_disease or condition_disease.casefold() != disease.casefold():
-            continue
-        measles_conditions.append(condition)
-
+    disease_candidates = [
+        disease_filter,
+        case.disease if case else None,
+        candidate.disease_id if candidate else None,
+        *(_condition_disease(condition) for condition in conditions),
+    ]
+    disease_candidates = [value for value in disease_candidates if value]
+    disease = disease_candidates[0] if disease_candidates else None
     positive_lab_event_time = None
-    if lab_results and last_encounter is None:
+    if not disease and lab_results:
         detection_input = canonical_context_to_detection_input(
             {
                 "patient": _patient_to_dict(patient),
@@ -326,33 +400,27 @@ def _patient_deadline(
                 "lab_results": [_lab_result_to_dict(item) for item in lab_results],
             }
         )
-        positive_signals = detect_structured_triggers(detection_input)
-        for signal in positive_signals:
+        for signal in detect_structured_triggers(detection_input):
             signal_disease = str(signal.get("disease_id") or "")
             source_id = str(signal.get("evidence", {}).get("source_id") or "")
-            if not signal_disease or not source_id:
+            if not signal_disease:
                 continue
-            if disease and signal_disease.casefold() != disease.casefold():
-                continue
-            disease = disease or signal_disease
+            disease_candidates.append(signal_disease)
+            disease = signal_disease
             matching_lab = next(
                 (item for item in lab_results if str(item.lab_result_id) == source_id),
                 None,
             )
-            if matching_lab is None:
-                continue
-            positive_lab_event_time = (
-                matching_lab.effective_time
-                or matching_lab.issued_time
-                or next(
-                    (item.effective_time for item in matching_lab.observations if item.effective_time),
-                    None,
+            if matching_lab is not None:
+                positive_lab_event_time = (
+                    matching_lab.effective_time
+                    or matching_lab.issued_time
+                    or next(
+                        (item.effective_time for item in matching_lab.observations if item.effective_time),
+                        None,
+                    )
                 )
-            )
-            if positive_lab_event_time is not None:
-                break
-
-    event_time = None
+            break
     if not disease:
         return None, "No disease could be resolved from the patient's condition or workflow data."
 
@@ -376,62 +444,89 @@ def _patient_deadline(
             jurisdiction = jurisdiction_result.jurisdiction
     if not jurisdiction:
         return None, "Jurisdiction could not be resolved from patient, facility, or workflow data."
+    jurisdiction = "TX" if jurisdiction.strip().casefold() == "texas" else jurisdiction
 
-    # Case.rule_id is a reportability outcome identifier, not the deadline rule.
+    # The dashboard and patient worklist share this deadline calculation. Keep
+    # the case's persisted rule selection authoritative when one is available;
+    # otherwise let the deadline service resolve the rule from disease and
+    # jurisdiction as it does for other canonical patient data.
+    rule_id = case.rule_id if case else None
     try:
-        rule = resolve_rule(disease, jurisdiction)
-    except RuleResolutionError as exc:
-        return None, str(exc)
-    rule_id = rule["rule_id"]
-
-    # A stored deadline is authoritative and does not need a reconstructed event time.
-    persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
-    if persisted_deadline is not None and last_encounter is None:
-        reporting = rule.get("reporting", {})
-        current_state = DeadlineEscalationService().evaluate_current_state(
-            persisted_deadline,
-            rule,
+        rule = deadline_calculation_service._load_rule(
+            disease=disease,
+            jurisdiction=jurisdiction,
+            rule_id=rule_id,
         )
-        return {
-            "deadline": persisted_deadline,
-            "status": "PERSISTED",
-            "calculation_basis": "Existing workflow deadline.",
-            "disease": disease,
-            "jurisdiction": jurisdiction,
-            "rule_id": rule_id,
-            "reporting_timing": reporting.get("timing"),
-            "reporting_method": reporting.get("method"),
-            "urgency": current_state["urgency"],
-            "minutes_remaining": current_state["minutes_remaining"],
-        }, None
+    except ValueError:
+        # Case rule IDs can identify reportability evaluator outcomes (for
+        # example MEASLES-003) or legacy placeholders rather than a deadline
+        # catalog rule. Resolve the configured deadline rule by disease and
+        # jurisdiction before treating the rule as unavailable.
+        try:
+            rule = deadline_calculation_service._load_rule(
+                disease=disease,
+                jurisdiction=jurisdiction,
+                rule_id=None,
+            )
+        except ValueError:
+            rule = None
+    if rule is not None:
+        rule_id = rule.get("rule_id")
+    reporting = rule.get("reporting", {}) if rule else {}
 
-    # Imported conditions can carry a DOB as onset_time. Do not treat that as
-    # evidence of an acute reportable event; recorded_time is administrative.
-    # Patient table deadlines are recalculated from the latest encounter so
-    # stale workflow deadlines or older clinical events do not override it.
-    event_time = last_encounter
+    persisted_deadline = (case.deadline if case else None) or (candidate.deadline if candidate else None)
+
+    event_time = None
+    if case:
+        event_time = _payload_event_time(getattr(case, "clinical_evidence", None), patient)
+        if event_time is None:
+            event_time = _payload_event_time(getattr(case, "laboratory_evidence", None), patient)
+    if event_time is None and candidate:
+        event_time = _payload_event_time(getattr(candidate, "evidence", None), patient)
+        if event_time is None:
+            event_time = _payload_event_time(getattr(candidate, "signals", None), patient)
     if event_time is None:
-        for condition in measles_conditions:
+        event_time = positive_lab_event_time
+    if event_time is None:
+        for condition in conditions:
             if condition.onset_time and _not_patient_birth_date(patient, condition.onset_time):
                 event_time = condition.onset_time
                 break
-
     if event_time is None:
-        event_time = positive_lab_event_time
-    if event_time is None and candidate:
-        event_time = _payload_event_time(candidate.evidence, patient)
-        if event_time is None:
-            event_time = _payload_event_time(candidate.signals, patient)
-    if event_time is None and case:
-        event_time = _payload_event_time(case.laboratory_evidence, patient)
-        if event_time is None:
-            event_time = _payload_event_time(case.clinical_evidence, patient)
-    if event_time is None:
-        # Use the requested worklist fallback when no clinical event is present.
+        for lab_result in lab_results:
+            event_time = (
+                lab_result.effective_time
+                or lab_result.issued_time
+                or next(
+                    (item.effective_time for item in lab_result.observations if item.effective_time),
+                    None,
+                )
+            )
+            if event_time is not None:
+                break
+    if event_time is None and str(reporting.get("event_anchor") or "").strip().upper() == "ENCOUNTER":
         event_time = last_encounter
 
     if event_time is None:
-        return None, "No clinical event or encounter timestamp is available to calculate a reporting deadline."
+        if persisted_deadline is not None and rule is not None:
+            return {
+                "deadline": persisted_deadline,
+                "status": "PERSISTED",
+                "calculation_basis": "Existing workflow deadline; no newer reporting trigger is recorded.",
+                "disease": disease,
+                "jurisdiction": jurisdiction,
+                "rule_id": rule_id,
+                "reporting_timing": reporting.get("timing") if rule else None,
+                "reporting_method": reporting.get("method"),
+                "effective_year": rule.get("effective_year") if rule else None,
+                "source_url": rule.get("source_url") if rule else None,
+                **_deadline_time_metadata(persisted_deadline),
+            }, None
+        if rule is None:
+            if jurisdiction == "TX":
+                return None, f"No Texas 2026 reporting deadline rule matches disease={disease}, rule_id={rule_id}."
+            return None, f"No reporting deadline rule matches disease={disease}, jurisdiction={jurisdiction}, rule_id={rule_id}."
+        return None, "No clinical event timestamp is available to calculate a reporting deadline."
     if event_time.tzinfo is None:
         event_time = event_time.replace(tzinfo=timezone.utc)
 
@@ -442,11 +537,58 @@ def _patient_deadline(
                 disease=disease,
                 jurisdiction=jurisdiction,
                 rule_id=rule_id,
+                reporting_scope="CASE_REPORT",
             )
         )
     except ValueError as exc:
         return None, str(exc)
-    return result.model_dump(), None
+    result_data = result.model_dump()
+    if result.status == "NO_RULE":
+        if jurisdiction == "TX":
+            return None, f"No Texas 2026 reporting deadline rule matches disease={disease}, rule_id={rule_id}. {result.calculation_basis}"
+        return None, result.calculation_basis
+    if result.deadline is not None:
+        result_data.update(_deadline_time_metadata(result.deadline))
+    return result_data, None
+
+
+def resolve_case_deadline(db: Session, case: Case) -> tuple[dict[str, Any] | None, str | None]:
+    """Resolve a case deadline from its canonical patient timeline and catalog rule."""
+    candidate = db.query(Candidate).filter(Candidate.candidate_id == case.candidate_id).first()
+    patient_id = _case_patient_id(case)
+    if patient_id is None and candidate is not None:
+        try:
+            patient_id = UUID(candidate.patient_id)
+        except (TypeError, ValueError):
+            patient_id = None
+    if patient_id is None:
+        return None, "The case has no valid canonical patient reference, and its stored case evidence has no event timestamp for deadline resolution."
+
+    patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
+    if patient is None:
+        return None, "The canonical patient record is unavailable for deadline resolution."
+
+    conditions = db.query(Condition).filter(Condition.patient_id == patient_id).order_by(
+        Condition.recorded_time.desc().nullslast()
+    ).all()
+    lab_results = db.query(LabResult).filter(LabResult.patient_id == patient_id).order_by(
+        LabResult.effective_time.desc().nullslast()
+    ).all()
+    last_encounter = db.query(
+        func.max(func.coalesce(Encounter.end_time, Encounter.start_time))
+    ).filter(
+        Encounter.patient_id == patient_id,
+        func.coalesce(Encounter.end_time, Encounter.start_time).isnot(None),
+    ).scalar()
+
+    return _patient_deadline(
+        patient=patient,
+        conditions=conditions,
+        lab_results=lab_results,
+        candidate=candidate,
+        case=case,
+        last_encounter=last_encounter,
+    )
 
 
 def list_patients(
@@ -456,6 +598,7 @@ def list_patients(
     search: str | None = None,
     facility: str | None = None,
     condition: str | None = None,
+    include_facilities: bool = True,
 ) -> dict[str, Any]:
     """Return a paginated patient list using fields present in canonical models."""
     query = db.query(Patient)
@@ -467,6 +610,7 @@ def list_patients(
             Patient.source_patient_id.ilike(pattern),
             Patient.first_name.ilike(pattern),
             Patient.last_name.ilike(pattern),
+            (func.coalesce(Patient.first_name, "") + " " + func.coalesce(Patient.last_name, "")).ilike(pattern),
             cast(Patient.date_of_birth, String).ilike(pattern),
         ))
 
@@ -488,38 +632,43 @@ def list_patients(
     ordered_query = query.order_by(Patient.created_at.desc(), Patient.patient_id.asc())
     is_measles_worklist = condition_text.casefold() == "measles"
     if is_measles_worklist:
-        worklist_patients = ordered_query.all()
-        total = len(worklist_patients)
-        start = (page - 1) * page_size
-        patients = worklist_patients[start:start + page_size]
+        # Eligibility is still resolved across the full cohort before this
+        # point. Count that cohort in SQL, then fetch only the requested page;
+        # deadlines and related timelines are needed only for returned rows.
+        total = query.count()
+        patients = ordered_query.offset((page - 1) * page_size).limit(page_size).all()
+        worklist_patients = patients
     else:
         total = query.count()
         patients = ordered_query.offset((page - 1) * page_size).limit(page_size).all()
         worklist_patients = patients
     patient_ids = [patient.patient_id for patient in worklist_patients]
 
-    facilities = [
-        row[0]
-        for row in (
-            db.query(Encounter.facility_id)
-            .filter(Encounter.facility_id.isnot(None))
-            .distinct()
-            .order_by(Encounter.facility_id.asc())
-            .all()
-        )
-        if row[0]
-    ]
+    facilities = []
+    if include_facilities:
+        facilities = [
+            row[0]
+            for row in (
+                db.query(Encounter.facility_id)
+                .filter(Encounter.facility_id.isnot(None))
+                .distinct()
+                .order_by(Encounter.facility_id.asc())
+                .all()
+            )
+            if row[0]
+        ]
 
     encounters = []
     conditions = []
     lab_results = []
     if patient_ids:
-        encounters = (
-            db.query(Encounter)
-            .filter(Encounter.patient_id.in_(patient_ids))
-            .order_by(Encounter.start_time.desc().nullslast())
-            .all()
-        )
+        if include_facilities:
+            encounters = (
+                db.query(Encounter)
+                .filter(Encounter.patient_id.in_(patient_ids))
+                .order_by(Encounter.start_time.desc().nullslast())
+                .all()
+            )
         conditions = (
             db.query(Condition)
             .filter(Condition.patient_id.in_(patient_ids))
@@ -560,11 +709,11 @@ def list_patients(
         if condition.condition_display or condition.condition_code:
             value = {
                 "code": condition.condition_code,
-                "display": condition.condition_display,
+                "display": clean_condition_display(condition.condition_display),
             }
             conditions_by_patient.setdefault(condition.patient_id, []).append(value)
             is_measles = _is_measles_condition(condition)
-            label = condition.condition_display or ("Measles" if is_measles else condition.condition_code)
+            label = clean_condition_display(condition.condition_display) or ("Measles" if is_measles else condition.condition_code)
             current = condition_label_by_patient.get(condition.patient_id)
             if label and (current is None or (is_measles and condition.patient_id not in measles_by_patient)):
                 condition_label_by_patient[condition.patient_id] = label
@@ -660,7 +809,7 @@ def list_patients(
                 "deadline_reason": deadlines_by_patient[patient.patient_id][1],
                 "facility": facility_by_patient.get(patient.patient_id),
                 "conditions": [
-                    {"code": item.condition_code, "display": item.condition_display}
+                    {"code": item.condition_code, "display": clean_condition_display(item.condition_display)}
                     for item in condition_rows_by_patient.get(patient.patient_id, [])
                 ],
             }
@@ -675,6 +824,153 @@ def list_patients(
     }
 
 
+def get_patient_deadline_summary(db: Session) -> dict[str, int]:
+    """Count patients due today without assembling a full patient-list payload.
+
+    Reuses the canonical deadline calculation and resolves the same latest
+    candidate/case and ordered condition sources as ``list_patients``. Lab
+    timelines are fetched only for patients whose other records cannot resolve
+    a deadline, since the deadline service otherwise never reads their labs.
+    """
+    total = db.query(Patient.patient_id).count()
+    patients = db.query(Patient).order_by(
+        Patient.created_at.desc(), Patient.patient_id.asc()
+    ).all()
+    patient_ids = [patient.patient_id for patient in patients]
+    if not patient_ids:
+        return {"total_patients": total, "patients_due_today": 0}
+
+    conditions = (
+        db.query(Condition)
+        .filter(Condition.patient_id.in_(patient_ids))
+        .order_by(Condition.recorded_time.desc().nullslast())
+        .all()
+    )
+    conditions_by_patient: dict[UUID, list[Condition]] = {}
+    for condition in conditions:
+        conditions_by_patient.setdefault(condition.patient_id, []).append(condition)
+
+    last_encounter_by_patient = dict(
+        db.query(
+            Encounter.patient_id,
+            func.max(func.coalesce(Encounter.end_time, Encounter.start_time)),
+        )
+        .filter(
+            Encounter.patient_id.in_(patient_ids),
+            func.coalesce(Encounter.end_time, Encounter.start_time).isnot(None),
+        )
+        .group_by(Encounter.patient_id)
+        .all()
+    )
+
+    candidates_by_patient: dict[str, Candidate] = {}
+    for candidate in (
+        db.query(Candidate)
+        .filter(Candidate.patient_id.in_([str(patient_id) for patient_id in patient_ids]))
+        .order_by(Candidate.updated_at.desc())
+        .all()
+    ):
+        candidates_by_patient.setdefault(candidate.patient_id, candidate)
+
+    cases_by_candidate: dict[str, Case] = {}
+    cases_by_patient: dict[UUID, Case] = {}
+    candidate_ids = [candidate.candidate_id for candidate in candidates_by_patient.values()]
+    if inspect(db.get_bind()).has_table(Case.__tablename__):
+        case_query = db.query(Case)
+        if candidate_ids:
+            case_query = case_query.filter(
+                or_(Case.candidate_id.in_(candidate_ids), func.lower(Case.disease) == "measles")
+            )
+        else:
+            case_query = case_query.filter(func.lower(Case.disease) == "measles")
+        for case in case_query.order_by(Case.updated_at.desc()).all():
+            cases_by_candidate.setdefault(case.candidate_id, case)
+            case_patient_id = _case_patient_id(case)
+            if case_patient_id is not None:
+                cases_by_patient.setdefault(case_patient_id, case)
+
+    patient_by_id = {patient.patient_id: patient for patient in patients}
+    case_by_id = cases_by_patient
+    deadlines: dict[UUID, tuple[dict[str, Any] | None, str | None]] = {}
+    lab_needed: set[UUID] = set()
+    for patient in patients:
+        candidate = candidates_by_patient.get(str(patient.patient_id))
+        case = (cases_by_candidate.get(candidate.candidate_id) if candidate else None) or case_by_id.get(patient.patient_id)
+        deadline, reason = _patient_deadline(
+            patient=patient,
+            conditions=conditions_by_patient.get(patient.patient_id, []),
+            lab_results=[],
+            candidate=candidate,
+            case=case,
+            last_encounter=last_encounter_by_patient.get(patient.patient_id),
+        )
+        deadlines[patient.patient_id] = (deadline, reason)
+        if deadline is None and reason in {
+            "No disease could be resolved from the patient's condition or workflow data.",
+            "No clinical event timestamp is available to calculate a reporting deadline.",
+        }:
+            lab_needed.add(patient.patient_id)
+
+    labs_by_patient: dict[UUID, list[LabResult]] = {}
+    if lab_needed:
+        labs = (
+            db.query(LabResult)
+            .options(
+                selectinload(LabResult.observations).load_only(
+                    Observation.observation_id,
+                    Observation.source_observation_id,
+                    Observation.observation_code,
+                    Observation.observation_system,
+                    Observation.observation_display,
+                    Observation.status,
+                    Observation.value_numeric,
+                    Observation.value_text,
+                    Observation.unit,
+                    Observation.value_system,
+                    Observation.value_code,
+                    Observation.effective_time,
+                )
+            )
+            .filter(LabResult.patient_id.in_(lab_needed))
+            .order_by(LabResult.issued_time.desc().nullslast())
+            .all()
+        )
+        for lab in labs:
+            labs_by_patient.setdefault(lab.patient_id, []).append(lab)
+
+    due_today = 0
+    today = datetime.now().astimezone().date()
+    for patient_id, patient in patient_by_id.items():
+        deadline, reason = deadlines[patient_id]
+        if patient_id in lab_needed:
+            candidate = candidates_by_patient.get(str(patient_id))
+            case = (cases_by_candidate.get(candidate.candidate_id) if candidate else None) or case_by_id.get(patient_id)
+            deadline, reason = _patient_deadline(
+                patient=patient,
+                conditions=conditions_by_patient.get(patient_id, []),
+                lab_results=labs_by_patient.get(patient_id, []),
+                candidate=candidate,
+                case=case,
+                last_encounter=last_encounter_by_patient.get(patient_id),
+            )
+        deadline_data = deadline
+        value = deadline_data.get("deadline") if isinstance(deadline_data, dict) else deadline_data
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+        if not isinstance(value, datetime):
+            continue
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        try:
+            local_date = value.astimezone().date()
+        except (OSError, OverflowError, ValueError):
+            local_date = value.date()
+        if local_date == today:
+            due_today += 1
+    return {"total_patients": total, "patients_due_today": due_today}
 def _patient_to_dict(patient: Patient) -> dict[str, Any]:
     return {
         "patient_id": str(patient.patient_id),
@@ -742,7 +1038,7 @@ def _condition_to_dict(condition: Condition) -> dict[str, Any]:
         "code": {
             "system": condition.condition_system,
             "code": condition.condition_code,
-            "display": condition.condition_display,
+            "display": clean_condition_display(condition.condition_display),
         },
         "clinical_status": condition.clinical_status,
         "verification_status": condition.verification_status,

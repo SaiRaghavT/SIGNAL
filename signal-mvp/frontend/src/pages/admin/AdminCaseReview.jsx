@@ -5,7 +5,9 @@ import {
   dispatchCase,
   getAdminQueueCase,
 } from "../../services/adminService.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminCaseReview.css";
+import { cleanPatientName } from "../../utils/patientNames.js";
 
 function firstDefined(...values) {
   return values.find(
@@ -227,11 +229,11 @@ export default function AdminCaseReview() {
   const clinical = caseData?.clinical || {};
   const reportability = caseData?.reportability || {};
 
-  const patientName = firstDefined(
+  const patientName = cleanPatientName(firstDefined(
     caseData?.patient_name,
     patient?.name,
     [patient?.first_name, patient?.last_name].filter(Boolean).join(" ")
-  );
+  ));
 
   const patientId = firstDefined(
     caseData?.patient_id,
@@ -352,6 +354,12 @@ export default function AdminCaseReview() {
       setSuccess("");
 
       const response = await dispatchCase(caseId);
+      const submission = response?.submission || response?.data?.submission || response?.data || response;
+      if (String(submission?.status || "").toUpperCase() !== "SUBMITTED") {
+        throw new Error(submission?.errors?.join("; ") || "The case was not successfully submitted.");
+      }
+      const submissionId = submission?.submission_id || submission?.submissionId;
+      if (!submissionId) throw new Error("Submission succeeded, but the dispatch response did not include a submission ID.");
 
       setAuthorized(true);
 
@@ -361,6 +369,7 @@ export default function AdminCaseReview() {
         "Case authorized and submitted successfully.";
 
       setSuccess(message);
+      navigate(`/admin/submission-journey/${encodeURIComponent(submissionId)}`);
     } catch (err) {
       setError(
         err?.message ||
@@ -375,13 +384,10 @@ export default function AdminCaseReview() {
   if (loading) {
     return (
       <div className="admin-review-page">
-        <div className="admin-review-loading">
-          <div className="admin-review-spinner" />
-          <div>
-            <strong>Loading case review</strong>
-            <p>Retrieving the reporting package...</p>
-          </div>
-        </div>
+        <SignalLoading
+          title="Loading Case Review"
+          message="Retrieving the reporting package and clinical evidence."
+        />
       </div>
     );
   }

@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
+import { cleanPatientName } from "../utils/patientNames.js";
+import { cleanConditionDisplay } from "../utils/conditionDisplay.js";
 
 import {
   getCase,
@@ -57,10 +59,10 @@ const prettify = (value) =>
 
 
 function conditionLabel(value, displayValue) {
-  const display = String(displayValue || "").trim();
+  const display = cleanConditionDisplay(String(displayValue || "").trim());
   if (display) return prettify(display);
 
-  const raw = String(value || "").trim();
+  const raw = cleanConditionDisplay(String(value || "").trim());
   const snomedCode = raw.match(/(?:\||\/)(\d+)$/)?.[1];
   if (/^(measles|rubeola)$/i.test(raw) || ["14189004", "14168008", "7180009"].includes(snomedCode)) {
     return "Measles";
@@ -107,7 +109,7 @@ function patientLabel(patient) {
     )
     .join(" ");
 
-  return (
+  return cleanPatientName(
     name ||
     patient?.name ||
     "Patient name not returned"
@@ -392,20 +394,21 @@ export default function QueueAcknowledgementPage() {
   const queueRecord =
     readiness?.record || null;
 
-  const demoSubmission = location.state?.demoSubmission === true;
+  const demoSubmission =
+    queueRecord?.payload?.demo_submission === true ||
+    location.state?.queueResult?.demo_submission === true ||
+    location.state?.demoSubmission === true;
 
   const queuedForCompletion =
     queueRecord?.status === "QUEUED";
 
   const queueConfirmed = demoSubmission || (
     readiness?.ready === true &&
-    ["READY", "QUEUED"].includes(queueRecord?.status)
+    ["READY", "QUEUED", "READY_FOR_SUBMISSION"].includes(queueRecord?.status)
   );
 
   const queueReference =
-    demoSubmission
-      ? "Demo handoff — not persisted"
-      : queueRecord?.record_id || "Pending queue reference";
+    queueRecord?.record_id || (demoSubmission ? "Demo handoff persisted" : "Pending queue reference");
 
 
   /* =======================================================
@@ -655,7 +658,7 @@ export default function QueueAcknowledgementPage() {
 
           {demoSubmission && (
             <p className="queue-demo-notice" role="status">
-              Demo handoff complete. No queue record was saved or transmitted.
+              Demo queue handoff saved for demonstration. External dispatch is disabled.
             </p>
           )}
 
@@ -806,7 +809,7 @@ export default function QueueAcknowledgementPage() {
                     ? queuedForCompletion
                       ? "Complete the missing reporting details before Super Admin review or dispatch."
                       : "Super Admin review is the next step before any dispatch to Texas DSHS."
-                    : "Return to Review & Validation and complete the required queue handoff."}
+                    : "Return to Reporting Review and complete the required queue handoff."}
                 </p>
 
               </div>
@@ -866,7 +869,7 @@ export default function QueueAcknowledgementPage() {
 
               <div>
                 <span className="queue-eyebrow">
-                  SUBMISSION STATUS
+                  ACKNOWLEDGEMENT STATUS
                 </span>
 
                 <h3>

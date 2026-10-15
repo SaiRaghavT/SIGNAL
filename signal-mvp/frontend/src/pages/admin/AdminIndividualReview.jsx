@@ -5,11 +5,11 @@ import {
   dispatchCase,
   getAdminQueueCase,
 } from "../../services/adminService.js";
-import { queueCase } from "../../api/workflow.js";
 import { ensureSubmissionFollowUp } from "../../api/followups.js";
-import { removeAdminQueueEntry } from "../../utils/adminQueueLocalStorage.js";
 import { upsertClinicalInformationRequest } from "../../utils/clinicalInformationRequests.js";
 import { demoPatientName } from "../../utils/adminDemoPatientNames.js";
+import { cleanPatientName } from "../../utils/patientNames.js";
+import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminIndividualReview.css";
 
 function valueOrDash(value) {
@@ -159,10 +159,10 @@ function normalizeCase(response) {
   const condition = valueOrDash(
     source.disease || source.condition || caseData.disease || caseData.condition,
   );
-  const patientName = valueOrDash(
+  const patientName = valueOrDash(cleanPatientName(
     source.patient_name || source.patientName || patient.name ||
       [patient.first_name, patient.last_name].filter(Boolean).join(" "),
-  );
+  ));
 
   return {
     caseId: valueOrDash(
@@ -348,17 +348,6 @@ export default function AdminIndividualReview() {
       setSubmitting(true);
       setError("");
 
-      // The POC handoff lives in localStorage. The unchanged backend dispatch
-      // gate still requires a queue record, so create it only when Admin
-      // authorizes dispatch, using the Case's existing mode without a default.
-      const handoff = await queueCase(caseId, {
-        actor_id: "signal-admin",
-        submission_mode: caseData?.raw?.submission_mode ?? null,
-      });
-      if (!["QUEUED", "READY_FOR_SUBMISSION"].includes(handoff?.queue_status)) {
-        throw new Error("The case could not be prepared for Admin dispatch.");
-      }
-
       const dispatchResponse = await dispatchCase(caseId);
       const submissionResponse = dispatchResponse?.submission
         || dispatchResponse?.data?.submission
@@ -373,7 +362,6 @@ export default function AdminIndividualReview() {
         || submissionResponse?.submissionId
         || dispatchResponse?.submission_id
         || dispatchResponse?.data?.submission_id;
-      removeAdminQueueEntry(caseId);
       if (!submissionId) {
         throw new Error("Submission succeeded, but the dispatch response did not include a submission ID.");
       }
@@ -385,7 +373,7 @@ export default function AdminIndividualReview() {
         followupError = followupRequestError?.message || "PHA follow-up tracking could not be loaded or created.";
       }
 
-      navigate(`/admin/submissions/${encodeURIComponent(submissionId)}/acknowledgement`, {
+      navigate(`/admin/submission-journey/${encodeURIComponent(submissionId)}`, {
         state: { dispatchResponse, followupError },
       });
     } catch (err) {
@@ -401,9 +389,10 @@ export default function AdminIndividualReview() {
   if (loading) {
     return (
       <main className="admin-individual-review-page">
-        <div className="admin-individual-state">
-          Loading individual review...
-        </div>
+        <SignalLoading
+          title="Loading Individual Review"
+          message="Retrieving case details and reporting evidence for review."
+        />
       </main>
     );
   }
@@ -517,6 +506,13 @@ export default function AdminIndividualReview() {
           </strong>
         </div>
       </section>
+
+      {submitting && (
+        <SignalLoading
+          title="Authorizing Case"
+          message="Authorizing and dispatching case report to public health destination."
+        />
+      )}
 
       <div className="admin-individual-grid">
         <div className="admin-individual-main">
