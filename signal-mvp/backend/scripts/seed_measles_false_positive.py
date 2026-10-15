@@ -15,7 +15,7 @@ from backend.app.models.patient import Patient
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-BUNDLE_PATH = PROJECT_ROOT / "data" / "seed" / "fhir" / "Emily_Carter_measles_false_positive_FHIR.json"
+BUNDLE_PATH = PROJECT_ROOT / "data" / "edge_cases" / "Emily_Carter_measles_false_positive_FHIR.json"
 SOURCE = "synthetic_false_positive"
 SCENARIO_ID = "measles-false-positive"
 
