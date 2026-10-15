@@ -6,7 +6,6 @@ import {
   Clock3,
   FileCheck2,
   Layers3,
-  RefreshCw,
   Send,
   Timer,
   UserRoundCheck,
@@ -249,14 +248,6 @@ function AdminDashboard() {
     : "—";
   const statusCounts = submissionRows ? submissionCounts(submissionRows) : null;
   const agentMap = Object.fromEntries((agents || []).map((agent) => [agent.agent_name, agent]));
-  const coreAgentNames = ["case_assembly", "reportability_workflow", "deadline_calculation", "ecr_submission", "acknowledgement"];
-  const engineHealthy = Array.isArray(agents) && coreAgentNames.every((name) => serviceStatus(agentMap[name]).healthy);
-  const engineStatusText = !Array.isArray(agents)
-    ? "SIGNAL Engine Status Unavailable"
-    : engineHealthy
-      ? "SIGNAL Engine Operational"
-      : "SIGNAL Engine Needs Attention";
-
   const queueTypes = [
     { name: "Immediate", count: displayCount(dashboard?.immediate_reports), priority: immediatePriority, source: "SIGNAL Engine" },
     { name: "Individual", count: displayCount(dashboard?.individual_reports), priority: summarizePriority(individualRows), source: "SIGNAL Engine" },
@@ -297,15 +288,6 @@ function AdminDashboard() {
           <span className="admin-page-kicker">SUPER ADMIN</span>
           <h1>Dashboard</h1>
           <p>Real-time overview of reporting operations, pending submissions, deadlines and SIGNAL Engine activity.</p>
-        </div>
-        <div className="admin-dashboard-header-actions">
-          <div className={`admin-engine-overall${engineHealthy ? " is-healthy" : agents ? " is-attention" : " is-unavailable"}`} role="status">
-            <span />
-            {engineStatusText}
-          </div>
-          <button type="button" className="admin-refresh-button" onClick={loadDashboard} disabled={loading} aria-label="Refresh dashboard">
-            <RefreshCw size={15} className={loading ? "is-spinning" : ""} />
-          </button>
         </div>
       </header>
 

@@ -14,17 +14,6 @@
 .admin-page-kicker,.admin-section-kicker { display: block; color: #78899a; font-size: 9px; font-weight: 800; letter-spacing: .12em; line-height: 1.4; text-transform: uppercase; }
 .admin-dashboard-header h1 { margin: 4px 0 5px; color: #17324d; font-size: 26px; line-height: 1.2; }
 .admin-dashboard-header p { max-width: 760px; margin: 0; color: #738293; font-size: 11px; line-height: 1.5; }
-.admin-dashboard-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; }
-.admin-engine-overall { display: inline-flex; align-items: center; gap: 7px; color: #617182; font-size: 10px; font-weight: 700; white-space: nowrap; }
-.admin-engine-overall > span { width: 8px; height: 8px; border-radius: 50%; background: #a0abb5; }
-.admin-engine-overall.is-healthy > span { background: #319867; }
-.admin-engine-overall.is-attention > span { background: #cf8a27; }
-.admin-engine-overall.is-unavailable > span { background: #a0abb5; }
-.admin-refresh-button { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid #dfe4e9; border-radius: 6px; background: #fff; color: #617182; cursor: pointer; }
-.admin-refresh-button:hover:not(:disabled) { border-color: #d8783e; color: #d8783e; }
-.admin-refresh-button:disabled { opacity: .55; cursor: wait; }
-.admin-refresh-button .is-spinning { animation: admin-dashboard-spin .9s linear infinite; }
-@keyframes admin-dashboard-spin { to { transform: rotate(360deg); } }
 
 .admin-dashboard-error { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; padding: 10px 12px; border: 1px solid #efcaca; border-radius: 7px; background: #fff4f3; color: #9c4540; font-size: 11px; }
 .admin-dashboard-error button { margin-left: auto; border: 0; background: transparent; color: inherit; font-size: 10px; font-weight: 750; cursor: pointer; }
@@ -124,7 +113,6 @@
 
 @media (max-width: 680px) {
   .admin-dashboard-header { flex-direction: column; align-items: stretch; }
-  .admin-dashboard-header-actions { justify-content: space-between; }
   .admin-dashboard-kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
   .admin-dashboard-kpi { min-height: 104px; padding: 11px; }
   .admin-dashboard-kpi-value-row strong { font-size: 22px; }
