@@ -64,13 +64,41 @@ if (typeof window !== "undefined") {
   }
 }
 
+function getStoredUser() {
+  try {
+    const raw = sessionStorage.getItem("signal-user") || localStorage.getItem("signal-user");
+    if (!raw) return null;
+    const user = JSON.parse(raw);
+    return ["Administrator", "Clinical Staff"].includes(user?.role) ? user : null;
+  } catch {
+    return null;
+  }
+}
+
+function RequireRole({ allowedRoles, children }) {
+  const authenticated = sessionStorage.getItem("signal-auth") === "true" || localStorage.getItem("signal-auth") === "true";
+  const user = authenticated ? getStoredUser() : null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!allowedRoles.includes(user.role)) {
+    return <Navigate to={user.role === "Administrator" ? "/admin/dashboard" : "/dashboard"} replace />;
+  }
+  return children;
+}
+
+function RoleHome() {
+  const user = getStoredUser();
+  const authenticated = sessionStorage.getItem("signal-auth") === "true" || localStorage.getItem("signal-auth") === "true";
+  if (!authenticated || !user) return <Navigate to="/login" replace />;
+  return <Navigate to={user.role === "Administrator" ? "/admin/dashboard" : "/dashboard"} replace />;
+}
+
 export default function App() {
   return (
     <Suspense fallback={<SignalLoading title="Loading SIGNAL" message="Preparing your workspace." />}>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route element={<AppShell />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route element={<RequireRole allowedRoles={["Clinical Staff"]}><AppShell /></RequireRole>}>
+          <Route path="/" element={<RoleHome />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/patients" element={<Patients />} />
           <Route path="/patients/:patientId" element={<PatientWorkspace />} />
@@ -100,7 +128,8 @@ export default function App() {
           <Route path="/governance/outcome-learning" element={<OutcomeLearningPage />} />
           <Route path="/governance/outcome-learning/:signalId" element={<LearningSignalDetail />} />
         </Route>
-        <Route element={<AdminShell />}>
+        <Route path="/admin" element={<RequireRole allowedRoles={["Administrator"]}><AdminShell /></RequireRole>}>
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/queue" element={<AdminQueue />} />
           <Route path="/admin/deadlines" element={<AdminDeadlines />} />
@@ -121,7 +150,7 @@ export default function App() {
           <Route path="/admin/submissions/:submissionId/acknowledgement" element={<AdminSubmissionAcknowledgement />} />
           <Route path="/admin/submission-journey/:submissionId" element={<AdminSubmissionJourney />} />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<RoleHome />} />
       </Routes>
       <SignalAssistant />
     </Suspense>

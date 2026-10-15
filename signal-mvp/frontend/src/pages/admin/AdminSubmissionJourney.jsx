@@ -17,17 +17,41 @@ import "../../styles/AdminSubmissionJourney.css";
 import { cleanPatientName } from "../../utils/patientNames.js";
 
 const STAGES = [
-  { id: "ADMIN", label: "AUTHORIZE", subtitle: "SIGNAL Admin" },
-  { id: "PREPARE", label: "PREPARE", subtitle: "SIGNAL" },
-  { id: "EICR", label: "GENERATE", subtitle: "eICR" },
-  { id: "AIMS_OUTBOUND", label: "TRANSPORT", subtitle: "APHL AIMS" },
-  { id: "DSHS", label: "RECEIVE", subtitle: "Texas DSHS" },
-  { id: "NEDSS", label: "PROCESS", subtitle: "NEDSS" },
-  { id: "PHA_REVIEW", label: "PHA REVIEW", subtitle: "Public Health" },
-  { id: "RESPONSE", label: "RESPONSE", subtitle: "RR" },
-  { id: "AIMS_RETURN", label: "RETURN", subtitle: "APHL AIMS" },
-  { id: "SIGNAL_RECEIVE", label: "RECEIVE", subtitle: "SIGNAL" },
-  { id: "FOLLOW_UP", label: "FOLLOW-UP", subtitle: "SIGNAL" },
+  {
+    id: "ADMIN",
+    label: "AUTHORIZE",
+    subtitle: "SIGNAL Admin · Confirm authorization to process clinical data",
+  },
+  {
+    id: "PREPARE",
+    label: "PREPARE",
+    subtitle: "SIGNAL · Detect potential cases, duplicates, and missed candidates",
+  },
+  {
+    id: "VALIDATE",
+    label: "VALIDATE",
+    subtitle: "SIGNAL + rules · Check reportability, conflicting evidence, required data, and jurisdiction",
+  },
+  {
+    id: "EICR",
+    label: "GENERATE",
+    subtitle: "eICR service · Populate and validate the reporting form",
+  },
+  {
+    id: "AIMS_OUTBOUND",
+    label: "TRANSPORT",
+    subtitle: "APHL AIMS (simulated) · Send through the configured exchange; handle delivery failures safely",
+  },
+  {
+    id: "SIGNAL_RECEIVE",
+    label: "RECEIVE",
+    subtitle: "AIMS / SIGNAL (simulated) · Track acknowledgements and responses",
+  },
+  {
+    id: "PHA_REVIEW",
+    label: "PHA REVIEW",
+    subtitle: "Public health agency · Track review status",
+  },
 ];
 
 function getField(object, ...keys) {
@@ -243,7 +267,7 @@ export default function AdminSubmissionJourney() {
     getField(caseData, "healthDepartment", "health_department") ?? "—";
 
   // This is a simulated transport stage, not a real external transmission.
-  const currentStageIndex = 3;
+  const currentStageIndex = 4;
 
   const handleBack = () => navigate("/admin/queue");
 
