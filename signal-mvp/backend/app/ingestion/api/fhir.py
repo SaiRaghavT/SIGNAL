@@ -72,6 +72,12 @@ def _candidate_from_bundle(bundle: dict[str, Any], filename: str) -> dict[str, A
     if patient is None:
         return None
 
+    is_measles_false_positive = any(
+        tag.get("code") == "synthetic-false-positive"
+        for tag in (bundle.get("meta") or {}).get("tag", [])
+        if isinstance(tag, dict)
+    )
+
     names = patient.get("name") or []
     name = next((item for item in names if item.get("use") == "official"), names[0] if names else {})
     patient_name = " ".join([*(name.get("given") or []), name.get("family", "")]).strip() or "Unknown patient"
@@ -105,7 +111,11 @@ def _candidate_from_bundle(bundle: dict[str, Any], filename: str) -> dict[str, A
         for item in conditions
         if (display := _concept_display(item.get("code")))
     ))
-    condition = condition_names[0] if condition_names else "No condition recorded"
+    condition = (
+        "Measles (false-positive edge case)"
+        if is_measles_false_positive
+        else condition_names[0] if condition_names else "No condition recorded"
+    )
 
     encounters = [item for item in resources if item.get("resourceType") == "Encounter"]
     encounters.sort(key=lambda item: (item.get("period") or {}).get("start", ""))
@@ -168,6 +178,21 @@ def _candidate_from_bundle(bundle: dict[str, Any], filename: str) -> dict[str, A
             "status": item.get("status", "unknown"),
             "result": conclusion,
         })
+    if is_measles_false_positive:
+        for item in resources:
+            if item.get("resourceType") != "Observation":
+                continue
+            test_name = _concept_display(item.get("code")) or ""
+            if "measles" not in test_name.casefold():
+                continue
+            value = item.get("valueCodeableConcept") or {}
+            result = value.get("text") or _concept_display(value) or item.get("valueString")
+            laboratory_evidence.append({
+                "test": test_name,
+                "status": item.get("status", "unknown"),
+                "result": result,
+                "interpretation": _concept_display(item.get("interpretation")),
+            })
 
     given_names = name.get("given") or []
     report_data: dict[str, Any] = {
@@ -259,6 +284,9 @@ def _candidate_from_bundle(bundle: dict[str, Any], filename: str) -> dict[str, A
         "patient_context": {"state": state, "county": county, "city": city, "address": address_text, "postal_code": postal_code, "country": country},
         "report_data": report_data,
         "laboratory_evidence": laboratory_evidence,
+        "reportability_decision": "NOT_REPORTABLE" if is_measles_false_positive else None,
+        "workflow_status": "NOT_REPORTABLE" if is_measles_false_positive else None,
+        "edge_case": "synthetic_false_positive" if is_measles_false_positive else None,
         "fhir_resource_counts": resource_counts,
         "source_file": filename,
     }

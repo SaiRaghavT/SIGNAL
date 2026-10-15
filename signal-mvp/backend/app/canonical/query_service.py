@@ -3,7 +3,7 @@ import json
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import String, cast, func, inspect, or_
+from sqlalchemy import String, case as sql_case, cast, func, inspect, or_
 from sqlalchemy.orm import Session, load_only, selectinload
 
 from backend.app.agents.deadline_calculation.schemas import DeadlineCalculationRequest
@@ -29,6 +29,13 @@ class CanonicalPatientNotFoundError(ValueError):
 
 
 deadline_calculation_service = DeadlineCalculationService()
+SYNTHETIC_DEMO_PATIENT_SOURCE_IDS = (
+    "SIGNAL-DEMO-CANONICAL-001",
+    "SIGNAL-DEMO-CANONICAL-002",
+    "SIGNAL-DEMO-CANONICAL-003",
+    "PAT-HL7-TEST-001",
+    "PAT-HL7-001",
+)
 
 
 def _deadline_time_metadata(deadline: datetime) -> dict[str, Any]:
@@ -530,6 +537,9 @@ def _patient_deadline(
     if event_time.tzinfo is None:
         event_time = event_time.replace(tzinfo=timezone.utc)
 
+    if rule is not None and str(reporting.get("timing") or "").upper() in {"CALL_IMMEDIATELY", "REPORT_IMMEDIATELY", "CALL_FAX_IMMEDIATELY", "IMMEDIATE"}:
+        event_time = event_time.astimezone(timezone.utc)
+
     try:
         result = deadline_calculation_service.calculate(
             DeadlineCalculationRequest(
@@ -649,7 +659,16 @@ def list_patients(
     elif condition_text:
         query = query.filter(Patient.patient_id.in_(_condition_patient_filter(db, condition_text)))
 
-    ordered_query = query.order_by(Patient.created_at.desc(), Patient.patient_id.asc())
+    patient_order_priority = sql_case(
+        (Patient.source_patient_id == "SIGNAL-DEMO-MEASLES-001", 0),
+        (Patient.source_patient_id.in_(SYNTHETIC_DEMO_PATIENT_SOURCE_IDS), 2),
+        else_=1,
+    )
+    ordered_query = query.order_by(
+        patient_order_priority.asc(),
+        Patient.created_at.desc(),
+        Patient.patient_id.asc(),
+    )
     is_measles_worklist = condition_text.casefold() == "measles"
     if is_measles_worklist:
         # Eligibility is still resolved across the full cohort before this

@@ -31,6 +31,10 @@ STAGE_ORDER = (
 
 
 def _audit_data(event: AuditEvent) -> dict[str, Any]:
+    metadata = getattr(event, "metadata_json", None)
+    if metadata is None:
+        metadata = getattr(event, "metadata", None)
+    metadata = metadata or {}
     return {
         "event_type": event.event_type,
         "entity_type": event.entity_type,
@@ -41,24 +45,27 @@ def _audit_data(event: AuditEvent) -> dict[str, Any]:
         "status": event.status,
         "description": event.description,
         "new_value": event.new_value,
-        "metadata": getattr(event, "metadata_json", event.__dict__.get("metadata")),
+        "metadata": metadata,
         "event_timestamp": event.event_timestamp,
         "created_at": event.created_at,
     }
 
 
 def _submission_data(submission: Submission) -> dict[str, Any]:
-    return {
+    payload = {
         "submission_id": submission.submission_id,
         "ecr_id": submission.ecr_id,
         "destination": submission.destination,
-        "channel": submission.channel,
+        "channel": getattr(submission, "channel", None),
         "status": submission.status,
-        "errors": submission.errors or [],
-        "warnings": submission.warnings or [],
+        "errors": getattr(submission, "errors", None) or [],
+        "warnings": getattr(submission, "warnings", None) or [],
         "created_at": submission.created_at,
         "updated_at": submission.updated_at,
     }
+    if hasattr(submission, "case_id"):
+        payload["case_id"] = submission.case_id
+    return payload
 
 
 def _escalation_data(escalation: DeadlineEscalation) -> dict[str, Any]:
@@ -146,13 +153,19 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
             .first()
         )
 
+    def _event_metadata(event: AuditEvent) -> dict[str, Any]:
+        metadata = getattr(event, "metadata_json", None)
+        if metadata is None:
+            metadata = getattr(event, "metadata", None)
+        return metadata or {}
+
     ingestion_events = [
         event for event in audit_events
-        if (event.metadata_json or {}).get("workflow_stage") == "DATA_INGESTION"
+        if _event_metadata(event).get("workflow_stage") == "DATA_INGESTION"
     ]
     detection_events = [
         event for event in audit_events
-        if (event.metadata_json or {}).get("workflow_stage") == "DETECTION"
+        if _event_metadata(event).get("workflow_stage") == "DETECTION"
     ]
 
     candidate_available = bool(case.candidate_id)
@@ -189,7 +202,7 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
         JourneyStage(
             stage="DETECTION",
             available=candidate is not None,
-            status="COMPLETED" if candidate is not None else "NOT_STARTED",
+            status=None if candidate is None else "COMPLETED",
             occurred_at=candidate.created_at if candidate is not None else None,
             entity_reference=candidate.candidate_id if candidate is not None else None,
             source="Persisted candidate record" if candidate is not None else None,

@@ -5,6 +5,9 @@ __pycache__/
 venv/
 .env
 data/seed/fhir/
+!data/seed/
+!data/seed/fhir/
+!data/seed/fhir/Emily_Carter_measles_false_positive_FHIR.json
 data/batch_requests/
 frontend/node_modules/
 frontend/dist/

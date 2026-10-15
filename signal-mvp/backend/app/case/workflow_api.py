@@ -71,7 +71,7 @@ def _is_synthetic_measles_case(case: Case) -> bool:
     return (
         source in {"synthea", "signal_demo"}
         and canonical_disease_id(case.disease) == canonical_disease_id("measles")
-        and str(case.jurisdiction or "").strip().upper() == "TX"
+        and str(case.jurisdiction or "").strip().upper() in {"TX", "TEXAS"}
     )
 
 

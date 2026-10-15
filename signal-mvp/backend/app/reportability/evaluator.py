@@ -54,6 +54,18 @@ def _is_inconclusive_lab(lab: dict) -> bool:
     )
 
 
+def _is_synthetic_measles_false_positive(data: ReportabilityInput) -> bool:
+    """Recognize the explicitly tagged synthetic false-positive fixture."""
+    if _normalize(data.disease) != "measles":
+        return False
+    evidence = data.clinical_evidence.get("candidate_evidence", [])
+    return any(
+        isinstance(item, dict)
+        and item.get("scenario_id") == "measles-false-positive"
+        for item in evidence
+    )
+
+
 def evaluate_reportability(data: ReportabilityInput) -> ReportabilityAssessment:
     reasons = []
     warnings = []
@@ -119,6 +131,23 @@ def evaluate_reportability(data: ReportabilityInput) -> ReportabilityAssessment:
 
     positive_lab = any(_is_positive_lab(lab) for lab in labs)
     negative_lab = any(_is_negative_lab(lab) for lab in labs)
+
+    if (
+        _is_synthetic_measles_false_positive(data)
+        and negative_lab
+        and not positive_lab
+    ):
+        return ReportabilityAssessment(
+            data.candidate_id,
+            data.jurisdiction,
+            data.disease,
+            "NOT_REPORTABLE",
+            "SYNTHETIC_FALSE_POSITIVE_RULED_OUT",
+            [
+                "The synthetic measles PCR is not detected. The positive IgG result indicates prior immunity and does not establish acute measles."
+            ],
+            ["Synthetic edge-case fixture; not a real patient or public-health report."],
+        )
 
     # Conflicting laboratory evidence
     if positive_lab and negative_lab:

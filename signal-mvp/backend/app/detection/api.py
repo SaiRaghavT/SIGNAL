@@ -43,6 +43,79 @@ class PersistDetectedCandidateRequest(BaseModel):
     candidate: dict[str, Any]
 
 
+def _add_synthetic_measles_false_positive_candidate(
+    result: dict[str, Any],
+    context: dict[str, Any],
+) -> bool:
+    """Add the tagged FHIR edge case as a potential measles candidate."""
+    patient = context.get("patient") or {}
+    provenance = patient.get("provenance") or {}
+    if provenance.get("source") != "synthetic_false_positive":
+        return False
+
+    patient_id = str(patient.get("patient_id") or "")
+    encounter = next(iter(context.get("encounters") or []), {})
+    encounter_id = encounter.get("encounter_id")
+    scenario_evidence = {
+        "scenario_id": "measles-false-positive",
+        "title": "Synthetic measles false-positive edge case",
+        "description": (
+            "Measles-like symptoms prompted measles testing. PCR was not detected; "
+            "positive IgG alone is consistent with prior immunity, not acute infection."
+        ),
+        "synthetic": True,
+    }
+    pcr_signal = {
+        "patient_id": patient_id,
+        "encounter_id": str(encounter_id) if encounter_id else None,
+        "disease_id": "measles",
+        "trigger_type": "LAB_RESULT",
+        "test": "Measles virus PCR",
+        "result": "Not detected",
+        "status": "final",
+        "report_status": "final",
+        "evidence": {
+            "source_type": "laboratory",
+            "source_id": "obs-measles-pcr",
+            "display": "Measles virus PCR",
+            "result": "Not detected",
+            "evidence_role": "potential_disease_trigger",
+        },
+    }
+    condition_evidence = [
+        {
+            "source_type": "Condition",
+            "source_id": item.get("condition_id"),
+            "display": (item.get("code") or {}).get("display"),
+        }
+        for item in context.get("conditions", [])
+        if isinstance(item, dict)
+    ]
+    candidate = {
+        "patient_id": patient_id,
+        "encounter_id": str(encounter_id) if encounter_id else None,
+        "disease_id": "measles",
+        "status": "POTENTIAL",
+        "trigger_type": "LAB_RESULT",
+        "trigger_types": ["LAB_RESULT", "SYNTHETIC_FALSE_POSITIVE_EDGE_CASE"],
+        "evidence": [scenario_evidence, *condition_evidence, pcr_signal["evidence"]],
+        "evidence_source_types": ["laboratory", "Condition", "synthetic_edge_case"],
+        "supporting_signal_count": 1,
+        "signals": [pcr_signal],
+        "confidence": None,
+    }
+
+    # This fixture demonstrates a suspected measles trigger that is ruled out
+    # during validation. Keep the symptom diagnosis as supporting evidence
+    # instead of presenting it as a second reportable-disease candidate.
+    result["candidates"] = [candidate]
+    result["candidate_count"] = 1
+    result["signal_count"] = int(result.get("signal_count") or 0) + 1
+    result["lab_signal_count"] = int(result.get("lab_signal_count") or 0) + 1
+    result.setdefault("signals", []).append(pcr_signal)
+    return True
+
+
 @router.post("/candidates")
 def detect_patient_candidates(
     request: CandidateDetectionRequest,
@@ -162,6 +235,10 @@ def detect_patient_candidates(
             normalized_patient,
             document_evidence=document_evidence,
         )
+        is_synthetic_false_positive = _add_synthetic_measles_false_positive_candidate(
+            result,
+            context,
+        )
         logger.info(
             "Detection matching completed | run_id=%s | signals=%d | candidates=%d",
             run_id,
@@ -192,6 +269,12 @@ def detect_patient_candidates(
                 for candidate in result["candidates"]
             ]
         else:
+            persisted_candidates = persist_detection_candidates(db, result)
+            if is_synthetic_false_positive:
+                for candidate_row in persisted_candidates:
+                    if candidate_row.disease_id == "measles":
+                        candidate_row.confidence = None
+                db.commit()
             result["candidates"] = [
                 {
                     **candidate,
@@ -199,11 +282,7 @@ def detect_patient_candidates(
                     "case_id": candidate_row.case_id,
                     "status": candidate_row.status,
                 }
-                for candidate_row, candidate in zip(
-                    persist_detection_candidates(db, result),
-                    result["candidates"],
-                    strict=True,
-                )
+                for candidate_row, candidate in zip(persisted_candidates, result["candidates"], strict=True)
             ]
             audit_record = AuditLedgerService().record_event(
                 AuditEventCreate(

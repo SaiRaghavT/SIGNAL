@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 
 import { getCanonicalPatient } from "../api/canonical.js";
+import { getCase } from "../api/cases.js";
 import { cleanConditionDisplay } from "../utils/conditionDisplay.js";
 
 
@@ -4900,6 +4901,7 @@ export default function PatientWorkspace() {
     try {
       let candidateId = candidate?.candidate_id || candidate?.id;
       let caseId = candidate?.case_id || candidate?.case?.case_id || candidate?.case?.id;
+      let processedCase = null;
 
       if (!candidateId && candidate?.disease_id) {
         const persisted = await persistDetectedCandidate(patientId, candidate);
@@ -4922,6 +4924,7 @@ export default function PatientWorkspace() {
         const processResponse = await processCandidate(candidateId);
         const processed = processResponse?.data || processResponse;
         caseId = processed?.case?.case_id || processed?.case?.id || processed?.case_id;
+        processedCase = processed?.case || null;
       }
       if (!caseId) {
         throw new Error("SIGNAL could not create a case for this patient.");
@@ -4938,7 +4941,23 @@ export default function PatientWorkspace() {
         }
       }
 
-      navigate(`/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}/reporting-form`);
+      if (!processedCase) {
+        const caseResponse = await getCase(caseId);
+        processedCase = caseResponse?.data || caseResponse;
+      }
+      const disease = String(processedCase?.disease || candidate?.disease_id || candidate?.disease || "")
+        .trim()
+        .toLowerCase()
+        .replaceAll("_", " ");
+      const finalDecision = String(
+        processedCase?.final_decision ||
+        processedCase?.reportability_decision ||
+        processedCase?.workflow_status ||
+        "",
+      ).trim().toUpperCase();
+      const isMeasles = disease === "measles" || disease.startsWith("measles ");
+      const casePath = `/patients/${encodeURIComponent(patientId)}/case/${encodeURIComponent(caseId)}`;
+      navigate(isMeasles && finalDecision !== "NOT_REPORTABLE" ? `${casePath}/reporting-form` : casePath);
       void auditEvent({
         entity_type: "PATIENT",
         entity_id: String(patientId),

@@ -91,11 +91,27 @@ def _get_or_create_encounter(
             Encounter.source == "hl7",
             Encounter.source_encounter_id
             == source_encounter_id,
+            Encounter.patient_id == patient.patient_id,
         )
         .first()
     )
 
     if encounter is not None:
+        return encounter
+
+    encounter = (
+        db.query(Encounter)
+        .filter(
+            Encounter.source == "hl7",
+            Encounter.source_encounter_id
+            == source_encounter_id,
+        )
+        .first()
+    )
+
+    if encounter is not None:
+        encounter.patient_id = patient.patient_id
+        db.flush()
         return encounter
 
     encounter = Encounter(
@@ -147,11 +163,29 @@ def _get_or_create_observation(
             Observation.source == "hl7",
             Observation.source_observation_id
             == source_observation_id,
+            Observation.patient_id == patient.patient_id,
         )
         .first()
     )
 
     if observation is not None:
+        return observation
+
+    observation = (
+        db.query(Observation)
+        .filter(
+            Observation.source == "hl7",
+            Observation.source_observation_id
+            == source_observation_id,
+        )
+        .first()
+    )
+
+    if observation is not None:
+        observation.patient_id = patient.patient_id
+        if encounter is not None:
+            observation.encounter_id = encounter.encounter_id
+        db.flush()
         return observation
 
     observation = Observation(
@@ -229,11 +263,29 @@ def _get_or_create_lab_result(
             LabResult.source == "hl7",
             LabResult.source_lab_result_id
             == source_lab_result_id,
+            LabResult.patient_id == patient.patient_id,
         )
         .first()
     )
 
     if lab_result is None:
+        lab_result = (
+            db.query(LabResult)
+            .filter(
+                LabResult.source == "hl7",
+                LabResult.source_lab_result_id
+                == source_lab_result_id,
+            )
+            .first()
+        )
+
+    if lab_result is not None:
+        lab_result.patient_id = patient.patient_id
+        if encounter is not None:
+            lab_result.encounter_id = encounter.encounter_id
+        db.flush()
+        db.refresh(lab_result)
+    else:
         lab_result = LabResult(
             source_lab_result_id=(
                 source_lab_result_id

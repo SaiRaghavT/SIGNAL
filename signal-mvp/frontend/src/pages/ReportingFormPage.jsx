@@ -205,6 +205,18 @@ export default function ReportingFormPage() {
         if (routePatientId && casePatientId && String(routePatientId) !== String(casePatientId)) {
           throw new Error("The case does not belong to the patient in this route.");
         }
+        const caseDisease = String(pageData.data?.disease || "")
+          .trim()
+          .toLowerCase()
+          .replaceAll("_", " ");
+        const decision = String(
+          pageData.data?.final_decision || pageData.data?.reportability_decision || "",
+        ).trim().toUpperCase();
+        const isMeasles = caseDisease === "measles" || caseDisease.startsWith("measles ");
+        if (!isMeasles || decision === "NOT_REPORTABLE") {
+          navigate(caseWorkspacePath, { replace: true });
+          return;
+        }
         loaded = true;
       } catch (requestError) {
         if (active) setError(errorText(requestError));

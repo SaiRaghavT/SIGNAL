@@ -126,6 +126,31 @@ def _resources_by_type(
     return resources
 
 
+def _normalize_code_system(
+    system: Optional[str],
+) -> Optional[str]:
+    """Normalize common coding aliases to canonical FHIR system URIs."""
+
+    if not isinstance(system, str):
+        return system
+
+    normalized = system.strip()
+    if not normalized:
+        return None
+
+    aliases = {
+        "LN": "http://loinc.org",
+        "LOINC": "http://loinc.org",
+        "SCT": "http://snomed.info/sct",
+        "SNOMED": "http://snomed.info/sct",
+        "SNOMED-CT": "http://snomed.info/sct",
+        "RXNORM": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "CVX": "http://hl7.org/fhir/sid/cvx",
+    }
+
+    return aliases.get(normalized.upper(), normalized)
+
+
 def _canonical_key(
     url: str,
     version: Optional[str] = None,
@@ -439,9 +464,7 @@ def build_trigger_code_index() -> Dict[
             ):
                 continue
 
-            system = item.get(
-                "system"
-            )
+            system = _normalize_code_system(item.get("system"))
 
             code = item.get(
                 "code"
@@ -494,7 +517,8 @@ def match_trigger_code(
     if not system or code is None:
         return []
 
-    key = f"{system}|{code}"
+    normalized_system = _normalize_code_system(system)
+    key = f"{normalized_system}|{code}"
 
     matches = list(
         build_trigger_code_index().get(
@@ -683,9 +707,7 @@ def _value_set_code_index() -> Dict[
             ):
                 continue
 
-            system = item.get(
-                "system"
-            )
+            system = _normalize_code_system(item.get("system"))
 
             code = item.get(
                 "code"
@@ -722,7 +744,8 @@ def find_value_sets_containing_code(
     if not system or code is None:
         return []
 
-    key = f"{system}|{code}"
+    normalized_system = _normalize_code_system(system)
+    key = f"{normalized_system}|{code}"
 
     return list(
         _value_set_code_index().get(

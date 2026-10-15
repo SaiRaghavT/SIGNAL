@@ -52,7 +52,7 @@ def _get_resource_list(
         "Observation": "observations",
 
         # Support both canonical lab field names.
-        "DiagnosticReport": "lab_results",
+        "DiagnosticReport": ("diagnostic_reports", "lab_results"),
 
         "MedicationRequest": "medications",
         "Procedure": "procedures",
@@ -67,6 +67,14 @@ def _get_resource_list(
     if not field:
         return []
 
+    if isinstance(field, tuple):
+        resources = []
+        for candidate_field in field:
+            values = normalized_patient.get(candidate_field, [])
+            if isinstance(values, list):
+                resources.extend(values)
+        return resources
+
     resources = normalized_patient.get(field, [])
 
     return (
@@ -74,6 +82,31 @@ def _get_resource_list(
         if isinstance(resources, list)
         else []
     )
+
+
+def _normalize_code_system(
+    system: Optional[str],
+) -> Optional[str]:
+    """Normalize common coding aliases to their canonical FHIR systems."""
+
+    if not isinstance(system, str):
+        return system
+
+    normalized = system.strip()
+    if not normalized:
+        return None
+
+    aliases = {
+        "LN": "http://loinc.org",
+        "LOINC": "http://loinc.org",
+        "SCT": "http://snomed.info/sct",
+        "SNOMED": "http://snomed.info/sct",
+        "SNOMED-CT": "http://snomed.info/sct",
+        "RXNORM": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "CVX": "http://hl7.org/fhir/sid/cvx",
+    }
+
+    return aliases.get(normalized.upper(), normalized)
 
 
 def _extract_code(
@@ -93,13 +126,13 @@ def _extract_code(
 
     if isinstance(code, dict):
         return (
-            code.get("system"),
+            _normalize_code_system(code.get("system")),
             code.get("code"),
             code.get("display"),
         )
 
     return (
-        resource.get("system"),
+        _normalize_code_system(resource.get("system")),
         code,
         resource.get("display"),
     )
@@ -836,6 +869,77 @@ def _detect_resource(
 # =========================================================
 
 
+def _detect_custom_triggers(
+    resource: Dict[str, Any],
+    resource_type: str,
+    triggers: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Match a resource against explicitly supplied trigger definitions."""
+
+    if not isinstance(resource, dict):
+        return []
+
+    system, code, display = _extract_code(resource)
+    if not system or code is None:
+        return []
+
+    matches: List[Dict[str, Any]] = []
+    for trigger in triggers:
+        if not isinstance(trigger, dict):
+            continue
+
+        if trigger.get("resource_type") != resource_type:
+            continue
+
+        configured_system = _normalize_code_system(trigger.get("code_system"))
+        if configured_system and configured_system != system:
+            continue
+
+        configured_codes = trigger.get("codes") or []
+        if isinstance(configured_codes, list):
+            code_values = {str(item) for item in configured_codes}
+            if str(code) not in code_values:
+                continue
+        elif configured_codes is not None and str(code) != str(configured_codes):
+            continue
+
+        matches.append({
+            "trigger": trigger,
+            "trigger_key": _build_trigger_key(system, str(code)),
+            "trigger_id": trigger.get("trigger_id"),
+            "trigger_type": trigger.get("trigger_type"),
+            "disease_id": trigger.get("disease_id"),
+            "value_sets": [],
+            "value_set_ids": [],
+            "value_set_urls": [],
+        })
+
+    return [
+        {
+            "patient_id": resource.get("patient_id"),
+            "encounter_id": resource.get("encounter_id"),
+            "trigger_key": match["trigger_key"],
+            "trigger_id": match["trigger_id"],
+            "trigger_type": match["trigger_type"],
+            "trigger_concept_key": match["trigger_id"],
+            "disease_id": match["disease_id"],
+            "evidence": {
+                "source_type": resource.get("resource_type", resource.get("resourceType", "structured")),
+                "source_id": _resource_id(resource),
+                "code_system": system,
+                "code": str(code),
+                "display": display,
+                "value_sets": match["value_sets"],
+                "value_set_ids": match["value_set_ids"],
+                "value_set_urls": match["value_set_urls"],
+            },
+            "confidence": 1.0,
+            "detected_at": _utc_now(),
+        }
+        for match in matches
+    ]
+
+
 def detect_structured_triggers(
     normalized_patient: Dict[str, Any],
     triggers: Optional[
@@ -876,6 +980,26 @@ def detect_structured_triggers(
         raise ValueError(
             "normalized_patient must be a dictionary."
         )
+
+    if triggers is not None:
+        if not isinstance(triggers, list):
+            raise ValueError("triggers must be a list when provided.")
+
+        signals: List[Dict[str, Any]] = []
+        resource_types = (
+            "Condition",
+            "Observation",
+            "DiagnosticReport",
+            "MedicationRequest",
+            "Procedure",
+            "Encounter",
+            "ClinicalDocument",
+        )
+        for resource_type in resource_types:
+            resources = _get_resource_list(normalized_patient, resource_type)
+            for resource in resources:
+                signals.extend(_detect_custom_triggers(resource, resource_type, triggers))
+        return signals
 
     signals: List[
         Dict[str, Any]

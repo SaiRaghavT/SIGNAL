@@ -857,6 +857,74 @@ def process_candidate(
         existing_case_id=request.existing_case_id,
     )
 
+    if reconciliation.final_decision == "NOT_REPORTABLE":
+        return {
+            "candidate_id": request.candidate_id,
+            "workflow_status": "NOT_REPORTABLE",
+            "canonical_context": {
+                "patient_id": str(patient_id),
+                "encounter_id": relevant_encounter.get("encounter_id") if relevant_encounter else None,
+                "facility_id": facility.get("facility_id"),
+                "provider": provider,
+            },
+            "jurisdiction": {
+                "value": jurisdiction.jurisdiction,
+                "status": jurisdiction.status,
+                "reasons": jurisdiction.reasons,
+            },
+            "reportability": {
+                "decision": reportability.decision,
+                "evidence_status": reportability.evidence_status,
+                "reasons": reportability.reasons,
+                "warnings": reportability.warnings,
+            },
+            "rule_evaluation": {
+                "decision": rule_result.decision,
+                "rule_id": rule_result.rule_id,
+                "reasons": rule_result.reasons,
+                "warnings": rule_result.warnings,
+                "llm_reasoning": rule_result.llm_reasoning,
+            },
+            "reconciliation": {
+                "final_decision": reconciliation.final_decision,
+                "reasons": reconciliation.reasons,
+                "warnings": reconciliation.warnings,
+            },
+            "smart_field_population": {
+                "fields": smart_fields.fields,
+                "populated_fields": smart_fields.populated_fields,
+                "missing_fields": smart_fields.missing_fields,
+                "sources": smart_fields.sources,
+                "confidence": smart_fields.confidence,
+                "warnings": smart_fields.warnings,
+            },
+            "case": {
+                "case_id": case.case_id,
+                "status": case.status,
+                "warnings": case.warnings,
+            },
+            "ecr": {
+                "status": "SKIPPED",
+                "reason": "The case is not reportable; eCR generation was not started.",
+            },
+            "validation": {
+                "status": "SKIPPED",
+                "valid": None,
+                "reason": "Validation follows eCR generation and was not started.",
+                "errors": [],
+                "warnings": [],
+                "completion_required": [],
+            },
+            "submission": {
+                "status": "NOT_CREATED",
+                "submission_id": None,
+                "destination": None,
+                "reason": "The case is not reportable; no PHA submission was created.",
+                "errors": [],
+                "warnings": [],
+            },
+        }
+
     # =========================================================
     # 17. eCR BUILD
     # =========================================================

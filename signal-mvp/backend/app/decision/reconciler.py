@@ -21,6 +21,15 @@ def reconcile_decisions(data: ReconciliationInput) -> ReconciliationResult:
             warnings=["A resolved jurisdiction is required before reporting."],
         )
 
+    reportability = (data.reportability_decision or "").upper()
+    if reportability == "NOT_REPORTABLE":
+        return ReconciliationResult(
+            candidate_id=data.candidate_id,
+            final_decision="NOT_REPORTABLE",
+            reasons=["The reportability assessment ruled out the suspected condition."],
+            warnings=[],
+        )
+
     if data.human_review_required or data.conflicts:
         return ReconciliationResult(
             candidate_id=data.candidate_id,
@@ -28,8 +37,6 @@ def reconcile_decisions(data: ReconciliationInput) -> ReconciliationResult:
             reasons=["Human review is required before an automatic decision."],
             warnings=list(data.conflicts),
         )
-
-    reportability = (data.reportability_decision or "").upper()
 
     if reportability == "HOLD":
         return ReconciliationResult(

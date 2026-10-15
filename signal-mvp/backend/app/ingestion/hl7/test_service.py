@@ -14,7 +14,7 @@ SAMPLE_HL7 = (
     "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
     "202609281200||ORU^R01|MSG00001|P|2.5.1\r"
     "PID|1||PAT-HL7-TEST-001^^^HOSPITAL||"
-    "PATIENT^SAMPLE||19850505|M\r"
+    "CARTER^ALEXIS||19850505|M\r"
     "PV1|1|I|ER^01^01||||"
     "12345^SMITH^JANE\r"
     "ORC|RE|ORDER-HL7-001\r"
@@ -112,7 +112,7 @@ def test_invalid_hl7_is_rejected_before_persistence():
     invalid_hl7 = (
         "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
         "202609281200||ORU^R01|MSG-INVALID|P|2.5.1\r"
-        "PID|1||||PATIENT^SAMPLE||19850505|M"
+        "PID|1||||CARTER^ALEXIS||19850505|M"
     )
 
     db = SessionLocal()

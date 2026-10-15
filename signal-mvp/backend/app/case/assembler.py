@@ -56,7 +56,7 @@ def assemble_case(
     ]
     if status != "HOLD" and data.jurisdiction_status != "RESOLVED":
         status = "NEEDS_REVIEW"
-    if status != "HOLD" and (data.required_missing_fields or missing_provider_fields or not (data.facility or {}).get("name")):
+    if status not in {"HOLD", "NOT_REPORTABLE"} and (data.required_missing_fields or missing_provider_fields or not (data.facility or {}).get("name")):
         status = "NEEDS_REVIEW"
         if data.required_missing_fields:
             warnings.append(

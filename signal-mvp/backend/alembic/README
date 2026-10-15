@@ -1,13 +1,15 @@
-Run migrations from the `signal-mvp` project directory after configuring `.env`
+﻿Run migrations from the `signal-mvp` project directory after configuring `.env`
 and activating its virtual environment:
 
 ```shell
 alembic upgrade head
 ```
 
-The migration at `f13d9a2c6b80` also seeds the bundled synthetic canonical
-dataset. It includes 333 patients (332 Synthea records and one SIGNAL demo
-record), plus their canonical encounters, conditions, observations, lab
-results, synthetic documents, candidates, and cases. The insert is safe to
-reapply and does not replace existing rows. The user-uploaded document is not
-included.
+The migration at `f13d9a2c6b80` seeds the bundled synthetic canonical
+dataset with 333 patients (332 Synthea records and one SIGNAL demo record),
+plus their canonical encounters, conditions, observations, lab results,
+synthetic documents, candidates, and cases. The follow-up migration
+`a74c8d1e2f30` adds three explicitly synthetic canonical demo patients. A clean
+setup therefore starts with 336 canonical patients; subsequently ingested
+records are counted as well. Both migrations are safe to reapply and do not
+replace existing rows. The user-uploaded document is not included.

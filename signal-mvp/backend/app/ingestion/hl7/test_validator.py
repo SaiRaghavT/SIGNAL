@@ -1,4 +1,4 @@
-areimport pytest
+import pytest
 
 from backend.app.ingestion.hl7.parser import (
     parse_hl7_message,
@@ -12,7 +12,7 @@ VALID_HL7 = (
     "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
     "202609281200||ORU^R01|MSG00001|P|2.5.1\r"
     "PID|1||PAT-QUALITY-001^^^HOSPITAL||"
-    "DOE^JOHN||19900101|M\r"
+    "BENNETT^NOAH||19900101|M\r"
     "PV1|1|I|ER^01^01||||"
     "12345^SMITH^JANE\r"
     "ORC|RE|ORDER-QUALITY-001\r"
@@ -67,7 +67,7 @@ def test_missing_patient_id_fails():
     message = (
         "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
         "202609281200||ORU^R01|MSG00003|P|2.5.1\r"
-        "PID|1||||DOE^JOHN||19900101|M"
+        "PID|1||||BENNETT^NOAH||19900101|M"
     )
 
     parsed = parse_hl7_message(
@@ -92,7 +92,7 @@ def test_invalid_patient_dob_fails():
         "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
         "202609281200||ORU^R01|MSG00004|P|2.5.1\r"
         "PID|1||PAT-QUALITY-004^^^HOSPITAL||"
-        "DOE^JOHN||20261399|M"
+        "BENNETT^NOAH||20261399|M"
     )
 
     parsed = parse_hl7_message(
@@ -117,7 +117,7 @@ def test_missing_obx_identifier_fails():
         "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
         "202609281200||ORU^R01|MSG00005|P|2.5.1\r"
         "PID|1||PAT-QUALITY-005^^^HOSPITAL||"
-        "DOE^JOHN||19900101|M\r"
+        "BENNETT^NOAH||19900101|M\r"
         "OBX|1|NM||1|1.25|INDEX||||F"
     )
 
@@ -143,7 +143,7 @@ def test_missing_obx_value_is_warning():
         "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
         "202609281200||ORU^R01|MSG00006|P|2.5.1\r"
         "PID|1||PAT-QUALITY-006^^^HOSPITAL||"
-        "DOE^JOHN||19900101|M\r"
+        "BENNETT^NOAH||19900101|M\r"
         "OBX|1|NM|TEST001^Measles IgM^LN||||||||F"
     )
 
@@ -171,7 +171,7 @@ def test_missing_obr_test_fails():
         "MSH|^~\\&|SENDER|HOSPITAL|RECEIVER|PHA|"
         "202609281200||ORU^R01|MSG00007|P|2.5.1\r"
         "PID|1||PAT-QUALITY-007^^^HOSPITAL||"
-        "DOE^JOHN||19900101|M\r"
+        "BENNETT^NOAH||19900101|M\r"
         "OBR|1|ORDER-QUALITY-007|LAB-QUALITY-007|"
     )
 

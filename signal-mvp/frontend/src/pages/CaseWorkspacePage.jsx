@@ -578,6 +578,12 @@ export default function CaseWorkspacePage() {
 
   const attested = String(attestation?.status || "").toUpperCase() === "ATTESTED";
 
+  const isNotReportable = [
+    data?.final_decision,
+    data?.reportability_decision,
+    data?.status,
+  ].some((decision) => String(decision || "").trim().toUpperCase() === "NOT_REPORTABLE");
+
   const readyForReview =
     demoReviewPreview ||
     validationStatus === "VALID" &&
@@ -931,13 +937,13 @@ export default function CaseWorkspacePage() {
           </span>
 
           <h1>
-            Reporting Review
+            {isNotReportable ? "Reportability Outcome" : "Reporting Review"}
           </h1>
 
           <p>
-            Review mapped reporting values, validation
-            checks, and source evidence before authorized
-            submission.
+            {isNotReportable
+              ? "Review the validation decision and the evidence that stopped this case before form generation."
+              : "Review mapped reporting values, validation checks, and source evidence before authorized submission."}
           </p>
         </div>
 
@@ -974,6 +980,45 @@ export default function CaseWorkspacePage() {
           )}
         </div>
       )}
+
+      {isNotReportable ? (
+        <section className="non-reportable-outcome" aria-labelledby="non-reportable-heading">
+          <header className="non-reportable-header">
+            <div>
+              <span className="review-validation-eyebrow">VALIDATE · CHECK REPORTABILITY</span>
+              <h2 id="non-reportable-heading">Not reportable</h2>
+              <p>
+                This synthetic false-positive scenario queued potential {readable(condition)} for validation. Review found that it does not meet reporting criteria.
+              </p>
+            </div>
+            <span className="non-reportable-status"><span className="non-reportable-dot" aria-hidden="true" /> Stopped at validation</span>
+          </header>
+
+          <ol className="non-reportable-steps" aria-label="Case workflow">
+            <li className="complete"><span className="step-marker">✓</span><span><small>STEP 1</small><strong>Authorize</strong><em>Clinical data accessed</em></span></li>
+            <li className="complete"><span className="step-marker">✓</span><span><small>STEP 2</small><strong>Prepare</strong><em>Test scenario + fever, rash, cough</em></span></li>
+            <li className="current"><span className="step-marker">3</span><span><small>STEP 3 · CURRENT</small><strong>Validate</strong><em>Confirmed not reportable</em></span></li>
+            <li className="stopped"><span className="step-marker">4</span><span><small>STEP 4–7 · NOT STARTED</small><strong>Generate → Transport → Receive → PHA Review</strong><em>Form and submission skipped</em></span></li>
+          </ol>
+
+          <div className="non-reportable-stop-note" role="status">
+            <strong>No reporting form was generated</strong>
+            <span>The workflow stopped here. No report was transported or sent to the public health authority.</span>
+          </div>
+
+          {data?.laboratory_evidence && (
+            <section className="non-reportable-evidence" aria-label="Evidence supporting validation">
+              <div className="non-reportable-evidence-icon" aria-hidden="true"><span className="non-reportable-dot" /></div>
+              <div className="non-reportable-evidence-copy">
+                <small>VALIDATION EVIDENCE · LABORATORY</small>
+                <strong>Measles virus PCR <span>Not detected</span></strong>
+                <p>Measles IgG is consistent with prior immunity; the negative PCR does not support acute measles.</p>
+              </div>
+            </section>
+          )}
+        </section>
+      ) : (
+      <>
 
 
       {/* ERROR */}
@@ -1588,6 +1633,8 @@ export default function CaseWorkspacePage() {
         </button>
 
       </footer>
+      </>
+      )}
 
     </section>
   );

@@ -100,7 +100,7 @@ function caseEvidence(detail) {
 
 function statusTone(value) {
   const normalized = String(value || "").toUpperCase();
-  if (/SUBMITTED|ACKNOWLEDGED|COMPLETE|APPROV|READY|REPORT$/.test(normalized)) return "success";
+  if (/SUBMITTED|ACKNOWLEDGED|COMPLETE|APPROV|READY|REPORT$|NOT_REPORTABLE/.test(normalized)) return "success";
   if (/OVERDUE|CRITICAL|REJECT|FAILED/.test(normalized)) return "danger";
   if (/NEEDS_REVIEW|UNDER_REVIEW|INVESTIGATION|PENDING|HOLD/.test(normalized)) return "warning";
   if (/POTENTIAL|WITHIN_WINDOW/.test(normalized)) return "info";
