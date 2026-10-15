@@ -4,25 +4,58 @@ import { AlertCircle, Clock3, RefreshCw, ShieldCheck } from "lucide-react";
 import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminDeadlines.css";
 
-// UI-only POC data. Replace this array with getAdminDeadlines() when that API is ready.
+// UI-only POC data. Demo deadlines are relative to today in Texas so status
+// examples stay current whenever the app is opened on a different date.
+function centralDateFromToday(daysFromToday) {
+  const todayParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(new Date());
+  const today = Object.fromEntries(todayParts.map(({ type, value }) => [type, Number(value)]));
+  return new Date(Date.UTC(today.year, today.month - 1, today.day + daysFromToday, 18)).toISOString();
+}
+
+function demoDeadline({ patient, caseId, daysFromToday, priority, realCase = false }) {
+  const status = daysFromToday < 0
+    ? "OVERDUE"
+    : daysFromToday === 0
+      ? "DUE TODAY"
+      : daysFromToday <= 4
+        ? "DUE SOON"
+        : "ON TRACK";
+
+  return {
+    patient,
+    caseId,
+    condition: "Measles",
+    jurisdiction: "TX",
+    deadline: centralDateFromToday(daysFromToday),
+    priority,
+    status,
+    ...(realCase ? { realCase: true, submissionMode: "IMMEDIATE" } : {}),
+  };
+}
+
 export const DEMO_DEADLINES = [
-  { patient: "Maya Patel", caseId: "33333333-3333-4333-8333-333333333333", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-07T16:00:00-05:00", priority: "HIGH", status: "OVERDUE" },
-  { patient: "Liam Chen", caseId: "44444444-4444-4444-8444-444444444444", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-07T19:45:00-05:00", priority: "URGENT", status: "OVERDUE" },
-  { patient: "John Anderson", caseId: "11111111-1111-4111-8111-111111111111", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-08T20:30:00-05:00", priority: "URGENT", status: "DUE TODAY" },
-  { patient: "Sarah Williams", caseId: "22222222-2222-4222-8222-222222222222", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-08T22:15:00-05:00", priority: "HIGH", status: "DUE TODAY" },
-  { patient: "Jordan Rivera", caseId: "C98D3386-8A6E-479A-BC78-CC7236A71EB3", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-08T22:35:00-05:00", priority: "HIGH", status: "DUE TODAY", realCase: true, submissionMode: "IMMEDIATE" },
-  { patient: "Emily Carter", caseId: "55555555-5555-4555-8555-555555555555", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-09T09:00:00-05:00", priority: "MEDIUM", status: "DUE SOON" },
-  { patient: "Noah Thompson", caseId: "66666666-6666-4666-8666-666666666666", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-09T14:00:00-05:00", priority: "HIGH", status: "DUE SOON" },
-  { patient: "Ava Robinson", caseId: "77777777-7777-4777-8777-777777777777", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-10T11:00:00-05:00", priority: "LOW", status: "DUE SOON" },
-  { patient: "Ethan Brooks", caseId: "88888888-8888-4888-8888-888888888888", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-10T15:00:00-05:00", priority: "MEDIUM", status: "DUE SOON" },
-  { patient: "Sophia Turner", caseId: "99999999-9999-4999-8999-999999999999", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-13T13:00:00-05:00", priority: "LOW", status: "ON TRACK" },
-  { patient: "Mason Foster", caseId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-14T09:30:00-05:00", priority: "MEDIUM", status: "ON TRACK" },
-  { patient: "Isabella Reed", caseId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-14T16:15:00-05:00", priority: "HIGH", status: "ON TRACK" },
-  { patient: "Lucas Perry", caseId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-15T10:00:00-05:00", priority: "LOW", status: "ON TRACK" },
-  { patient: "Amelia Powell", caseId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-15T14:45:00-05:00", priority: "MEDIUM", status: "ON TRACK" },
-  { patient: "Henry Ward", caseId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-16T08:30:00-05:00", priority: "HIGH", status: "ON TRACK" },
-  { patient: "Mila Price", caseId: "ffffffff-ffff-4fff-8fff-ffffffffffff", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-16T12:00:00-05:00", priority: "LOW", status: "ON TRACK" },
-  { patient: "James Cooper", caseId: "12121212-1212-4212-8212-121212121212", condition: "Measles", jurisdiction: "TX", deadline: "2026-10-16T17:00:00-05:00", priority: "MEDIUM", status: "ON TRACK" },
+  demoDeadline({ patient: "Maya Patel", caseId: "33333333-3333-4333-8333-333333333333", daysFromToday: -4, priority: "HIGH" }),
+  demoDeadline({ patient: "Liam Chen", caseId: "44444444-4444-4444-8444-444444444444", daysFromToday: -2, priority: "URGENT" }),
+  demoDeadline({ patient: "John Anderson", caseId: "11111111-1111-4111-8111-111111111111", daysFromToday: 0, priority: "URGENT" }),
+  demoDeadline({ patient: "Sarah Williams", caseId: "22222222-2222-4222-8222-222222222222", daysFromToday: 0, priority: "HIGH" }),
+  demoDeadline({ patient: "Jordan Rivera", caseId: "C98D3386-8A6E-479A-BC78-CC7236A71EB3", daysFromToday: 0, priority: "HIGH", realCase: true }),
+  demoDeadline({ patient: "Emily Carter", caseId: "55555555-5555-4555-8555-555555555555", daysFromToday: 1, priority: "MEDIUM" }),
+  demoDeadline({ patient: "Noah Thompson", caseId: "66666666-6666-4666-8666-666666666666", daysFromToday: 2, priority: "HIGH" }),
+  demoDeadline({ patient: "Ava Robinson", caseId: "77777777-7777-4777-8777-777777777777", daysFromToday: 3, priority: "LOW" }),
+  demoDeadline({ patient: "Ethan Brooks", caseId: "88888888-8888-4888-8888-888888888888", daysFromToday: 4, priority: "MEDIUM" }),
+  demoDeadline({ patient: "Sophia Turner", caseId: "99999999-9999-4999-8999-999999999999", daysFromToday: 5, priority: "LOW" }),
+  demoDeadline({ patient: "Mason Foster", caseId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", daysFromToday: 6, priority: "MEDIUM" }),
+  demoDeadline({ patient: "Isabella Reed", caseId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", daysFromToday: 7, priority: "HIGH" }),
+  demoDeadline({ patient: "Lucas Perry", caseId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", daysFromToday: 8, priority: "LOW" }),
+  demoDeadline({ patient: "Amelia Powell", caseId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", daysFromToday: 9, priority: "MEDIUM" }),
+  demoDeadline({ patient: "Henry Ward", caseId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", daysFromToday: 10, priority: "HIGH" }),
+  demoDeadline({ patient: "Mila Price", caseId: "ffffffff-ffff-4fff-8fff-ffffffffffff", daysFromToday: 11, priority: "LOW" }),
+  demoDeadline({ patient: "James Cooper", caseId: "12121212-1212-4212-8212-121212121212", daysFromToday: 12, priority: "MEDIUM" }),
 ];
 
 const STATUS_ORDER = { OVERDUE: 0, "DUE TODAY": 1, "DUE SOON": 2, "ON TRACK": 3 };

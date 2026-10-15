@@ -252,6 +252,32 @@
   font-size: 12px;
 }
 
+.reporting-form-pdf-empty.is-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  text-align: left;
+}
+
+.reporting-form-preview-spinner {
+  flex: 0 0 auto;
+  color: var(--signal-info);
+  animation: reporting-form-preview-spin 0.85s linear infinite;
+}
+
+.reporting-form-pdf-empty.is-loading > div {
+  min-width: 0;
+}
+
+.reporting-form-pdf-empty.is-loading span {
+  margin-top: 4px;
+}
+
+@keyframes reporting-form-preview-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* =========================================================
    PDF ACTIONS
    ========================================================= */
@@ -337,6 +363,13 @@
   color: var(--signal-text-secondary);
   font-size: 11px;
   font-weight: 600;
+}
+
+.reporting-form-saved-summary {
+  margin: -4px 18px 14px;
+  color: var(--signal-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* =========================================================

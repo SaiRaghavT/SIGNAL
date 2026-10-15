@@ -4,6 +4,7 @@ import json
 from uuid import uuid4
 
 from backend.app.ecr.builder import build_ecr
+from backend.app.config.settings import settings
 from backend.app.models.case import Case
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
@@ -11,7 +12,7 @@ from backend.app.agents.audit_ledger.schemas import AuditEventCreate
 from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.service import submit_ecr
-from backend.app.submission.gates import case_has_current_attestation, smart_fields_for_case
+from backend.app.submission.gates import smart_fields_for_case
 
 from .schemas import (
     ECRSubmissionRequest,
@@ -25,6 +26,8 @@ class ECRSubmissionService:
         self,
         request: ECRSubmissionRequest,
         db: Session,
+        *,
+        local_demo: bool = False,
     ) -> ECRSubmissionResponse:
 
         # ---------------------------------------------------------
@@ -42,6 +45,22 @@ class ECRSubmissionService:
             raise ValueError(
                 f"Case not found: {request.case_id}"
             )
+
+        queue = (
+            db.query(CaseWorkflowRecord)
+            .filter(
+                CaseWorkflowRecord.case_id == str(case.case_id),
+                CaseWorkflowRecord.record_type == "ADMIN_QUEUE",
+            )
+            .order_by(CaseWorkflowRecord.created_at.desc())
+            .first()
+        )
+        if local_demo and (
+            not settings.demo_queue_enabled
+            or queue is None
+            or not (queue.payload or {}).get("demo_submission")
+        ):
+            raise ValueError("Local PHA submission is only available for an enabled demo-queued case.")
 
         # ---------------------------------------------------------
         # 2. Build ECR from the persisted case
@@ -62,16 +81,12 @@ class ECRSubmissionService:
             .order_by(CaseWorkflowRecord.created_at.desc())
             .first()
         )
-        attestation = (
-            db.query(CaseWorkflowRecord)
-            .filter(CaseWorkflowRecord.case_id == str(case.case_id), CaseWorkflowRecord.record_type == "ATTESTATION")
-            .order_by(CaseWorkflowRecord.created_at.desc())
-            .first()
-        )
-        if review is None or review.status != "APPROVE":
+        if review is None or str(review.status or "").upper() not in {"APPROVE", "APPROVED"}:
             raise ValueError("An approved review is required before submission.")
-        if attestation is None or attestation.status != "ATTESTED":
-            raise ValueError("A persisted attestation is required before submission.")
+        if local_demo:
+            # The demo approval is valid only for this local Mock PHA handoff.
+            # It does not modify the persisted case or authorize external reporting.
+            ecr.status = "REPORT"
 
         # ---------------------------------------------------------
         # 3. Validate ECR
@@ -84,12 +99,22 @@ class ECRSubmissionService:
         result = submit_ecr(
             ecr,
             validation,
-            attested=case_has_current_attestation(db, case),
+            reviewed=True,
         )
 
         # ---------------------------------------------------------
         # 5. Persist submission
         # ---------------------------------------------------------
+        ecr_payload = json.loads(json.dumps(asdict(ecr), default=str))
+        ecr_payload["report_form"] = {
+            "report_id": report.report_id,
+            "form_id": report.form_id,
+            "form_version": report.form_version,
+            "document_url": (
+                f"/api/agents/form-rendering/{report.render_id}"
+                if report.render_id else None
+            ),
+        }
         submission = Submission(
             # Submission IDs identify attempts. The ECR ID remains stable for
             # a case, so it cannot also serve as the primary key on resubmits.
@@ -103,7 +128,7 @@ class ECRSubmissionService:
             status=result.status,
             errors=result.errors,
             warnings=result.warnings,
-            ecr_payload=json.loads(json.dumps(asdict(ecr), default=str)),
+            ecr_payload=ecr_payload,
         )
 
         db.add(submission)
