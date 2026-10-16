@@ -13,6 +13,13 @@ from .trigger_loader import (
 )
 
 
+# The eRSD bundle does not currently include this LOINC assay. Retain its
+# standardized code as a disease trigger so measles PCR results are not missed.
+_MEASLES_LAB_TESTS = {
+    ("http://loinc.org", "82173-6"),  # Measles virus RNA by nucleic acid test
+}
+
+
 # =========================================================
 # Backward compatibility
 # =========================================================
@@ -923,6 +930,27 @@ def _detect_resource(
                 coded_resource
             )
 
+            # Measles PCR is a recognized disease-specific laboratory signal
+            # even when the current RCTC package omits its LOINC code. Match by
+            # code first, then by an explicit measles/rubeola nucleic-acid test
+            # label. This avoids treating IgG serology as acute infection.
+            system, code, display = _extract_code(coded_resource)
+            label = str(display or "").casefold()
+            is_measles_pcr = (
+                (system, str(code)) in _MEASLES_LAB_TESTS
+                or (
+                    any(term in label for term in ("measles", "rubeola"))
+                    and any(term in label for term in ("pcr", "rna", "nucleic acid"))
+                )
+            )
+            if is_measles_pcr and not matches:
+                matches = [{
+                    "group_id": "signal-measles-pcr",
+                    "group": "LAB_RESULT",
+                    "value_set_ids": [],
+                    "value_set_urls": [],
+                }]
+
             # A single laboratory result may appear in multiple
             # eRSD/RCTC groups. For candidate detection, emit
             # one primary signal for the actual lab result.
@@ -952,13 +980,15 @@ def _detect_resource(
                     ),
                 )
 
-                signals.append(
-                    _create_lab_signal(
-                        resource,
-                        coded_resource,
-                        primary_match,
-                    )
+                signal = _create_lab_signal(
+                    resource,
+                    coded_resource,
+                    primary_match,
                 )
+                if primary_match.get("group_id") == "signal-measles-pcr":
+                    signal["disease_id"] = "measles"
+                    signal["trigger_concept_key"] = "measles"
+                signals.append(signal)
 
         return signals
 

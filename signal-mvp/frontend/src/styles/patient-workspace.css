@@ -5321,8 +5321,9 @@ section h2,
 
 .anatomy-no-findings {
   margin: 0;
-  color: #718391;
+  color: #b42318;
   font-size: 12px;
+  font-weight: 600;
 }
 
 .anatomy-figure-wrap {

@@ -1,8 +1,6 @@
 import { Activity, BarChart3, FolderKanban, LayoutDashboard, Send, ShieldCheck, Users } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { WorkflowBreadcrumb } from "../navigation/WorkflowBreadcrumb.jsx";
-// Chatbot temporarily disabled:
-// import ChatWidget from "../assistant/ChatWidget.jsx";
 
 const nav = [
   ["/dashboard", "Dashboard", LayoutDashboard],
@@ -49,7 +47,6 @@ export function AppShell() {
         <WorkflowBreadcrumb />
         <Outlet />
       </main>
-      {/* Chatbot temporarily disabled: <ChatWidget /> */}
     </div>
   );
 }

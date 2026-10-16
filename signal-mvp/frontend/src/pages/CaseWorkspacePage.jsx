@@ -412,6 +412,25 @@ export default function CaseWorkspacePage() {
   const [confirmationChecked, setConfirmationChecked] =
     useState(false);
 
+  const dataPatientSource = String(data?.patient?.provenance?.source || "").trim().toLowerCase();
+  const dataDisease = String(data?.disease || "").trim().toLowerCase();
+  const labEvidenceRecords = Array.isArray(data?.laboratory_evidence)
+    ? data.laboratory_evidence
+    : data?.laboratory_evidence
+      ? [data.laboratory_evidence]
+      : [];
+  const positiveMeaslesLabResult = labEvidenceRecords.find((record) => {
+    const summary = [
+      record?.conclusion,
+      record?.evidence?.result,
+      record?.test?.display,
+    ].filter(Boolean).join(" ");
+    return /measles|rubeola/i.test(summary) && /detected|positive/i.test(summary);
+  });
+  const falseNegativeEvidenceGap =
+    dataPatientSource === "synthetic_false_negative" &&
+    dataDisease.includes("measles") &&
+    Boolean(positiveMeaslesLabResult);
 
   const [refreshKey, setRefreshKey] =
     useState(0);
@@ -1003,6 +1022,21 @@ export default function CaseWorkspacePage() {
             {error}
           </span>
         </div>
+      )}
+
+      {falseNegativeEvidenceGap && (
+        <section className="case-evidence-gap-alert" role="alert" aria-label="Clinical note and laboratory evidence difference">
+          <span className="case-evidence-gap-icon" aria-hidden="true">!</span>
+          <div>
+            <span className="case-evidence-gap-eyebrow">FALSE-NEGATIVE EVIDENCE CHECK</span>
+            <h2>Measles was found in the lab result, not as a clinical diagnosis</h2>
+            <div className="case-evidence-gap-sources">
+              <p><strong>Clinical note</strong><span>No measles diagnosis signal was extracted from the clinical findings.</span></p>
+              <p><strong>Laboratory result</strong><span>{positiveMeaslesLabResult?.conclusion || positiveMeaslesLabResult?.evidence?.result || "Rubeola virus detected by PCR."}</span></p>
+            </div>
+            <p className="case-evidence-gap-guidance">The positive PCR supports this reportable measles case. Review the missing reporting details before submission.</p>
+          </div>
+        </section>
       )}
 
 

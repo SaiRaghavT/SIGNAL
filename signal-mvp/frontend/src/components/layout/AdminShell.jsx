@@ -10,8 +10,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { clearClinicalInformationRequests } from "../../utils/clinicalInformationRequests.js";
-// Chatbot temporarily disabled:
-// import ChatWidget from "../assistant/ChatWidget.jsx";
 import {
   clearAdminSessionSubmissions,
   getAdminSubmissions,
@@ -264,7 +262,6 @@ export default function AdminShell() {
           <Outlet />
         </div>
       </div>
-      {/* Chatbot temporarily disabled: <ChatWidget /> */}
     </div>
   );
 }

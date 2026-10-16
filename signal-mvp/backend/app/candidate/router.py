@@ -31,9 +31,9 @@ def list_candidates(
         query = query.filter(Candidate.disease_id.ilike(f"%{disease.strip()}%"))
     if search and search.strip():
         pattern = f"%{search.strip()}%"
-        patient_ids = db.query(Patient.patient_id).filter(
+        patient_ids = [str(patient_id) for (patient_id,) in db.query(Patient.patient_id).filter(
             or_(Patient.first_name.ilike(pattern), Patient.last_name.ilike(pattern))
-        )
+        ).all()]
         query = query.filter(or_(Candidate.patient_id.in_(patient_ids), Candidate.disease_id.ilike(pattern)))
     total = query.count()
     candidates = query.order_by(Candidate.updated_at.desc(), Candidate.candidate_id.asc()).offset((page - 1) * page_size).limit(page_size).all()
