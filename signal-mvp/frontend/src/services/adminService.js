@@ -140,14 +140,6 @@ export async function getAdminSubmissions(params = {}) {
   );
 }
 
-export async function getAdminSubmission(submissionId) {
-  if (!submissionId) {
-    throw new Error("submissionId is required");
-  }
-
-  return request(`${API_BASE}/submissions/${encodeURIComponent(submissionId)}`);
-}
-
 export async function clearAdminSessionSubmissions(submissionIds) {
   if (!Array.isArray(submissionIds) || submissionIds.length === 0) {
     return { deleted: 0, submission_ids: [] };
@@ -157,6 +149,16 @@ export async function clearAdminSessionSubmissions(submissionIds) {
     method: "DELETE",
     body: JSON.stringify({ submission_ids: submissionIds }),
   });
+}
+
+export async function getAdminSubmission(submissionId) {
+  if (!submissionId) {
+    throw new Error("submissionId is required");
+  }
+
+  return request(
+    `${API_BASE}/submissions/${encodeURIComponent(submissionId)}`
+  );
 }
 
 // ---------------------------------------------------------

@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
-from backend.app.canonical.query_service import get_patient_deadline_summary, list_patients
+from backend.app.canonical.query_service import list_patients
 from backend.app.models.case import Case
 from backend.app.models.deadline_escalation import DeadlineEscalation
 from backend.app.models.submissions import Submission
@@ -9,6 +11,15 @@ from backend.app.models.audit_event import AuditEvent
 from backend.app.models.condition import Condition
 
 from .schemas import DashboardSummaryResponse
+
+
+def _deadline_local_date(deadline: datetime):
+    try:
+        return deadline.astimezone().date()
+    except (OSError, OverflowError, ValueError):
+        # Windows can reject local-time conversion for out-of-range or
+        # historical timezone dates. Keep the summary available in this case.
+        return deadline.date()
 
 
 def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
@@ -20,6 +31,7 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         .filter(Case.final_decision == "REPORT")
         .count()
     )
+
     # The existing case assembler persists NEEDS_REVIEW as final_decision/status
     # when review is required. Include the persisted decision fields as well so
     # cases with a review decision are counted even if another field differs.
@@ -43,7 +55,26 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         .count()
     )
 
-    patient_summary = get_patient_deadline_summary(db)
+    # Reuse the unfiltered canonical patient list so dashboard KPIs cover all
+    # diseases and deadlines use the same calculations as the Patients page.
+    patient_worklist = list_patients(db, page=1, page_size=100_000)
+    local_today = datetime.now().astimezone().date()
+    patients_due_today = 0
+    for patient in patient_worklist["items"]:
+        deadline_data = patient.get("deadline")
+        deadline_value = deadline_data.get("deadline") if isinstance(deadline_data, dict) else deadline_data
+        if isinstance(deadline_value, str):
+            try:
+                deadline_value = datetime.fromisoformat(deadline_value.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+        if not isinstance(deadline_value, datetime):
+            continue
+        if deadline_value.tzinfo is None:
+            deadline_value = deadline_value.replace(tzinfo=timezone.utc)
+        deadline_local_date = _deadline_local_date(deadline_value)
+        if deadline_local_date == local_today:
+            patients_due_today += 1
 
     reported_case_ids = (
         db.query(Submission.case_id.label("case_id"))
@@ -76,37 +107,11 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         needs_review=needs_review,
         submitted_cases=submitted_cases,
         upcoming_deadlines=upcoming_deadlines,
-        total_patients=patient_summary["total_patients"],
+        total_patients=patient_worklist["total"],
         active_cases=active_cases,
-        patients_due_today=patient_summary["patients_due_today"],
+        patients_due_today=patients_due_today,
         reported_cases=reported_cases,
     )
-
-
-def get_dashboard_measles_priority(db: Session) -> dict:
-    """Return only the patient fields displayed in dashboard priority work."""
-    worklist = list_patients(
-        db,
-        page=1,
-        page_size=5,
-        condition="measles",
-        include_facilities=False,
-    )
-    fields = (
-        "patient_id",
-        "first_name",
-        "last_name",
-        "condition",
-        "jurisdiction",
-        "deadline",
-    )
-    return {
-        "items": [
-            {field: patient.get(field) for field in fields}
-            for patient in worklist["items"]
-        ],
-        "total": worklist["total"],
-    }
 
 
 def get_dashboard_activity(db: Session) -> dict:

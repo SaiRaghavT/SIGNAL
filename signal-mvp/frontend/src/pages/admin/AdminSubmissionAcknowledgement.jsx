@@ -3,8 +3,6 @@ import { CheckCircle2, Clock3, FileText, RotateCw } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { listFollowUps } from "../../api/followups.js";
 import { getAdminQueueCase, getAdminSubmission } from "../../services/adminService.js";
-import { cleanPatientName } from "../../utils/patientNames.js";
-import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminSubmissionAcknowledgement.css";
 
 function value(value, fallback = "—") {
@@ -74,21 +72,14 @@ export default function AdminSubmissionAcknowledgement() {
   const simulated = /mock|simulat/i.test(String(destination || ""))
     || warnings.some((warning) => /mock|simulat/i.test(String(warning)));
   const patient = submission?.patient || caseData?.patient || {};
-  const patientName = cleanPatientName(patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" "));
+  const patientName = patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(" ");
   const condition = caseData?.clinical_evidence?.diagnosis
     || caseData?.condition
     || submission?.disease;
   const followupError = location.state?.followupError;
 
   if (loading) {
-    return (
-      <main className="admin-submission-ack-page">
-        <SignalLoading
-          title="Loading Submission Acknowledgement"
-          message="Retrieving submission record and public-health acknowledgement."
-        />
-      </main>
-    );
+    return <main className="admin-submission-ack-page"><div className="admin-ack-state">Loading submission acknowledgement…</div></main>;
   }
 
   if (!submission) {
@@ -107,7 +98,7 @@ export default function AdminSubmissionAcknowledgement() {
         <div>
           <span className="admin-ack-eyebrow">ADMINISTRATOR / SUBMISSION</span>
           <h1>Submission Acknowledgement</h1>
-          <p>{isSubmitted ? "The case has been authorized and submitted successfully." : `ACKNOWLEDGEMENT STATUS: ${status}`}</p>
+          <p>{isSubmitted ? "The case has been authorized and submitted successfully." : `Submission status: ${status}`}</p>
         </div>
       </header>
 
@@ -137,7 +128,7 @@ export default function AdminSubmissionAcknowledgement() {
             <dl className="admin-ack-grid">
               <div><dt>Submission ID</dt><dd className="monospace">{value(submission.submission_id || submissionId)}</dd></div>
               <div><dt>Destination</dt><dd>{value(destination)}</dd></div>
-              <div><dt>ACKNOWLEDGEMENT STATUS</dt><dd><span className={`admin-ack-status ${isSubmitted ? "good" : "pending"}`}>{value(submission.status)}</span></dd></div>
+              <div><dt>Submission Status</dt><dd><span className={`admin-ack-status ${isSubmitted ? "good" : "pending"}`}>{value(submission.status)}</span></dd></div>
               <div><dt>Submitted At</dt><dd>{formatTimestamp(submission.created_at || submission.submitted_at)}</dd></div>
               <div><dt>ECR ID</dt><dd className="monospace">{value(submission.ecr_id || dispatchResponse?.ecr_id)}</dd></div>
               <div><dt>Acknowledgement / Reference ID</dt><dd className="monospace">{value(submission.acknowledgement?.acknowledgement_id || submission.acknowledgement_id || dispatchResponse?.acknowledgement_id)}</dd></div>

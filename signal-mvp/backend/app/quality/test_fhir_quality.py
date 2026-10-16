@@ -49,7 +49,7 @@ def test_fhir_data_quality():
     # Data-quality validation
     # ---------------------------------------------------------
 
-    quality_result = validate_fhir_data_quality(resources, payload.get("entry", []))
+    quality_result = validate_fhir_data_quality(resources)
 
     # ---------------------------------------------------------
     # Display result

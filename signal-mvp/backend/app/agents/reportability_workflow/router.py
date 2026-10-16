@@ -60,10 +60,7 @@ def process_candidate_endpoint(
                     "candidate_signals": signals,
                 },
                 laboratory_evidence=lab_evidence,
-                # Evidence strength is stored separately; candidate.confidence
-                # is not populated from the rule score. Keep the workflow's AI
-                # evidence channel empty unless a separate model output exists.
-                ai_evidence={},
+                ai_evidence={"confidence": candidate.confidence},
             ),
             db,
         )

@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
 
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Check,
   CheckCircle2,
   Clock3,
   FileCheck2,
@@ -14,17 +13,89 @@ import {
   UserRound,
   AlertTriangle,
 } from "lucide-react";
-
-import {
-  dispatchCase,
-  getAdminQueueCase,
-  simulateAdminDemoSubmission,
-} from "../../services/adminService.js";
-
-import { cleanPatientName } from "../../utils/patientNames.js";
-import { apiBaseUrl } from "../../api/client.js";
-import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
+import { getAdminQueueCase } from "../../services/adminService.js";
 import "../../styles/AdminImmediateReview.css";
+
+const DEMO_CASE_DETAILS = {
+  "MEASLES-001": {
+    condition: "Measles",
+    jurisdiction: "Texas",
+    healthDepartment: "Texas Department of State Health Services",
+    priority: "Urgent",
+    reportingMode: "Immediate",
+    status: "READY_FOR_REVIEW",
+    deadline: "2026-10-10T09:00:00",
+    reportability: "REPORT",
+    reportingRule: "MEASLES-TX",
+    evidenceStatus: "VALID",
+    clinicalEvidence: {
+      symptoms: ["Fever", "Cough", "Rash"],
+      rashOnsetDate: "2026-10-07",
+      clinicalAssessment: "Suspected measles",
+    },
+    laboratoryEvidence: {
+      testName: "Measles IgM",
+      result: "Positive",
+      resultStatus: "LAB_POSITIVE",
+    },
+    detectionEvidence: {
+      candidateDetected: true,
+      confidence: "High",
+      explanation:
+        "Clinical symptoms and a positive measles IgM result support review for measles reporting.",
+    },
+    reportFields: {
+      condition: "Measles",
+      jurisdiction: "Texas",
+      rashOnsetDate: "2026-10-07",
+    },
+    validation: {
+      status: "VALID",
+      errors: [],
+      missingInformation: [],
+    },
+    reviewStatus: "PENDING_REVIEW",
+  },
+  "RABIES-002": {
+    condition: "Rabies exposure",
+    jurisdiction: "Texas",
+    healthDepartment: "Texas Department of State Health Services",
+    priority: "High",
+    reportingMode: "Immediate",
+    status: "READY_FOR_REVIEW",
+    deadline: "2026-10-10T12:00:00",
+    reportability: "REVIEW",
+    reportingRule: "RABIES-TX",
+    evidenceStatus: "VALID",
+    clinicalEvidence: {
+      symptoms: ["Animal exposure"],
+      exposureDate: "2026-10-08",
+      clinicalAssessment: "Possible rabies exposure",
+    },
+    laboratoryEvidence: {
+      testName: "Rabies testing",
+      result: "Not available",
+      resultStatus: "NOT_AVAILABLE",
+    },
+    detectionEvidence: {
+      candidateDetected: true,
+      confidence: "Medium",
+      explanation:
+        "Reported animal exposure requires clinical review and jurisdiction-specific assessment.",
+    },
+    reportFields: {
+      condition: "Rabies exposure",
+      jurisdiction: "Texas",
+      exposureDate: "2026-10-08",
+    },
+    validation: {
+      status: "VALID",
+      errors: [],
+      missingInformation: [],
+    },
+    reviewStatus: "PENDING_REVIEW",
+  },
+};
 
 function unwrapCase(result) {
   let value = result?.data ?? result;
@@ -76,47 +147,38 @@ function getPatientName(data) {
     "name"
   );
 
-  if (typeof directName === "string") {
-    return cleanPatientName(directName);
-  }
+  if (typeof directName === "string") return directName;
 
   const firstName = getField(record, "first_name", "firstName");
   const lastName = getField(record, "last_name", "lastName");
 
-  return (
-    cleanPatientName([firstName, lastName].filter(Boolean).join(" ")) ||
-    "—"
-  );
+  return [firstName, lastName].filter(Boolean).join(" ") || "—";
 }
 
 function getPatientId(data) {
   const record = getPatientRecord(data);
 
-  return (
-    getField(
-      record,
-      "patientId",
-      "patient_id",
-      "patient_identifier",
-      "mrn",
-      "id"
-    ) ?? "—"
-  );
+  return getField(
+    record,
+    "patientId",
+    "patient_id",
+    "patient_identifier",
+    "mrn",
+    "id"
+  ) ?? "—";
 }
 
 function getPatientDob(data) {
   const record = getPatientRecord(data);
 
-  return (
-    getField(
-      record,
-      "dob",
-      "date_of_birth",
-      "dateOfBirth",
-      "birth_date",
-      "birthDate"
-    ) ?? "—"
-  );
+  return getField(
+    record,
+    "dob",
+    "date_of_birth",
+    "dateOfBirth",
+    "birth_date",
+    "birthDate"
+  ) ?? "—";
 }
 
 function getPatientSex(data) {
@@ -157,12 +219,6 @@ function formatLabel(value) {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function formatReviewStatus(value) {
-  const status = String(value ?? "").trim().toUpperCase();
-  if (status === "APPROVE" || status === "APPROVED") return "Approved";
-  return formatLabel(value);
-}
-
 function display(value) {
   if (value === null || value === undefined || value === "") return "—";
 
@@ -181,61 +237,40 @@ function display(value) {
   return String(value);
 }
 
-function getLabSummary(lab) {
-  const test = getField(lab, "test_name", "testName", "test", "name");
-  const observations = Array.isArray(lab.observations) ? lab.observations : [];
-  const observedResults = observations
-    .map((observation) => {
-      const value = observation?.value;
-      return getField(value, "text", "numeric", "code")
-        ?? getField(observation, "result", "value_text", "value_numeric");
-    })
-    .filter((value) => value !== undefined && value !== null && String(value).trim());
-
-  return {
-    Test: typeof test === "object"
-      ? getField(test, "display", "name", "code")
-      : test,
-    Result: getField(lab, "result", "conclusion") ?? [...new Set(observedResults.map(String))].join(", "),
-    Status: getField(lab, "report_status", "status"),
-    Specimen: getField(lab, "specimen", "specimen_type", "specimenType"),
-    Date: getField(lab, "effective_time", "collection_date", "collected_at", "issued_time"),
-  };
-}
-
 function Detail({ label, value }) {
   return (
     <div className="admin-immediate-detail">
-      <span className="admin-immediate-detail-label">{label}:</span>
+      <span className="admin-immediate-detail-label">{label}</span>
       <span className="admin-immediate-detail-value">{display(value)}</span>
     </div>
   );
 }
 
-function Section({ title, icon: Icon, complete = false, collapsible = false, children }) {
-  const heading = (
-    <div className="admin-immediate-section-heading">
-      <div className="admin-immediate-section-title">
+function EvidenceRows({ data }) {
+  return (
+    <div className="admin-immediate-evidence-rows">
+      {Object.entries(data ?? {}).map(([key, value]) => (
+        <div className="admin-immediate-evidence-row" key={key}>
+          <span className="admin-immediate-evidence-label">
+            {formatLabel(key)}
+          </span>
+          <div className="admin-immediate-evidence-value">
+            {display(value)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Section({ title, icon: Icon, children }) {
+  return (
+    <section className="admin-immediate-section">
+      <div className="admin-immediate-section-heading">
         {Icon && <Icon size={18} />}
         <h3>{title}</h3>
       </div>
-      {complete && (
-        <span className="admin-immediate-completeness">
-          <span>All required fields are present</span>
-          <Check className="admin-immediate-section-complete" size={18} aria-hidden="true" />
-        </span>
-      )}
-    </div>
-  );
-
-  return (
-    <section className="admin-immediate-section">
-      {collapsible ? (
-        <details className="admin-immediate-collapsible-section">
-          <summary>{heading}</summary>
-          <div className="admin-immediate-collapsible-content">{children}</div>
-        </details>
-      ) : <>{heading}{children}</>}
+      {children}
     </section>
   );
 }
@@ -252,32 +287,24 @@ export default function AdminImmediateReview() {
 
   const [backendCase, setBackendCase] = useState(null);
   const [patientLoading, setPatientLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
 
     async function loadPatientDetails() {
       setPatientLoading(true);
-      setError("");
 
       try {
         const result = await getAdminQueueCase(caseId);
-        const loadedCase = unwrapCase(result);
-        if (!loadedCase || typeof loadedCase !== "object") {
-          throw new Error("The Admin API returned no case details.");
-        }
 
         if (active) {
-          setBackendCase(loadedCase);
+          setBackendCase(unwrapCase(result));
         }
       } catch (error) {
         console.error("Unable to load patient details:", error);
 
         if (active) {
           setBackendCase(null);
-          setError(error?.message || "Unable to load this case from the Admin API.");
         }
       } finally {
         if (active) {
@@ -289,8 +316,6 @@ export default function AdminImmediateReview() {
     if (caseId) {
       loadPatientDetails();
     } else {
-      setBackendCase(null);
-      setError("The selected case does not have a case ID.");
       setPatientLoading(false);
     }
 
@@ -299,8 +324,21 @@ export default function AdminImmediateReview() {
     };
   }, [caseId]);
 
-  const caseData = backendCase ?? {};
+  const caseData = useMemo(() => {
+    const staticDetails =
+      DEMO_CASE_DETAILS[caseId] ?? DEMO_CASE_DETAILS["MEASLES-001"];
 
+    const passedCase = location.state?.caseData ?? {};
+
+    // Backend values may supply real case fields; demo details fill gaps.
+    return {
+      ...staticDetails,
+      ...passedCase,
+      ...(backendCase ?? {}),
+    };
+  }, [caseId, location.state, backendCase]);
+
+  // Demographics come from the backend response only.
   const patientName = patientLoading
     ? "Loading…"
     : getPatientName(backendCase);
@@ -317,158 +355,56 @@ export default function AdminImmediateReview() {
     ? "Loading…"
     : getPatientSex(backendCase);
 
+  const clinicalEvidence =
+    getField(caseData, "clinicalEvidence", "clinical_evidence") ?? {};
+
+  const laboratoryEvidence =
+    getField(caseData, "laboratoryEvidence", "laboratory_evidence") ?? {};
+
+  const detectionEvidence =
+    getField(caseData, "detectionEvidence", "detection_evidence") ??
+    getField(caseData, "aiEvidence", "ai_evidence") ??
+    {};
+
+  const reportFields =
+    getField(caseData, "reportFields", "report_fields") ?? {};
+
+
   const condition =
     getField(caseData, "condition", "disease_name", "disease") ?? "—";
 
   const jurisdiction =
-    getField(caseData, "jurisdiction", "state") ?? "—";
+    getField(caseData, "jurisdiction", "state") ?? "Texas";
 
-  const allFieldsPresent = Boolean(caseData.validation?.valid)
-    && !(caseData.missing_information || []).length;
+  const handleAuthorizeAndSubmit = () => {
+    const submissionId = `SUB-DEMO-${Date.now()}`;
 
-  const laboratoryEvidence = getField(caseData, "laboratory_evidence", "laboratoryEvidence") ?? [];
-  const seenLaboratoryRecords = new Set();
-  const laboratoryItems = (Array.isArray(laboratoryEvidence) ? laboratoryEvidence : [laboratoryEvidence])
-    .filter((item) => item && typeof item === "object")
-    .map(getLabSummary)
-    // Clinical notes can be stored alongside observations, but are not lab tests.
-    .filter((summary) => !String(summary.Test ?? "").toLowerCase().includes("note"))
-    .filter((summary) => Object.values(summary).some((value) => value !== undefined && value !== null && String(value).trim()))
-    .sort((left, right) => new Date(right.Date ?? 0).getTime() - new Date(left.Date ?? 0).getTime())
-    .filter((summary) => {
-      const key = String(summary.Test ?? JSON.stringify(summary)).trim().toLowerCase();
-      if (seenLaboratoryRecords.has(key)) return false;
-      seenLaboratoryRecords.add(key);
-      return true;
-    })
-    .slice(0, 5);
-  const aiEvidence = getField(caseData, "aiEvidence", "ai_evidence") ?? {};
-  const aiInfoItems = Object.entries(aiEvidence)
-    .filter(([key, value]) => /confidence|model|decision|status/i.test(key)
-      && (typeof value === "string" || typeof value === "number" || typeof value === "boolean"))
-    .slice(0, 3);
+    const submission = {
+      submissionId,
+      caseId,
+      patientName,
+      patientId,
+      condition,
+      jurisdiction,
+      status: "SUBMITTED",
+      submittedAt: new Date().toISOString(),
+      mode: getField(caseData, "reportingMode", "reporting_mode", "mode") ??
+        "Immediate",
+      demo: true,
+    };
 
-  const handleAuthorizeAndSubmit = async () => {
-    if (submitting) return;
-
-    if (!caseId) {
-      setError("Cannot submit: case ID is missing.");
-      return;
-    }
-
-    setSubmitting(true);
-    setError("");
-
-    try {
-      const response = caseData.demo_submission
-        ? await simulateAdminDemoSubmission(caseId)
-        : await dispatchCase(caseId);
-
-      const result =
-        response?.submission ??
-        response?.data?.submission ??
-        response?.data ??
-        response;
-
-      const status = String(result?.status ?? "").toUpperCase();
-
-      if (status !== "SUBMITTED") {
-        const errors = Array.isArray(result?.errors)
-          ? result.errors.join("; ")
-          : "";
-
-        throw new Error(
-          errors || "The backend did not confirm successful submission."
-        );
+    navigate(
+      `/admin/submission-journey/${encodeURIComponent(submissionId)}`,
+      {
+        state: {
+          submission,
+          caseData,
+        },
       }
-
-      const submissionId =
-        result?.submission_id ??
-        result?.submissionId ??
-        response?.submission_id ??
-        response?.data?.submission_id;
-
-      if (!submissionId) {
-        throw new Error(
-          "The backend response did not contain a submission ID."
-        );
-      }
-
-      const submission = {
-        ...result,
-        submissionId,
-        submission_id: submissionId,
-        caseId,
-        case_id: caseId,
-        patientName,
-        patientId,
-        condition,
-        jurisdiction,
-        status,
-        submittedAt:
-          result?.submitted_at ??
-          result?.created_at ??
-          new Date().toISOString(),
-        mode:
-          getField(caseData, "reportingMode", "reporting_mode", "mode") ??
-          "Immediate",
-      };
-
-      navigate(
-        `/admin/submission-journey/${encodeURIComponent(submissionId)}`,
-        {
-          state: {
-            submission,
-            caseData,
-            dispatchResponse: response,
-          },
-        }
-      );
-    } catch (err) {
-      console.error("Admin dispatch failed:", err);
-
-      setError(
-        err?.response?.data?.detail ??
-          err?.message ??
-          "Unable to authorize and submit the case."
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    );
   };
 
-  if (patientLoading) {
-    return (
-      <div className="admin-immediate-review-page">
-        <header className="admin-immediate-review-header">
-          <button
-            type="button"
-            className="admin-immediate-back-button"
-            onClick={() => navigate("/admin/queue")}
-          >
-            <ArrowLeft size={16} />
-            Back to Queue
-          </button>
-
-          <div className="admin-immediate-review-title-row">
-            <div>
-              <span className="admin-immediate-eyebrow">
-                SIGNAL / ADMINISTRATOR
-              </span>
-              <h1>Immediate Reporting Review</h1>
-              <p>Review the reporting evidence before authorization.</p>
-            </div>
-          </div>
-        </header>
-
-        <SignalLoading
-          title="Loading Immediate Review"
-          message="Retrieving patient details and immediate reporting evidence."
-        />
-      </div>
-    );
-  }
-    return (
+  return (
     <div className="admin-immediate-review-page">
       <header className="admin-immediate-review-header">
         <button
@@ -491,7 +427,7 @@ export default function AdminImmediateReview() {
 
           <span className="admin-immediate-status-badge">
             <Clock3 size={14} />
-            {formatReviewStatus(
+            {formatLabel(
               getField(caseData, "reviewStatus", "review_status", "status") ??
                 "Pending Review"
             )}
@@ -507,33 +443,16 @@ export default function AdminImmediateReview() {
         <div className="admin-immediate-case-main">
           <span className="admin-immediate-case-id">{caseId}</span>
           <h2>{condition}</h2>
-          <p>
-            {patientName} · {patientId}
-          </p>
+          <p>{patientName} · {patientId}</p>
         </div>
 
         <div className="admin-immediate-case-badges">
           <span className="admin-immediate-priority-badge">
             <AlertTriangle size={14} />
-            {formatLabel(
-              getField(caseData, "priority", "severity") ?? "—"
-            )}
+            {formatLabel(getField(caseData, "priority", "severity") ?? "Urgent")}
           </span>
         </div>
       </div>
-
-      {error && (
-        <div role="alert" className="admin-immediate-error">
-          {error}
-        </div>
-      )}
-
-      {submitting && (
-        <SignalLoading
-          title="Authorizing Case"
-          message="Authorizing and preparing immediate report submission."
-        />
-      )}
 
       <div className="admin-immediate-review-grid">
         <div className="admin-immediate-review-main">
@@ -546,118 +465,77 @@ export default function AdminImmediateReview() {
             </div>
           </Section>
 
-          <Section title="Candidate Evidence" icon={HeartPulse} complete={allFieldsPresent} collapsible>
-            <div className="admin-immediate-details-grid">
-              <Detail label="Condition" value={condition} />
-              <Detail label="Reportability decision" value={formatLabel(getField(caseData, "reportability", "reportability_decision"))} />
-              <Detail label="Reporting rule" value={getField(caseData, "rule_id", "reportingRule", "reporting_rule")} />
-              <Detail label="Clinical Staff review status" value={formatReviewStatus(getField(caseData, "review_status", "reviewStatus"))} />
-            </div>
+          <Section title="Clinical Evidence" icon={HeartPulse}>
+            <EvidenceRows data={clinicalEvidence} />
           </Section>
 
-          <Section title="Laboratory Evidence" icon={FileText} complete={allFieldsPresent} collapsible>
-            <div className="admin-immediate-lab-list">
-              {laboratoryItems.length ? laboratoryItems.map((summary, index) => (
-                <details className="admin-immediate-lab-record" key={`lab-${index}`}>
-                  <summary>
-                    <strong>{display(summary.Test)}</strong>
-                    <span>{display(summary.Status)}</span>
-                    <time>{formatDateTime(summary.Date)}</time>
-                  </summary>
-                  <div className="admin-immediate-details-grid">
-                    {Object.entries(summary).filter(([, value]) => value !== undefined && value !== null && String(value).trim()).map(([label, value]) => (
-                      <Detail key={`${index}-${label}`} label={label} value={label === "Date" ? formatDateTime(value) : value} />
-                    ))}
-                  </div>
-                </details>
-              )) : <p>No laboratory evidence is available for this case.</p>}
-            </div>
+          <Section title="Laboratory Evidence" icon={FileText}>
+            <EvidenceRows data={laboratoryEvidence} />
           </Section>
 
-          <Section title="AI Detection Evidence" icon={ShieldCheck} complete={allFieldsPresent} collapsible>
-            {aiInfoItems.length ? (
-              <div className="admin-immediate-details-grid">
-                {aiInfoItems.map(([key, value]) => (
-                  <Detail key={key} label={formatLabel(key)} value={value} />
-                ))}
-              </div>
-            ) : <p>No concise AI details are available for this case.</p>}
+          <Section title="AI Detection Evidence" icon={ShieldCheck}>
+            <EvidenceRows data={detectionEvidence} />
           </Section>
 
-          <Section title="Reporting Form" icon={FileCheck2}>
-            {caseData.report?.document_url ? (
-              <div className="admin-immediate-report-document">
-                <p>{caseData.report.form_id} · Version {caseData.report.form_version || "Not recorded"}</p>
-                <a href={`${apiBaseUrl}${caseData.report.document_url}`} target="_blank" rel="noreferrer">
-                  Open patient reporting form
-                </a>
-              </div>
-            ) : (
-              <p className="admin-immediate-report-empty">No generated reporting form is available for this case.</p>
-            )}
+          <Section title="Reporting Form Fields" icon={FileCheck2}>
+            <EvidenceRows data={reportFields} />
           </Section>
+
+          
         </div>
 
         <aside className="admin-immediate-review-sidebar">
           <Section title="Reportability Decision" icon={ShieldCheck}>
             <div className="admin-immediate-decision-value">
               {formatLabel(
-                getField(
-                  caseData,
-                  "reportability",
-                  "reportabilityDecision",
-                  "reportability_decision"
-                ) ?? "Pending Review"
+                getField(caseData, "reportability", "reportabilityDecision",
+                  "reportability_decision") ?? "Pending Review"
               )}
             </div>
 
             <Detail
               label="Reporting Rule"
-              value={getField(caseData, "rule_id", "reportingRule", "reporting_rule")}
+              value={getField(caseData, "reportingRule", "reporting_rule")}
             />
-
             <Detail
-              label="Human Review Status"
-              value={formatReviewStatus(getField(caseData, "review_status", "reviewStatus"))}
+              label="Evidence Status"
+              value={getField(caseData, "evidenceStatus", "evidence_status")}
             />
           </Section>
 
           <Section title="Jurisdiction" icon={MapPin}>
             <Detail label="State" value={jurisdiction} />
-
             <Detail
               label="Health Department"
-              value="DSHS"
+              value={getField(caseData, "healthDepartment", "health_department")}
             />
-
             <Detail
               label="Reporting Deadline"
               value={formatDateTime(
-                getField(
-                  caseData,
-                  "deadline",
-                  "reportingDeadline",
-                  "reporting_deadline"
-                )
+                getField(caseData, "deadline", "reportingDeadline",
+                  "reporting_deadline")
               )}
             />
           </Section>
 
           <Section title="Authorization" icon={FileCheck2}>
             <p className="admin-immediate-authorization-copy">
-              Authorize this case to submit its reporting package through the configured reporting channel.
+              Authorize this case to continue through the local demo
+              submission journey. No external report will be transmitted.
             </p>
 
             <button
               type="button"
               className="admin-immediate-authorize-button"
               onClick={handleAuthorizeAndSubmit}
-              disabled={submitting || !backendCase}
             >
               <CheckCircle2 size={17} />
-              {submitting ? "Submitting..." : "Authorize & Submit"}
+              Authorize &amp; Submit
             </button>
 
+            <p className="admin-immediate-demo-note">
+              Demo mode · No external transmission
+            </p>
           </Section>
         </aside>
       </div>

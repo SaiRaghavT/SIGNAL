@@ -1,11 +1,5 @@
 import { request } from "./client";
 const getCanonicalPatient = (patientId) => request(`/api/canonical/patients/${encodeURIComponent(patientId)}`);
-const getCanonicalPatientAnatomy = (patientId, { refresh = false } = {}) => {
-  const refreshQuery = refresh ? `?refresh=true&_=${Date.now()}` : "";
-  return request(`/api/canonical/patients/${encodeURIComponent(patientId)}/anatomy${refreshQuery}`, {
-    cache: refresh ? "no-store" : "default",
-  });
-};
 const listCanonicalPatients = (params = {}) => {
   const { signal, ...queryParams } = params;
   const query = new URLSearchParams();
@@ -14,6 +8,5 @@ const listCanonicalPatients = (params = {}) => {
 };
 export {
   getCanonicalPatient,
-  getCanonicalPatientAnatomy,
   listCanonicalPatients
 };

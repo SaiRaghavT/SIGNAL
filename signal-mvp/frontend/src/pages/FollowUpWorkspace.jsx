@@ -5,16 +5,14 @@ import { useDemoWorkflow } from "../hooks/useDemoWorkflow.js";
 import { listFollowUps } from "../api/followups.js";
 import { getSubmissionAcknowledgement } from "../api/submissions.js";
 import { getCase, getJourney, processFollowup } from "../api/signal.js";
-import { cleanPatientName } from "../utils/patientNames.js";
-import { cleanConditionDisplay } from "../utils/conditionDisplay.js";
 import "../styles/follow-up-workspace.css";
 
 const items = (value) => Array.isArray(value) ? value : [];
-const valueText = (value) => value === null || value === undefined || value === "" ? "Not available" : typeof value === "object" ? JSON.stringify(value) : cleanConditionDisplay(String(value));
+const valueText = (value) => value === null || value === undefined || value === "" ? "Not available" : typeof value === "object" ? JSON.stringify(value) : String(value);
 const stage = (journey, name) => items(journey?.journey).find((item) => item.stage === name) || null;
 const followupRecords = (journey) => items(stage(journey, "PHA_FOLLOW_UP")?.data?.follow_ups);
 const latest = (records) => records.length ? records[records.length - 1] : null;
-const patientName = (patient) => cleanPatientName([patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name) || "Patient name not returned";
+const patientName = (patient) => [patient?.first_name, patient?.last_name].filter(Boolean).join(" ") || patient?.name || "Patient name not returned";
 
 const ACTIONS = [
   ["REQUEST_INFORMATION", "Request Additional Information", "Record a request for additional case information."],
@@ -146,9 +144,11 @@ export default function FollowUpWorkspace() {
 
   const caseStage = stage(journey, "CASE");
   const reviewStage = stage(journey, "REVIEW");
+  const attestationStage = stage(journey, "ATTESTATION");
   const reviewData = reviewStage?.data || {};
   const caseReady = Boolean(caseData?.case_id && caseStage?.available);
-  const reviewAuthorized = /^(APPROVE|APPROVED)$/i.test(reviewStage?.status || "");
+  const reviewAuthorized = /^(APPROVE|APPROVED)$/i.test(reviewStage?.status || "")
+    && /^ATTESTED$/i.test(attestationStage?.status || "");
   const submissionFailed = /FAIL|ERROR|REJECT/i.test(submission?.status || "");
   const submissionSent = Boolean(submission) && !submissionFailed && /SUBMITTED|ACKNOWLEDGED/i.test(submission.status || "");
   const acknowledgementRecorded = Boolean(acknowledgement)
@@ -165,7 +165,7 @@ export default function FollowUpWorkspace() {
     {
       title: "Admin Review",
       state: /REJECT|REQUEST_INFORMATION/i.test(reviewStage?.status || "") ? "failed" : reviewAuthorized ? "complete" : reviewStage?.available ? "current" : "pending",
-      details: [["Human review", valueText(reviewStage?.status)], ["Reviewer", reviewActor], ["Review time", reviewStage?.occurred_at]],
+      details: [["Authorization", `${valueText(reviewStage?.status)} / ${valueText(attestationStage?.status)}`], ["Administrator", reviewActor], ["Review time", reviewStage?.occurred_at]],
     },
     {
       title: "Submission Created",
@@ -229,6 +229,7 @@ export default function FollowUpWorkspace() {
     <header className="fu-header">
       <div>
         <button className="fu-back-link" onClick={() => navigate(`${caseWorkspacePath}/submission`)}>← Back to Submission</button>
+        <nav className="fu-breadcrumb" aria-label="Workflow"><span>Case Workspace</span><i>›</i><span>Reporting Form</span><i>›</i><span>Submission</span><i>›</i><b>Follow-up</b></nav>
         <span className="fu-eyebrow">PUBLIC HEALTH CASE OPERATIONS</span>
         <h2>PHA Follow Up</h2>
         <p>Coordinate the next public-health action for this reported case.</p>
@@ -312,7 +313,7 @@ export default function FollowUpWorkspace() {
 
       <aside className="fu-aside">
         <article className="fu-side-card"><span>FOLLOW-UP STATUS</span><strong className={`fu-status-text ${statusClass(followupStatus)}`}>{valueText(followupStatus)}</strong><p>{currentFollowup ? `Latest backend action: ${valueText(currentFollowup.action)}` : "No follow-up action has been processed yet."}</p><small>Agent: Public Health Follow-up Agent</small></article>
-        <article className="fu-side-card"><span>CASE SUMMARY</span><div><label>Patient</label><strong>{patientName(patient)}</strong></div><div><label>Disease</label><strong>{valueText(caseData.disease)}</strong></div><div><label>Jurisdiction</label><strong>{valueText(caseData.jurisdiction)}</strong></div><div><label>Case status</label><strong>{valueText(caseData.status)}</strong></div><div><label>Reportability</label><strong>{valueText(caseData.final_decision || caseData.reportability_decision)}</strong></div><div><label>Reporting rule</label><strong>{valueText(caseData.rule_id)}</strong></div><div><label>ACKNOWLEDGEMENT STATUS</label><strong>{valueText(submissionStatus)}</strong></div><div><label>Destination</label><strong>{valueText(destination)}</strong></div></article>
+        <article className="fu-side-card"><span>CASE SUMMARY</span><div><label>Patient</label><strong>{patientName(patient)}</strong></div><div><label>Disease</label><strong>{valueText(caseData.disease)}</strong></div><div><label>Jurisdiction</label><strong>{valueText(caseData.jurisdiction)}</strong></div><div><label>Case status</label><strong>{valueText(caseData.status)}</strong></div><div><label>Reportability</label><strong>{valueText(caseData.final_decision || caseData.reportability_decision)}</strong></div><div><label>Reporting rule</label><strong>{valueText(caseData.rule_id)}</strong></div><div><label>Submission status</label><strong>{valueText(submissionStatus)}</strong></div><div><label>Destination</label><strong>{valueText(destination)}</strong></div></article>
         <article className="fu-side-card fu-next-card"><span>WHAT HAPPENS NEXT</span><div><label>Current</label><strong>{currentFollowup?.status === "CLOSED" ? "Follow-up Completed" : "PHA Follow-up"}</strong></div><div><label>Next</label><strong>{currentFollowup?.status === "CLOSED" ? "Case resolution (not exposed by this service)" : currentFollowup ? "Document follow-up outcome" : "Process a supported follow-up action"}</strong></div><p>Submission acknowledgement confirms the reporting workflow state; it does not mean the case is resolved.</p></article>
         <button className="fu-return" onClick={() => navigate(`${caseWorkspacePath}/submission`)}>← Back to Submission</button>
         <button className="fu-return secondary" onClick={() => navigate(caseWorkspacePath)}>Back to Case Workspace</button>

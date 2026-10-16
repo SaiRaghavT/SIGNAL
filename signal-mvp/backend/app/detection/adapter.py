@@ -81,7 +81,6 @@ def canonical_context_to_detection_input(
         diagnostic_reports.append(
             {
                 "id": lab_result.get("lab_result_id"),
-                "source_lab_result_id": lab_result.get("source_lab_result_id"),
                 "patient_id": lab_result.get(
                     "patient_id",
                     patient_id,
@@ -92,14 +91,10 @@ def canonical_context_to_detection_input(
                 "display": test.get("display"),
                 "conclusion": lab_result.get("conclusion"),
                 "status": lab_result.get("report_status"),
-                "report_status": lab_result.get("report_status"),
                 "observations": lab_result.get(
                     "observations",
                     [],
                 ),
-                "effective_time": lab_result.get("effective_time"),
-                "issued_time": lab_result.get("issued_time"),
-                "provenance": lab_result.get("provenance"),
             }
         )
 

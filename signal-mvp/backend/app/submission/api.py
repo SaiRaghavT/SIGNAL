@@ -1,12 +1,13 @@
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.models.case import Case
 from backend.app.models.submissions import Submission
-from backend.app.models.workflow_records import Acknowledgement, CaseWorkflowRecord, Report, SubmissionAttempt
+from backend.app.models.workflow_records import Acknowledgement, SubmissionAttempt
 
 router = APIRouter(tags=["Submissions"])
 
@@ -43,70 +44,20 @@ def list_submissions(
     date_to: date | None = Query(None),
     db: Session = Depends(get_db),
 ) -> dict:
-    records = db.query(Submission).order_by(Submission.created_at.desc()).all()
-    items = [_submission_payload(db, item) for item in records]
-
-    # A clinical staff handoff is an ADMIN_QUEUE workflow record, not yet a
-    # public-health Submission. Show active handoffs here so staff can track
-    # cases immediately, while preserving the distinction in status/channel.
-    submitted_case_ids = {str(item.case_id) for item in records}
-    latest_queue_by_case: dict[str, CaseWorkflowRecord] = {}
-    queue_records = (db.query(CaseWorkflowRecord)
-                    .filter(CaseWorkflowRecord.record_type == "ADMIN_QUEUE")
-                    .order_by(CaseWorkflowRecord.created_at.desc()).all())
-    for queue in queue_records:
-        case_id = str(queue.case_id)
-        if case_id in latest_queue_by_case:
-            continue
-        latest_queue_by_case[case_id] = queue
-        if queue.status.upper() not in {"QUEUED", "READY_FOR_SUBMISSION"} or case_id in submitted_case_ids:
-            continue
-        payload = queue.payload or {}
-        if payload.get("demo_submission"):
-            continue
-        case = db.query(Case).filter(Case.case_id == case_id).first()
-        if case is None:
-            continue
-        report = (db.query(Report).filter(Report.case_id == case_id, Report.status == "GENERATED")
-                  .order_by(Report.created_at.desc()).first())
-        items.append({
-            "submission_id": f"queue-{queue.record_id}",
-            "queue_id": queue.record_id,
-            "case_id": case_id,
-            "submission_mode": payload.get("submission_mode") or case.submission_mode,
-            "patient": case.patient or {},
-            "disease": case.disease,
-            "jurisdiction": case.jurisdiction,
-            "destination": "Admin Review",
-            "channel": "Admin queue",
-            "status": "QUEUED_FOR_ADMIN",
-            "created_at": queue.created_at,
-            "updated_at": queue.updated_at,
-            "acknowledgement_id": None,
-            "errors": [],
-            "warnings": [],
-            "report_id": report.report_id if report else None,
-            "ecr_id": None,
-        })
-
+    query = db.query(Submission)
     if status:
-        items = [item for item in items if item["status"].upper() == status.upper()]
+        query = query.filter(Submission.status == status)
     if search and search.strip():
-        term = search.strip().casefold()
-        items = [item for item in items if term in " ".join((
-            str(item.get("submission_id") or ""), str(item.get("case_id") or ""),
-            str(item.get("ecr_id") or ""), str(item.get("disease") or ""),
-            str(item.get("jurisdiction") or ""), str(item.get("patient") or ""),
-        )).casefold()]
+        pattern = f"%{search.strip()}%"
+        query = query.filter(or_(Submission.submission_id.ilike(pattern), Submission.case_id.ilike(pattern), Submission.ecr_id.ilike(pattern)))
     if date_from:
-        items = [item for item in items if item.get("created_at") and item["created_at"].date() >= date_from]
+        query = query.filter(Submission.created_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
     if date_to:
-        items = [item for item in items if item.get("created_at") and item["created_at"].date() <= date_to]
-    items.sort(key=lambda item: item.get("created_at") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-    total = len(items)
-    items = items[(page - 1) * page_size:page * page_size]
+        query = query.filter(Submission.created_at < datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=timezone.utc))
+    total = query.count()
+    records = query.order_by(Submission.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return {
-        "items": items,
+        "items": [_submission_payload(db, item) for item in records],
         "page": page,
         "page_size": page_size,
         "total": total,

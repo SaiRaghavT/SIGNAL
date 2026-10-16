@@ -1,5 +1,5 @@
 import { request } from "./client";
-const getDashboardSummary = (options = {}) => request("/api/dashboard/summary", options);
+const getDashboardSummary = () => request("/api/dashboard/summary");
 const getDashboardWorkItems = () => request("/api/dashboard/work-items");
 const getHealth = () => request("/health");
 export {

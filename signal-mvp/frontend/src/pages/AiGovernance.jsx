@@ -46,6 +46,7 @@ const links = [
   ['Model Evaluation', '/governance/evaluation'],
   ['Explainability', '/governance/explainability'],
   ['Agent Governance', '/governance/agents'],
+  ['Outcome Learning', '/governance/outcome-learning'],
 ]
 
 const field = value =>
@@ -211,6 +212,12 @@ export function GovernanceOverview() {
         />
 
         <Metric
+          label="EVALUATION RUNS"
+          value="not_available"
+          note="No benchmark records"
+        />
+
+        <Metric
           label="NOT CONFIGURED / SIMULATED"
           value={d?.agents_requiring_review}
           note="Backend component status"
@@ -271,7 +278,7 @@ export function GovernanceOverview() {
           <div>
             <h3>Governance Data Checks</h3>
             <p>
-              Checks run against stored patient evidence strength and
+              Checks run against stored patient detection confidence and
               source evidence; findings do not change patient records
               or reportability status.
             </p>
@@ -305,7 +312,7 @@ export function GovernanceOverview() {
             ))
           : findings.data && (
               <div className="cases-empty">
-              No missing evidence or invalid evidence-strength values
+                No missing evidence or invalid confidence values
                 were found in the stored measles patient records.
                 Model version and runtime behavior checks remain
                 not_evaluated because execution metadata is not
@@ -588,10 +595,12 @@ export function EvaluationPage() {
 
   const d = state.data
 
-  const evidenceStrength =
-    d?.mean_evidence_strength == null
+  const confidence =
+    d?.mean_confidence == null
       ? 'not_available'
-      : `${Number(d.mean_evidence_strength).toFixed(1)}/100`
+      : `${(
+          d.mean_confidence * 100
+        ).toFixed(1)}%`
 
   return (
     <GovLayout
@@ -608,15 +617,15 @@ export function EvaluationPage() {
         />
 
         <Metric
-          label="PATIENTS WITH EVIDENCE STRENGTH"
-          value={d?.evidence_strength_count}
-          note="Stored evidence-strength scores"
+          label="PATIENTS WITH CONFIDENCE"
+          value={d?.confidence_count}
+          note="Stored confidence values"
         />
 
         <Metric
-          label="MEAN EVIDENCE STRENGTH"
-          value={evidenceStrength}
-          note="Heuristic, not probability or accuracy"
+          label="MEAN CONFIDENCE"
+          value={confidence}
+          note="Descriptive only; not accuracy"
         />
 
         <Metric
@@ -639,7 +648,7 @@ export function EvaluationPage() {
             false-positive/negative rates are not
             calculated because there is no labeled Texas
             Measles evaluation set linked to ground-truth
-            outcomes. Evidence-strength values alone do not
+            outcomes. Confidence values alone do not
             establish model performance.
           </p>
         </div>
@@ -649,7 +658,7 @@ export function EvaluationPage() {
         headers={[
           'Patient detection ID',
           'Detection status',
-          'Evidence strength',
+          'Confidence',
           'Reviewer outcome',
           'Reportability',
           'Submission / PHA',
@@ -666,9 +675,13 @@ export function EvaluationPage() {
             </td>
 
             <td>
-              {row.evidence_strength == null
+              {row.confidence == null
                 ? 'not_available'
-                : `${Number(row.evidence_strength).toFixed(1)}/100`}
+                : `${(
+                    Number(
+                      row.confidence
+                    ) * 100
+                  ).toFixed(1)}%`}
             </td>
 
             <td>
@@ -844,8 +857,8 @@ export function ExplainabilityPage() {
                     'Patient detection',
                   body:
                     trace.output?.type,
-                  ref: `${trace.output?.reference || 'not_available'} · evidence strength ${
-                    trace.evidence_strength ??
+                  ref: `${trace.output?.reference || 'not_available'} · confidence ${
+                    trace.confidence ??
                     'not_available'
                   }`,
                 },
@@ -935,7 +948,7 @@ export function ExplainabilityPage() {
               'Source type',
               'Evidence references',
               'Audit reference',
-              'Evidence strength',
+              'Confidence',
             ]}
             rows={[
               <tr key={trace.candidate_id}>
@@ -979,7 +992,7 @@ export function ExplainabilityPage() {
                 </td>
 
                 <td>
-                  {trace.evidence_strength ??
+                  {trace.confidence ??
                     'not_available'}
                 </td>
               </tr>,

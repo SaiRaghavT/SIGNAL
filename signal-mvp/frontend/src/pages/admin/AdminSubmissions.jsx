@@ -2,9 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAdminSubmissions } from "../../services/adminService.js";
-import { cleanPatientName } from "../../utils/patientNames.js";
-import { cleanConditionDisplay } from "../../utils/conditionDisplay.js";
-import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminSubmissions.css";
 
 const STATUS_OPTIONS = [
@@ -58,7 +55,7 @@ function conditionValueLabel(value) {
   }
   if (typeof value !== "string" || !value.trim()) return "\u2014";
 
-  const candidate = cleanConditionDisplay(value.trim());
+  const candidate = value.trim();
   const codeMatch = candidate.match(/(?:^|[|/])\s*(\d{5,})\s*$/);
   if (codeMatch) return codeMatch[1] === "14189004" ? "Measles" : "\u2014";
   if (/^\d+$/.test(candidate) || /(?:snomed|^https?:\/\/)/i.test(candidate)) return "\u2014";
@@ -148,14 +145,14 @@ function normalizeSubmission(item) {
       caseData.caseId,
     ),
 
-    patient: cleanPatientName(textValue(
+    patient: textValue(
       payload.patient_name,
       payload.patientName,
       patient.name,
       [patient.first_name, patient.last_name]
         .filter(Boolean)
         .join(" "),
-    )),
+    ),
 
     patientId,
 
@@ -235,7 +232,7 @@ function formatDate(value) {
 
 export default function AdminSubmissions() {
   const [submissions, setSubmissions] = useState([]);
-  const [submissionSummary, setSubmissionSummary] = useState(null);
+  const [submissionRecords, setSubmissionRecords] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [modeFilter, setModeFilter] = useState("ALL");
   const [search, setSearch] = useState("");
@@ -256,15 +253,8 @@ export default function AdminSubmissions() {
       const response = await getAdminSubmissions();
 
       const records = normalizeItems(response).map(normalizeSubmission);
-      setSubmissionSummary(response?.summary ?? null);
-      const items = deduplicatePatientConditions(
-        records.filter((record) =>
-          record.patient &&
-          record.patient !== "\u2014" &&
-          MODE_OPTIONS.slice(1).includes(normalizeStatus(record.mode)) &&
-          normalizeStatus(record.status) !== "BLOCKED",
-        ),
-      );
+      setSubmissionRecords(records);
+      const items = deduplicatePatientConditions(records);
 
       setSubmissions(items);
     } catch (err) {
@@ -324,25 +314,15 @@ export default function AdminSubmissions() {
   ]);
 
   const metrics = useMemo(() => {
-    if (submissionSummary) {
-      return {
-        total: submissionSummary.total ?? 0,
-        submitted: submissionSummary.submitted ?? 0,
-        awaiting: submissionSummary.awaiting_acknowledgement ?? 0,
-        acknowledged: submissionSummary.acknowledged ?? 0,
-        failedRetryRequired: submissionSummary.failed_retry_required ?? 0,
-      };
-    }
-
     return {
-      total: submissions.length,
+      total: submissionRecords.length,
 
-      submitted: submissions.filter(
+      submitted: submissionRecords.filter(
         (item) =>
           normalizeStatus(item.status) === "SUBMITTED",
       ).length,
 
-      awaiting: submissions.filter((item) => {
+      awaiting: submissionRecords.filter((item) => {
         const status = normalizeStatus(item.status);
 
         return (
@@ -351,18 +331,18 @@ export default function AdminSubmissions() {
         );
       }).length,
 
-      acknowledged: submissions.filter(
+      acknowledged: submissionRecords.filter(
         (item) =>
           normalizeStatus(item.status) === "ACKNOWLEDGED",
       ).length,
 
-      failedRetryRequired: submissions.filter((item) =>
+      failedRetryRequired: submissionRecords.filter((item) =>
         ["FAILED", "ERROR", "REJECTED", "RETRY_REQUIRED"].includes(
           normalizeStatus(item.status),
         ),
       ).length,
     };
-  }, [submissions, submissionSummary]);
+  }, [submissionRecords]);
 
   return (
     <main className="admin-submissions-page">
@@ -485,10 +465,9 @@ export default function AdminSubmissions() {
         )}
 
         {loading ? (
-          <SignalLoading
-            title="Loading Submissions"
-            message="Retrieving electronic case reporting submissions and acknowledgements."
-          />
+          <div className="submission-state">
+            Loading submissions...
+          </div>
         ) : filteredSubmissions.length === 0 ? (
           <div className="submission-empty">
             <strong>No submissions yet</strong>
@@ -503,6 +482,8 @@ export default function AdminSubmissions() {
             <table className="submission-table">
               <thead>
                 <tr>
+                  <th>Submission ID</th>
+                  <th>Case ID</th>
                   <th>Patient</th>
                   <th>Condition</th>
                   <th>Mode</th>
@@ -521,6 +502,14 @@ export default function AdminSubmissions() {
                         submission.submissionId
                       }
                     >
+                      <td className="mono">
+                        {submission.submissionId}
+                      </td>
+
+                      <td className="mono">
+                        {submission.caseId}
+                      </td>
+
                       <td>
                         <strong>
                           {submission.patient}

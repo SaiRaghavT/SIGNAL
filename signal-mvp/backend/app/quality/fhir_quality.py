@@ -1,7 +1,5 @@
 from typing import Any
 
-from backend.app.ingestion.fhir.parser import BundleReferenceIndex, build_bundle_reference_index
-
 
 class FHIRQualityIssue:
     def __init__(
@@ -26,6 +24,49 @@ class FHIRQualityIssue:
             "field": self.field,
             "message": self.message,
         }
+
+
+def _extract_reference_id(
+    reference: str | None,
+    resource_type: str,
+) -> str | None:
+    """
+    Extract the source resource ID from common FHIR references.
+
+    Supported:
+
+        Patient/123
+        urn:uuid:123
+        https://example.org/fhir/Patient/123
+    """
+
+    if not isinstance(reference, str):
+        return None
+
+    reference = reference.strip()
+
+    if not reference:
+        return None
+
+    # Relative reference
+    prefix = f"{resource_type}/"
+
+    if reference.startswith(prefix):
+        return reference[len(prefix):]
+
+    # Bundle-local UUID
+    urn_prefix = "urn:uuid:"
+
+    if reference.startswith(urn_prefix):
+        return reference[len(urn_prefix):]
+
+    # Absolute reference
+    marker = f"/{resource_type}/"
+
+    if marker in reference:
+        return reference.rsplit(marker, 1)[1]
+
+    return None
 
 
 def _check_resource_ids(
@@ -92,10 +133,15 @@ def _check_resource_ids(
 
 def _check_patient_references(
     resources: dict[str, list[dict[str, Any]]],
-    reference_index: BundleReferenceIndex,
 ) -> list[FHIRQualityIssue]:
 
     issues: list[FHIRQualityIssue] = []
+
+    patient_ids = {
+        resource.get("id")
+        for resource in resources.get("Patient", [])
+        if resource.get("id")
+    }
 
     resources_with_patient_reference = [
         "Encounter",
@@ -123,9 +169,12 @@ def _check_patient_references(
             if isinstance(reference_data, dict):
                 reference = reference_data.get("reference")
 
-            resolution = reference_index.resolve(reference, "Patient")
+            patient_source_id = _extract_reference_id(
+                reference,
+                "Patient",
+            )
 
-            if resolution.error == "malformed":
+            if not patient_source_id:
 
                 issues.append(
                     FHIRQualityIssue(
@@ -143,7 +192,7 @@ def _check_patient_references(
 
                 continue
 
-            elif resolution.error == "missing":
+            if patient_source_id not in patient_ids:
 
                 issues.append(
                     FHIRQualityIssue(
@@ -154,21 +203,7 @@ def _check_patient_references(
                         message=(
                             f"{resource_type} "
                             f"{resource_id} references unknown "
-                            f"Patient/{resolution.reference_id}."
-                        ),
-                    )
-                )
-            elif resolution.error == "wrong_type":
-                issues.append(
-                    FHIRQualityIssue(
-                        severity="error",
-                        resource_type=resource_type,
-                        resource_id=resource_id,
-                        field="subject.reference",
-                        message=(
-                            f"{resource_type} {resource_id} references "
-                            f"{resolution.actual_resource_type}/"
-                            f"{resolution.reference_id}; expected Patient."
+                            f"Patient/{patient_source_id}."
                         ),
                     )
                 )
@@ -178,10 +213,15 @@ def _check_patient_references(
 
 def _check_encounter_references(
     resources: dict[str, list[dict[str, Any]]],
-    reference_index: BundleReferenceIndex,
 ) -> list[FHIRQualityIssue]:
 
     issues: list[FHIRQualityIssue] = []
+
+    encounter_ids = {
+        resource.get("id")
+        for resource in resources.get("Encounter", [])
+        if resource.get("id")
+    }
 
     resources_with_encounter_reference = [
         "Condition",
@@ -201,10 +241,15 @@ def _check_encounter_references(
             if reference_data is None:
                 continue
 
-            reference = reference_data.get("reference") if isinstance(reference_data, dict) else None
-            resolution = reference_index.resolve(reference, "Encounter")
+            encounter_source_id = None
 
-            if resolution.error == "malformed":
+            if isinstance(reference_data, dict):
+                encounter_source_id = _extract_reference_id(
+                    reference_data.get("reference"),
+                    "Encounter",
+                )
+
+            if not encounter_source_id:
 
                 issues.append(
                     FHIRQualityIssue(
@@ -222,7 +267,7 @@ def _check_encounter_references(
 
                 continue
 
-            elif resolution.error == "missing":
+            if encounter_source_id not in encounter_ids:
 
                 issues.append(
                     FHIRQualityIssue(
@@ -233,40 +278,39 @@ def _check_encounter_references(
                         message=(
                             f"{resource_type} "
                             f"{resource_id} references unknown "
-                            f"Encounter/{resolution.reference_id}."
+                            f"Encounter/{encounter_source_id}."
                         ),
                     )
                 )
-            elif resolution.error == "wrong_type":
-                issues.append(
-                    FHIRQualityIssue(
-                        severity="error",
-                        resource_type=resource_type,
-                        resource_id=resource_id,
-                        field="encounter.reference",
-                        message=(
-                            f"{resource_type} {resource_id} references "
-                            f"{resolution.actual_resource_type}/"
-                            f"{resolution.reference_id}; expected Encounter."
-                        ),
-                    )
-                )
+
     return issues
 
 
 def _check_document_encounter_references(
     resources: dict[str, list[dict[str, Any]]],
-    reference_index: BundleReferenceIndex,
 ) -> list[FHIRQualityIssue]:
+
     issues: list[FHIRQualityIssue] = []
 
+    encounter_ids = {
+        resource.get("id")
+        for resource in resources.get("Encounter", [])
+        if resource.get("id")
+    }
+
     for resource in resources.get("DocumentReference", []):
+
         resource_id = resource.get("id")
+
         context = resource.get("context")
+
         if not isinstance(context, dict):
             continue
 
-        for reference_data in context.get("encounter") or []:
+        encounter_references = context.get("encounter") or []
+
+        for reference_data in encounter_references:
+
             if not isinstance(reference_data, dict):
                 issues.append(
                     FHIRQualityIssue(
@@ -274,25 +318,20 @@ def _check_document_encounter_references(
                         resource_type="DocumentReference",
                         resource_id=resource_id,
                         field="context.encounter",
-                        message="DocumentReference contains an invalid Encounter reference.",
+                        message=(
+                            "DocumentReference contains an "
+                            "invalid Encounter reference."
+                        ),
                     )
                 )
                 continue
 
-            resolution = reference_index.resolve(
-                reference_data.get("reference"), "Encounter"
+            encounter_source_id = _extract_reference_id(
+                reference_data.get("reference"),
+                "Encounter",
             )
-            if resolution.error == "malformed":
-                issues.append(
-                    FHIRQualityIssue(
-                        severity="error",
-                        resource_type="DocumentReference",
-                        resource_id=resource_id,
-                        field="context.encounter",
-                        message="DocumentReference contains an invalid Encounter reference.",
-                    )
-                )
-            elif resolution.error == "missing":
+
+            if not encounter_source_id:
                 issues.append(
                     FHIRQualityIssue(
                         severity="error",
@@ -300,12 +339,14 @@ def _check_document_encounter_references(
                         resource_id=resource_id,
                         field="context.encounter",
                         message=(
-                            f"DocumentReference {resource_id} references "
-                            f"unknown Encounter/{resolution.reference_id}."
+                            "DocumentReference contains an "
+                            "invalid Encounter reference."
                         ),
                     )
                 )
-            elif resolution.error == "wrong_type":
+                continue
+
+            if encounter_source_id not in encounter_ids:
                 issues.append(
                     FHIRQualityIssue(
                         severity="error",
@@ -313,9 +354,9 @@ def _check_document_encounter_references(
                         resource_id=resource_id,
                         field="context.encounter",
                         message=(
-                            f"DocumentReference {resource_id} references "
-                            f"{resolution.actual_resource_type}/"
-                            f"{resolution.reference_id}; expected Encounter."
+                            f"DocumentReference {resource_id} "
+                            f"references unknown "
+                            f"Encounter/{encounter_source_id}."
                         ),
                     )
                 )
@@ -325,7 +366,6 @@ def _check_document_encounter_references(
 
 def validate_fhir_data_quality(
     resources: dict[str, list[dict[str, Any]]],
-    bundle_entries: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Validate semantic/data-quality relationships inside
@@ -343,11 +383,6 @@ def validate_fhir_data_quality(
     """
 
     issues: list[FHIRQualityIssue] = []
-    reference_index = (
-        build_bundle_reference_index(bundle_entries)
-        if bundle_entries is not None
-        else BundleReferenceIndex.from_resources(resources)
-    )
 
     # Flatten all resources for ID validation.
     all_resources: list[dict[str, Any]] = []
@@ -368,7 +403,7 @@ def validate_fhir_data_quality(
     # ---------------------------------------------------------
 
     issues.extend(
-        _check_patient_references(resources, reference_index)
+        _check_patient_references(resources)
     )
 
     # ---------------------------------------------------------
@@ -376,7 +411,7 @@ def validate_fhir_data_quality(
     # ---------------------------------------------------------
 
     issues.extend(
-        _check_encounter_references(resources, reference_index)
+        _check_encounter_references(resources)
     )
 
     # ---------------------------------------------------------
@@ -384,7 +419,7 @@ def validate_fhir_data_quality(
     # ---------------------------------------------------------
 
     issues.extend(
-        _check_document_encounter_references(resources, reference_index)
+        _check_document_encounter_references(resources)
     )
 
     # ---------------------------------------------------------

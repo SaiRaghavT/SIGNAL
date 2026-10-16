@@ -1,5 +1,4 @@
 from .models import ECRPayload
-from backend.app.case.report_fields import available_case_report_fields
 
 
 def build_ecr(case) -> ECRPayload:
@@ -35,7 +34,7 @@ def build_ecr(case) -> ECRPayload:
         clinical_evidence=case.clinical_evidence,
         laboratory_evidence=case.laboratory_evidence,
         ai_evidence=case.ai_evidence,
-        report_fields=available_case_report_fields(case),
+        report_fields=getattr(case, "report_fields", {}) or {},
         reportability_decision=case.reportability_decision,
         reportability_evidence_status=(
             case.reportability_evidence_status

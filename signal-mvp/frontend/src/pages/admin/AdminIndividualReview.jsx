@@ -7,10 +7,7 @@ import {
 } from "../../services/adminService.js";
 import { ensureSubmissionFollowUp } from "../../api/followups.js";
 import { upsertClinicalInformationRequest } from "../../utils/clinicalInformationRequests.js";
-import { apiBaseUrl } from "../../api/client.js";
 import { demoPatientName } from "../../utils/adminDemoPatientNames.js";
-import { cleanPatientName } from "../../utils/patientNames.js";
-import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminIndividualReview.css";
 
 function valueOrDash(value) {
@@ -160,10 +157,10 @@ function normalizeCase(response) {
   const condition = valueOrDash(
     source.disease || source.condition || caseData.disease || caseData.condition,
   );
-  const patientName = valueOrDash(cleanPatientName(
+  const patientName = valueOrDash(
     source.patient_name || source.patientName || patient.name ||
       [patient.first_name, patient.last_name].filter(Boolean).join(" "),
-  ));
+  );
 
   return {
     caseId: valueOrDash(
@@ -220,6 +217,7 @@ function normalizeCase(response) {
     facility,
     destination: valueOrDash(source.destination ?? source.destination_name ?? caseData.destination ?? caseData.destination_name),
     reviewStatus: valueOrDash(source.review_status ?? caseData.review_status),
+    attestationStatus: valueOrDash(source.attestation_status ?? caseData.attestation_status),
     validationState: valueOrDash(
       source.validation_state ?? source.validation_status ??
       (missingInformation.length ? "NEEDS_COMPLETION" : source.queue_status),
@@ -259,7 +257,6 @@ function normalizeCase(response) {
       && missingInformation.length === 0
       && Boolean(source.report_id ?? caseData.report_id),
     reportId: source.report_id ?? caseData.report_id ?? null,
-    report: source.report ?? caseData.report ?? null,
 
     raw: source,
   };
@@ -316,7 +313,8 @@ export default function AdminIndividualReview() {
     caseData &&
     caseData.missingInformation.length === 0 &&
     caseData.validationReady &&
-    ["APPROVE", "APPROVED"].includes(String(caseData.reviewStatus).toUpperCase())
+    String(caseData.reviewStatus).toUpperCase() === "APPROVE" &&
+    String(caseData.attestationStatus).toUpperCase() === "ATTESTED"
   );
 
   function handleSendInformationRequest() {
@@ -341,7 +339,7 @@ export default function AdminIndividualReview() {
 
   async function handleAuthorizeAndSubmit() {
     if (!authorizationReady) {
-      setError("This case must have valid reporting information and an approved human review before submission.");
+      setError("This case must have valid reporting information, an approved review, and a completed attestation before submission.");
       return;
     }
     try {
@@ -389,10 +387,9 @@ export default function AdminIndividualReview() {
   if (loading) {
     return (
       <main className="admin-individual-review-page">
-        <SignalLoading
-          title="Loading Individual Review"
-          message="Retrieving case details and reporting evidence for review."
-        />
+        <div className="admin-individual-state">
+          Loading individual review...
+        </div>
       </main>
     );
   }
@@ -506,13 +503,6 @@ export default function AdminIndividualReview() {
           </strong>
         </div>
       </section>
-
-      {submitting && (
-        <SignalLoading
-          title="Authorizing Case"
-          message="Authorizing and dispatching case report to public health destination."
-        />
-      )}
 
       <div className="admin-individual-grid">
         <div className="admin-individual-main">
@@ -663,6 +653,7 @@ export default function AdminIndividualReview() {
                 </strong>
               </div>
               <div><span>Review Status</span><strong className={`admin-individual-value-${statusTone(caseData.reviewStatus)}`}>{caseData.reviewStatus}</strong></div>
+              <div><span>Attestation Status</span><strong className={`admin-individual-value-${statusTone(caseData.attestationStatus)}`}>{caseData.attestationStatus}</strong></div>
               <div><span>Validation State</span><strong className={`admin-individual-value-${statusTone(caseData.validationState)}`}>{caseData.validationState}</strong></div>
             </div>
 
@@ -700,11 +691,10 @@ export default function AdminIndividualReview() {
                 <span className="admin-individual-section-number">05</span>
                 <div>
                   <h2>Reporting Data</h2>
-                  <p>Generated reporting form and saved case fields.</p>
+                  <p>Available report fields from the case record.</p>
                 </div>
               </div>
             </div>
-            {caseData.report?.document_url && <div className="admin-individual-report-document"><p>{caseData.report.form_id} · Version {caseData.report.form_version || "Not recorded"}</p><a className="button" href={`${apiBaseUrl}${caseData.report.document_url}`} target="_blank" rel="noreferrer">Open submitted reporting form</a></div>}
             <EvidenceRows data={caseData.reportFields} />
           </section>
         </div>

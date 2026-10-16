@@ -17,12 +17,7 @@ from backend.app.demo.admin_demo_reporting import (
     apply_admin_demo_reporting_defaults,
     canonical_patient_for_case,
 )
-from .report_fields import (
-    available_case_report_fields,
-    initialize_case_report_fields,
-    is_measles_case,
-    missing_report_fields,
-)
+from .report_fields import available_case_report_fields, missing_report_fields
 
 from .schemas import CaseDetailResponse, CaseListItem, CaseListResponse
 
@@ -39,21 +34,11 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
     demo_changes.extend(
         apply_admin_demo_reporting_defaults(case, canonical_patient_for_case(db, case))
     )
-    if is_measles_case(case):
-        _, measles_changed = initialize_case_report_fields(case)
-        if measles_changed:
-            demo_changes.append("measles_report_fields_initialized")
-    if demo_changes and hasattr(db, "commit"):
+    if demo_changes:
         db.commit()
-        if hasattr(db, "refresh"):
-            db.refresh(case)
+        db.refresh(case)
 
     report_fields = available_case_report_fields(case)
-    laboratory_evidence = case.laboratory_evidence
-    if isinstance(laboratory_evidence, dict):
-        laboratory_evidence = [laboratory_evidence]
-    elif not isinstance(laboratory_evidence, list):
-        laboratory_evidence = []
     missing_fields, required_missing_fields = missing_report_fields(report_fields)
     warnings = [
         warning for warning in (case.warnings or [])
@@ -92,7 +77,7 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
         facility=case.facility,
         provider=case.provider,
         clinical_evidence=case.clinical_evidence,
-        laboratory_evidence=laboratory_evidence,
+        laboratory_evidence=case.laboratory_evidence,
         ai_evidence=case.ai_evidence,
         report_fields=report_fields,
         missing_report_fields=missing_fields,

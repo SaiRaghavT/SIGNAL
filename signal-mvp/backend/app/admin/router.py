@@ -23,14 +23,12 @@ from backend.app.models.condition import Condition
 from backend.app.models.encounter import Encounter
 from backend.app.models.lab_result import LabResult
 from backend.app.models.patient import Patient
-from backend.app.models.pha_review_decision import PHAReviewDecision
 from backend.app.models.submissions import Submission
 from backend.app.models.workflow_records import Acknowledgement, CaseWorkflowRecord, Report, SubmissionAttempt
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
 from backend.app.agents.ecr_submission.schemas import ECRSubmissionRequest
 from backend.app.agents.ecr_submission.service import ECRSubmissionService
-from backend.app.canonical.condition_mapper import clean_condition_display
 from backend.app.canonical.query_service import _case_patient_id, _patient_deadline
 
 from .schemas import (
@@ -143,35 +141,12 @@ def _condition_display(case: Case) -> str | None:
     clinical_evidence = case.clinical_evidence or {}
     diagnosis = clinical_evidence.get("diagnosis")
     if isinstance(diagnosis, str) and diagnosis.strip() and "|" not in diagnosis:
-        return clean_condition_display(diagnosis)
+        return diagnosis.strip()
 
     disease = case.disease
     if disease and disease.rsplit("|", 1)[-1] == "14189004":
         return "Measles"
-    return clean_condition_display(disease)
-
-
-def _display_rule_id(case: Case) -> str | None:
-    """Prefer the configured disease/jurisdiction reporting rule for Admin display."""
-    stored_rule = str(case.rule_id or "").strip()
-    placeholder = stored_rule.upper() in {"NO_RULE_AVAILABLE", "NO_RULE"}
-    if case.disease and case.jurisdiction:
-        try:
-            from backend.app.rules.resolver import (
-                RuleResolutionError,
-                normalize_disease_name,
-                resolve_rule,
-            )
-
-            disease = normalize_disease_name(case.disease)
-            raw_jurisdiction = str(case.jurisdiction).strip()
-            jurisdiction = "TX" if raw_jurisdiction.casefold() == "texas" else raw_jurisdiction
-            configured_rule = resolve_rule(disease, jurisdiction).get("rule_id")
-            if configured_rule:
-                return configured_rule
-        except (RuleResolutionError, ValueError, AttributeError):
-            pass
-    return None if placeholder else (stored_rule or None)
+    return disease
 
 
 def _submission_mode(case: Case, queue: CaseWorkflowRecord | None) -> str:
@@ -204,9 +179,8 @@ def _case_payload(db: Session, case: Case) -> dict:
         "case_id": case_id, "patient": case.patient or {}, "condition": _condition_display(case),
         "jurisdiction": case.jurisdiction, "deadline": case.deadline, "priority": case.severity,
         "case_status": case.status, "reportability": case.reportability_decision,
-        "evidence_status": case.reportability_evidence_status,
         "review_status": review.status if review else "PENDING",
-        "attestation_status": "NOT_REQUIRED",
+        "attestation_status": attestation.status if attestation else "PENDING",
         "submission_mode": submission_mode,
         "queue_status": queue.status if queue else "NOT_QUEUED",
         "demo_submission": demo_submission,
@@ -215,20 +189,11 @@ def _case_payload(db: Session, case: Case) -> dict:
         "demo_submission_record_id": demo_simulation.record_id if demo_simulation else None,
         "demo_submission_created_at": demo_simulation.created_at if demo_simulation else None,
         "submission_status": latest_submission,
-        "rule_id": _display_rule_id(case),
         "missing_information": validation["missing_information"],
         "available_actions": (["review"] if review is None or review.status != "APPROVE" else [])
-            + (["dispatch"] if queued and not demo_submission and report and validation["valid"] and review and review.status in {"APPROVE", "APPROVED"} else [])
+            + (["dispatch"] if queued and not demo_submission and report and validation["valid"] and attestation and attestation.status == "ATTESTED" else [])
             + (["retry"] if latest_submission in {"FAILED", "ERROR", "REJECTED"} else []),
         "report_id": report.report_id if report else None,
-        "report": ({
-            "report_id": report.report_id,
-            "form_id": report.form_id,
-            "form_version": report.form_version,
-            "render_id": report.render_id,
-            "document_url": f"/api/agents/form-rendering/{report.render_id}" if report.render_id else None,
-            "created_at": report.created_at,
-        } if report else None),
         "submission_id": submission.submission_id if submission else None,
     }
 
@@ -242,7 +207,7 @@ def _case_detail_payload(db: Session, case: Case) -> dict:
     return {
         **_case_payload(db, case),
         "severity": case.severity,
-        "rule_id": _display_rule_id(case),
+        "rule_id": case.rule_id,
         "clinical_evidence": case.clinical_evidence or {},
         "laboratory_evidence": case.laboratory_evidence or [],
         "ai_evidence": case.ai_evidence or {},
@@ -263,6 +228,8 @@ def _eligible_for_dispatch(db: Session, case: Case) -> None:
         raise HTTPException(status_code=409, detail="Case is not queued for Admin dispatch.")
     if payload["review_status"] != "APPROVE":
         raise HTTPException(status_code=409, detail="An approved review is required before dispatch.")
+    if payload["attestation_status"] != "ATTESTED":
+        raise HTTPException(status_code=409, detail="A persisted attestation is required before dispatch.")
     if not payload["report_id"]:
         raise HTTPException(status_code=409, detail="A generated report is required before dispatch.")
     if payload["missing_information"]:
@@ -330,7 +297,7 @@ def admin_queue_case(case_id: str, db: Session = Depends(get_db)) -> dict:
 
 @router.post("/cases/{case_id}/demo-dispatch")
 def admin_demo_dispatch(case_id: str, actor_id: str = "admin", db: Session = Depends(get_db)) -> dict:
-    """Submit an approved synthetic case to the local Mock PHA only."""
+    """Persist an Admin local simulation without creating or sending a submission."""
     if not settings.demo_queue_enabled:
         raise HTTPException(status_code=403, detail="Local submission simulation is disabled.")
     case = _case(db, case_id)
@@ -338,70 +305,37 @@ def admin_demo_dispatch(case_id: str, actor_id: str = "admin", db: Session = Dep
     queue = _latest(db, case_key, "ADMIN_QUEUE")
     if queue is None:
         raise HTTPException(status_code=409, detail="This case has no persisted Admin queue entry.")
-    if not (queue.payload or {}).get("demo_submission"):
-        raise HTTPException(status_code=403, detail="Local PHA submission is limited to synthetic demo queue entries.")
-
-    existing_submission = (
-        db.query(Submission)
-        .filter(
-            Submission.case_id == case_key,
-            Submission.destination == "MOCK_PHA",
-            Submission.status.in_(("SUBMITTED", "ACKNOWLEDGED")),
-        )
-        .order_by(Submission.created_at.desc())
-        .first()
-    )
-    if existing_submission is not None:
-        if _is_active_queue_status(queue.status):
+    existing = _latest(db, case_key, "ADMIN_DEMO_SUBMISSION")
+    if existing is not None and existing.status == "SIMULATED":
+        if queue.status in ACTIVE_QUEUE_STATUSES:
             queue.status = "DISPATCHED"
             queue.payload = {
                 **(queue.payload or {}),
-                "submission_id": existing_submission.submission_id,
-                "status": existing_submission.status,
+                "submission_id": existing.record_id,
+                "status": "SIMULATED",
             }
             db.commit()
         return {
             "case_id": case_key,
-            "submission_id": existing_submission.submission_id,
-            "report_id": existing_submission.report_id,
-            "ecr_id": existing_submission.ecr_id,
-            "status": existing_submission.status,
+            "record_id": existing.record_id,
+            "status": existing.status,
             "demo_submission": True,
             "externally_dispatched": False,
         }
-
-    existing_demo = _latest(db, case_key, "ADMIN_DEMO_SUBMISSION")
-    if not _is_active_queue_status(queue.status) and not (
-        existing_demo is not None and existing_demo.status == "SIMULATED"
-    ):
+    if not _is_active_queue_status(queue.status):
         raise HTTPException(status_code=409, detail="This case is not active in the Admin queue.")
-
-    try:
-        result = ECRSubmissionService().submit(
-            ECRSubmissionRequest(case_id=case_key),
-            db,
-            local_demo=True,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    if result.status != "SUBMITTED" or not result.submission_id:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "The report could not be added to the local PHA queue.", "errors": result.errors},
-        )
 
     payload = {
         "demo_submission": True,
         "authorization_status": "AUTHORIZED",
-        "destination": "MOCK_PHA",
-        "submission_id": result.submission_id,
+        "destination": "DEMO_SIMULATION",
         "externally_dispatched": False,
-        "notice": "Local Mock PHA submission recorded. No external authority was contacted.",
+        "notice": "Local simulated submission recorded. No report was sent to a public health authority.",
     }
     row = CaseWorkflowRecord(
         case_id=case_key,
         record_type="ADMIN_DEMO_SUBMISSION",
-        status="SUBMITTED",
+        status="SIMULATED",
         actor_id=actor_id,
         payload=payload,
     )
@@ -409,23 +343,18 @@ def admin_demo_dispatch(case_id: str, actor_id: str = "admin", db: Session = Dep
     queue.status = "DISPATCHED"
     queue.payload = {
         **(queue.payload or {}),
-        "submission_id": result.submission_id,
-        "status": result.status,
+        "submission_id": row.record_id,
+        "status": "SIMULATED",
     }
     db.commit()
     db.refresh(row)
-    _event(db, "CASE", case_key, "ADMIN_DEMO_SUBMISSION_TO_MOCK_PHA", actor_id, payload)
+    _event(db, "CASE", case_key, "ADMIN_DEMO_SUBMISSION_SIMULATED", actor_id, payload)
     return {
         "case_id": case_key,
         "record_id": row.record_id,
-        "submission_id": result.submission_id,
-        "report_id": result.report_id,
-        "ecr_id": result.ecr_id,
-        "status": result.status,
-        "destination": result.destination,
+        "status": row.status,
         "demo_submission": True,
         "externally_dispatched": False,
-        "warnings": result.warnings,
     }
 
 
@@ -450,57 +379,7 @@ def admin_submissions(db: Session = Depends(get_db)) -> dict:
                        "acknowledgement_status": "ACKNOWLEDGED" if item.status == "ACKNOWLEDGED" else "PENDING" if item.status == "SUBMITTED" else None,
                        "retry_attempts": db.query(SubmissionAttempt).filter(SubmissionAttempt.original_submission_id == item.submission_id).count()})
         result.append(record)
-
-    visible_items = []
-    seen_patients = set()
-    for record in result:
-        patient = record.get("patient") if isinstance(record.get("patient"), dict) else {}
-        raw_name = patient.get("name") or patient.get("full_name") or patient.get("patient_name")
-        if isinstance(raw_name, list):
-            name_parts = []
-            for item in raw_name:
-                if isinstance(item, dict):
-                    given = item.get("given") or []
-                    if isinstance(given, str):
-                        given = [given]
-                    name_parts.extend(given)
-                    name_parts.append(item.get("family", ""))
-                elif item:
-                    name_parts.append(str(item))
-            patient_name = " ".join(str(part) for part in name_parts if part).strip()
-        elif isinstance(raw_name, dict):
-            given = raw_name.get("given") or []
-            if isinstance(given, str):
-                given = [given]
-            patient_name = " ".join(str(part) for part in [*given, raw_name.get("family")] if part).strip()
-        elif raw_name:
-            patient_name = str(raw_name).strip()
-        else:
-            patient_name = " ".join(str(patient.get(key, "")).strip() for key in ("first_name", "last_name") if patient.get(key)).strip()
-
-        mode = str(record.get("submission_mode") or "").strip().upper()
-        status = str(record.get("status") or "").strip().upper()
-        if not patient_name or patient_name == "\u2014" or mode not in {"IMMEDIATE", "INDIVIDUAL", "BATCH"} or status == "BLOCKED":
-            continue
-
-        condition = str(record.get("disease") or "").strip().casefold()
-        patient_id = patient.get("patient_id") or patient.get("patientId") or patient.get("id") or patient_name
-        identity = (str(patient_id).strip().casefold(), condition)
-        if condition and identity in seen_patients:
-            continue
-        if condition:
-            seen_patients.add(identity)
-        visible_items.append(record)
-
-    statuses = [str(record.get("status") or "").strip().upper() for record in visible_items]
-    summary = {
-        "total": len(visible_items),
-        "submitted": statuses.count("SUBMITTED"),
-        "awaiting_acknowledgement": sum(status in {"AWAITING_ACKNOWLEDGEMENT", "AWAITING_ACK"} for status in statuses),
-        "acknowledged": statuses.count("ACKNOWLEDGED"),
-        "failed_retry_required": sum(status in {"FAILED", "ERROR", "REJECTED", "RETRY_REQUIRED"} for status in statuses),
-    }
-    return {"items": result, "total": len(result), "summary": summary}
+    return {"items": result, "total": len(result)}
 
 
 @router.delete("/session/submissions")
@@ -519,7 +398,6 @@ def clear_admin_session_submissions(
         return {"deleted": 0, "submission_ids": []}
 
     db.query(Acknowledgement).filter(Acknowledgement.submission_id.in_(matched_ids)).delete(synchronize_session=False)
-    db.query(PHAReviewDecision).filter(PHAReviewDecision.submission_id.in_(matched_ids)).delete(synchronize_session=False)
     db.query(SubmissionAttempt).filter(
         or_(
             SubmissionAttempt.original_submission_id.in_(matched_ids),
@@ -566,18 +444,6 @@ def admin_submission(submission_id: str, db: Session = Depends(get_db)) -> dict:
     data["attempts"] = [{"attempt_id": a.attempt_id, "number": a.attempt_number, "status": a.status, "new_submission_id": a.new_submission_id, "reason": a.reason, "created_at": a.created_at} for a in db.query(SubmissionAttempt).filter(SubmissionAttempt.original_submission_id == submission_id).order_by(SubmissionAttempt.attempt_number).all()]
     ack = db.query(Acknowledgement).filter(Acknowledgement.submission_id == submission_id).order_by(Acknowledgement.received_at.desc()).first()
     data["acknowledgement"] = {"acknowledgement_id": ack.acknowledgement_id, "status": ack.status, "received_at": ack.received_at, "errors": ack.errors} if ack else None
-    decisions = (db.query(PHAReviewDecision)
-                 .filter(PHAReviewDecision.submission_id == submission_id)
-                 .order_by(PHAReviewDecision.created_at.desc(), PHAReviewDecision.decision_id.desc())
-                 .all())
-    latest_decision = decisions[0] if decisions else None
-    data["latest_pha_decision"] = ({
-        "decision_id": latest_decision.decision_id,
-        "decision": latest_decision.decision,
-        "reviewer": latest_decision.reviewer,
-        "created_at": latest_decision.created_at,
-    } if latest_decision else None)
-    data["pha_decision_count"] = len(decisions)
     return data
 
 

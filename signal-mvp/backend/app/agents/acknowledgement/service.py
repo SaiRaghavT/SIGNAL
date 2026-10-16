@@ -68,7 +68,7 @@ class AcknowledgementService:
         )
 
         # ---------------------------------------------------------
-        # 4. Update ACKNOWLEDGEMENT STATUS
+        # 4. Update submission status
         # ---------------------------------------------------------
         submission.status = "ACKNOWLEDGED"
         submission.acknowledgement_id = acknowledgement_id

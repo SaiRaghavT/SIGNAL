@@ -42,19 +42,6 @@ function formatDeadline(value) {
   const part = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]));
   return `${part.day} ${part.month} ${part.year}, ${part.hour}:${part.minute} ${part.dayPeriod?.toUpperCase() || ""}`.trim();
 }
-function formatDeadlineDuration(totalMinutes) {
-  if (!Number.isFinite(totalMinutes)) return "";
-  const absMinutes = Math.abs(Math.round(totalMinutes));
-  const hours = Math.floor(absMinutes / 60);
-  const mins = absMinutes % 60;
-  if (hours > 0 && mins > 0) {
-    return `${hours} ${hours === 1 ? "hour" : "hours"} ${mins} min`;
-  }
-  if (hours > 0) {
-    return `${hours} ${hours === 1 ? "hour" : "hours"}`;
-  }
-  return `${mins} min`;
-}
 
 function formatPatientName(patient) {
   return [patient.first_name, patient.last_name]
@@ -131,9 +118,6 @@ export default function Patients() {
   }
 
   const visiblePatients = Array.isArray(result?.items) ? result.items : [];
-  const tablePatients = visiblePatients.filter(
-    (patient) => formatPatientName(patient).toUpperCase() !== "SAMPLE PATIENT"
-  );
   const totalPages = result?.pages || 0;
   const firstVisiblePatient = result?.total ? (page - 1) * PAGE_SIZE + 1 : 0;
   const lastVisiblePatient = Math.min(page * PAGE_SIZE, result?.total || 0);
@@ -193,7 +177,7 @@ export default function Patients() {
             <span>{error.message}</span>
             <button type="button" onClick={() => setRefreshKey((key) => key + 1)}>Retry</button>
           </div>
-        ) : tablePatients.length === 0 ? (
+        ) : visiblePatients.length === 0 ? (
           <div className="patients-empty">
             <strong>No patients found</strong>
             {(search.trim() || condition.trim()) && <p>No patients match the current search filters.</p>}
@@ -213,7 +197,7 @@ export default function Patients() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tablePatients.map((patient) => {
+                  {visiblePatients.map((patient) => {
                     const fullName = formatPatientName(patient);
                     return (
                       <tr key={patient.patient_id}>
@@ -231,7 +215,7 @@ export default function Patients() {
                             <span className="patient-deadline-state">
                               {patient.deadline.deadline_status}
                               {Number.isFinite(patient.deadline.minutes_remaining)
-                                ? ` · ${formatDeadlineDuration(patient.deadline.minutes_remaining)}`
+                                ? ` · ${patient.deadline.minutes_remaining} min`
                                 : ""}
                             </span>
                           )}

@@ -16,14 +16,7 @@ from backend.app.smart_field_population.form_config import (
     TEXAS_MEASLES_FORM,
 )
 
-from .report_fields import (
-    STAFF_ENTRY_FIELDS_SAVED_KEY,
-    available_case_report_fields,
-    initialize_case_report_fields,
-    is_measles_case,
-    is_missing,
-    missing_report_fields,
-)
+from .report_fields import is_missing, missing_report_fields
 from .schemas import CaseReportUpdateRequest, CaseReportUpdateResponse
 
 
@@ -42,26 +35,8 @@ def update_case_report(
     if unknown_fields:
         raise ValueError(f"Unknown report fields: {', '.join(unknown_fields)}")
     changed_fields = sorted(request.report_fields)
-    if is_measles_case(case):
-        initialize_case_report_fields(case)
-    existing_fields = dict(case.report_fields or {})
-    saved_staff_values = existing_fields.get(STAFF_ENTRY_FIELDS_SAVED_KEY, [])
-    if not isinstance(saved_staff_values, (list, tuple, set)):
-        saved_staff_values = []
-    saved_staff_fields = set(saved_staff_values) & set(REPORTING_MISSING_INFO_FIELDS)
     report_updates = {key: value for key, value in request.report_fields.items() if not key.startswith(("provider.", "facility."))}
-    case.report_fields = {**existing_fields, **report_updates}
-    for field in REPORTING_MISSING_INFO_FIELDS:
-        if field not in report_updates:
-            continue
-        if is_missing(report_updates[field]):
-            saved_staff_fields.discard(field)
-        else:
-            saved_staff_fields.add(field)
-    if saved_staff_fields:
-        case.report_fields[STAFF_ENTRY_FIELDS_SAVED_KEY] = sorted(saved_staff_fields)
-    else:
-        case.report_fields.pop(STAFF_ENTRY_FIELDS_SAVED_KEY, None)
+    case.report_fields = {**(case.report_fields or {}), **report_updates}
     # Patient identity fields entered on the reporting form are part of the
     # persisted Case as well as the rendered report. Keep the ECR patient
     # object in sync so validation sees a submitted date of birth, for example.
@@ -102,7 +77,7 @@ def update_case_report(
         case.facility = {**(case.facility or {}), **request.facility}
         changed_fields.extend(f"facility.{key}" for key in request.facility)
 
-    is_staff_entry_reset = (
+    is_optional_missing_info_reset = (
         bool(report_updates)
         and set(report_updates).issubset(REPORTING_MISSING_INFO_FIELDS)
         and all(is_missing(value) for value in report_updates.values())
@@ -112,7 +87,7 @@ def update_case_report(
         and request.facility is None
     )
     synthetic_changes = (
-        [] if is_staff_entry_reset
+        [] if is_optional_missing_info_reset
         else apply_synthetic_jordan_reporting_defaults(case)
     )
     changed_fields.extend(synthetic_changes)
@@ -122,12 +97,13 @@ def update_case_report(
         if is_missing(value):
             case.report_fields[field] = value
 
-    # Clearing only staff-entered reporting values on a fresh form visit should
-    # not revoke clinical approval or attestation for the otherwise unchanged case.
-    clearing_staff_entry_fields = is_staff_entry_reset and not synthetic_changes
+    # The five missing-information values are optional form fields. Clearing
+    # only these values on a fresh form visit should not revoke clinical
+    # approval or attestation for the otherwise unchanged case.
+    clearing_optional_missing_info = is_optional_missing_info_reset and not synthetic_changes
 
     if changed_fields:
-        if not clearing_staff_entry_fields:
+        if not clearing_optional_missing_info:
             current_records = db.query(CaseWorkflowRecord).filter(
                 CaseWorkflowRecord.case_id == str(case.case_id),
                 CaseWorkflowRecord.record_type.in_(("VALIDATION", "REVIEW", "ATTESTATION")),
@@ -140,16 +116,15 @@ def update_case_report(
         ).all():
             report.status = "SUPERSEDED"
 
-    available_fields = available_case_report_fields(case)
-    missing, required_missing = missing_report_fields(available_fields)
-    if case.final_decision != "HOLD" and not clearing_staff_entry_fields:
+    missing, required_missing = missing_report_fields(case.report_fields)
+    if case.final_decision != "HOLD" and not clearing_optional_missing_info:
         case.status = "NEEDS_REVIEW"
     db.commit()
     db.refresh(case)
 
     ecr = build_ecr(case)
     smart_fields = SimpleNamespace(
-        fields=available_fields,
+        fields=case.report_fields,
         missing_fields=missing,
         required_missing_fields=required_missing,
     )
@@ -174,7 +149,7 @@ def update_case_report(
     )
     return CaseReportUpdateResponse(
         case_id=str(case.case_id),
-        report_fields=available_fields,
+        report_fields=case.report_fields,
         provider=case.provider or {},
         facility=case.facility or {},
         missing_report_fields=missing,

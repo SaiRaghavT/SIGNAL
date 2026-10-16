@@ -56,17 +56,6 @@ def detect_candidates(
     structured_signals = [
         signal for signal in signals if signal not in source_document_signals
     ]
-    laboratory_review_signals = [
-        signal for signal in structured_signals
-        if signal.get("trigger_type") == "LAB_RESULT"
-        and not (signal.get("evidence") or {}).get("positive_detection_eligible")
-    ]
-    # A test-code match without a qualifying positive interpretation remains
-    # review evidence; it cannot create a positive-detection candidate.
-    structured_signals = [
-        signal for signal in structured_signals
-        if signal not in laboratory_review_signals
-    ]
 
     # ---------------------------------------------------------
     # Document detection
@@ -109,15 +98,6 @@ def detect_candidates(
 
     candidates = fuse_candidate_signals(candidate_signals)
 
-    # Keep same-disease non-qualifying laboratory results alongside a real
-    # candidate so reviewers can see negative, pending, or unresolved context.
-    for candidate in candidates:
-        for lab_signal in laboratory_review_signals:
-            if lab_signal.get("disease_id") != candidate.get("disease_id"):
-                continue
-            candidate["signals"].append(lab_signal)
-            candidate["evidence"].append(lab_signal.get("evidence", {}))
-
     # Attach source notes to the disease candidate for review. Source-note
     # signals stay out of fusion above, so they can enrich a real candidate
     # without becoming generic "Potential condition" cards themselves.
@@ -154,11 +134,7 @@ def detect_candidates(
                 )
                 or (
                     encounter_id is not None
-                    and encounter_id in {
-                        signal.get("encounter_id")
-                        for signal in candidate.get("signals", [])
-                        if isinstance(signal, dict)
-                    }
+                    and candidate.get("encounter_id") == encounter_id
                 )
             ]
             if len(matching_candidates) == 1:
@@ -185,7 +161,6 @@ def detect_candidates(
         # Document signal count
         "document_signal_count": len(source_document_signals),
         "document_signals": source_document_signals,
-        "laboratory_review_signals": laboratory_review_signals,
         "document_evidence_signal_count": len(document_evidence_signals),
 
         # Candidates

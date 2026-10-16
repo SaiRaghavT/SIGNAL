@@ -23,12 +23,7 @@ from backend.app.ecr.builder import build_ecr
 from backend.app.models.case import Case
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.workflow_records import CaseWorkflowRecord, Report
-from backend.app.case.report_fields import (
-    available_case_report_fields,
-    initialize_case_report_fields,
-    is_measles_case,
-    missing_report_fields,
-)
+from backend.app.case.report_fields import available_case_report_fields, missing_report_fields
 from backend.app.schemas.validation import validate_ecr
 from backend.app.submission.gates import smart_fields_for_case
 from backend.app.smart_field_population.form_config import TEXAS_MEASLES_FORM
@@ -136,6 +131,23 @@ def _queue_synthetic_demo_case(
             reviewer_id,
         )
 
+    attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
+    if attestation is None or str(attestation.status or "").upper() != "ATTESTED":
+        _record(
+            db,
+            case_id,
+            RECORD_TYPES["attestation"],
+            "ATTESTED",
+            {
+                **demo_payload,
+                "reviewer_id": reviewer_id,
+                "reviewer_role": "DEMO_SIMULATION",
+                "attestation_status": "ATTESTED",
+                "comments": "Demo-only attestation; not authorized for external reporting.",
+            },
+            reviewer_id,
+        )
+
     row = _record(
         db,
         case_id,
@@ -222,9 +234,13 @@ def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_d
         }
 
     review = _latest(db, case_id, RECORD_TYPES["review"])
+    attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
     review_status = str(getattr(review, "status", "") or "").strip().upper()
+    attestation_status = str(getattr(attestation, "status", "") or "").strip().upper()
     if review_status not in {"APPROVE", "APPROVED"}:
         raise HTTPException(status_code=409, detail="An approved review is required before queueing.")
+    if attestation_status != "ATTESTED":
+        raise HTTPException(status_code=409, detail="A persisted attestation is required before queueing.")
     validation = _validation(case, db)
     if not validation["valid"]:
         raise HTTPException(
@@ -241,10 +257,7 @@ def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_d
         .first()
     )
     if report is None:
-        raise HTTPException(
-            status_code=409,
-            detail="Generate the reporting form before submitting this case to the Admin queue.",
-        )
+        raise HTTPException(status_code=409, detail="Generate a report from the saved reporting fields before queueing.")
 
     # The effective reporting rule determines mode; a client cannot override
     # an immediate jurisdiction rule with a browser-selected value.
@@ -265,6 +278,7 @@ def queue_case(case_id: UUID, request: QueueRequest, db: Session = Depends(get_d
             "rule_id": case.rule_id,
             "deadline": case.deadline.isoformat() if case.deadline else None,
             "review_record_id": review.record_id,
+            "attestation_record_id": attestation.record_id,
         },
         request.actor_id.strip(),
     )
@@ -453,8 +467,6 @@ def update_investigation(case_id: UUID, request: InvestigationRequest, db: Sessi
 def _validation(case: Case, db: Session | None = None) -> dict[str, Any]:
     canonical_patient = canonical_patient_for_case(db, case)
     apply_admin_demo_reporting_defaults(case, canonical_patient)
-    if is_measles_case(case):
-        initialize_case_report_fields(case)
     ecr = build_ecr(case)
     ecr.status = "REPORT"
     result = validate_ecr(ecr, smart_fields_for_case(case))
@@ -524,16 +536,6 @@ def create_review(case_id: UUID, request: ReviewRequest, db: Session = Depends(g
     if decision == "APPROVE" and not validation["valid"]:
         raise HTTPException(status_code=409, detail={"message": "Case is not valid for approval.", "validation": validation})
     if decision == "APPROVE":
-        current_decision = str(getattr(case, "final_decision", "") or "").strip().upper()
-        reportability_decision = str(getattr(case, "reportability_decision", "") or "").strip().upper()
-        if (
-            current_decision in {"NEEDS_REVIEW", "PROCEED_TO_RULES"}
-            and reportability_decision == "PROCEED_TO_RULES"
-            and getattr(case, "jurisdiction_status", "") == "RESOLVED"
-        ):
-            # An explicit, validated reviewer approval resolves the review
-            # state for cases that already passed reportability assessment.
-            case.final_decision = "REPORT"
         prior_attestations = db.query(CaseWorkflowRecord).filter(
             CaseWorkflowRecord.case_id == str(case_id),
             CaseWorkflowRecord.record_type == RECORD_TYPES["attestation"],
@@ -629,12 +631,15 @@ def mark_submission_ready(
     case = _case(db, case_id)
     validation = _validation(case, db)
     review = _latest(db, case_id, RECORD_TYPES["review"])
+    attestation = _latest(db, case_id, RECORD_TYPES["attestation"])
     persisted_review_approved = (
         review is not None
         and (review.status or "").strip().upper() in {"APPROVE", "APPROVED"}
     )
     if not persisted_review_approved:
         raise HTTPException(status_code=409, detail="An approved human review is required before queue readiness.")
+    if attestation is None or attestation.status != "ATTESTED":
+        raise HTTPException(status_code=409, detail="An attestation confirmation is required before queue readiness.")
     if not validation["valid"]:
         raise HTTPException(
             status_code=409,

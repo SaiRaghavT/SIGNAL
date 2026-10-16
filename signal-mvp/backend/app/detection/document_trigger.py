@@ -2,26 +2,15 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from functools import lru_cache
 from typing import Any
 
 from backend.app.detection.disease_concepts import canonical_disease_id
-from backend.app.detection.trigger_loader import build_trigger_code_index, get_value_sets
 
 
-# These are the official eRSD RCTC groups whose disease-focused value sets can
-# identify a diagnosis or laboratory concept in extracted document evidence.
-_DOCUMENT_TRIGGER_GROUP_TYPES = {
-    "dxtc-3.2.0": "diagnosis",
-    "sdtc-3.2.0": "diagnosis",
-    "lrtc-3.2.0": "laboratory",
-    "lotc-3.2.0": "laboratory",
-    "ostc-3.2.0": "laboratory",
-}
-
-# Keep the original measles aliases as a compatibility fallback for terminology
-# releases whose display strings differ from the extracted concept text.
-_LEGACY_DOCUMENT_TRIGGERS = (
+# Document signals are intentionally conservative: an explicit diagnosis
+# can create a candidate signal; symptom-only evidence cannot confirm one.
+# Add disease-specific rules here as the detection scope expands.
+DOCUMENT_DIAGNOSIS_TRIGGERS = [
     {
         "trigger_id": "measles-document-diagnosis",
         "disease_id": "measles",
@@ -36,17 +25,19 @@ _LEGACY_DOCUMENT_TRIGGERS = (
         "trigger_type": "DOCUMENT_LABORATORY",
         "terms": ("measles", "rubeola"),
     },
-)
+]
 
-_NEGATION_BEFORE = re.compile(
-    r"\b(?:no|not|deny|denies|denied|negative for|rule[sd]? out|without|"
-    r"absence of|no evidence of)\b[^.!?]{0,100}$",
-    re.IGNORECASE,
-)
-_NEGATION_AFTER = re.compile(
-    r"^[^.!?]{0,100}\b(?:ruled out|not detected|negative|absent|unlikely|"
-    r"not present)\b",
-    re.IGNORECASE,
+_NEGATED_DIAGNOSIS_PATTERNS = (
+    re.compile(
+        r"\b(?:no|not|denies?|negative for|rule[sd]? out|without|absence of)"
+        r"\b[^.!?]{0,60}\b(?:measles|rubeola)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:measles|rubeola)\b[^.!?]{0,60}"
+        r"\b(?:ruled out|not detected|negative|absent|unlikely)\b",
+        re.IGNORECASE,
+    ),
 )
 _DISEASE_LABEL_STOP_WORDS = {
     "acute", "chronic", "confirmed", "disease", "disorder", "infection",
@@ -54,172 +45,47 @@ _DISEASE_LABEL_STOP_WORDS = {
 }
 
 
-def _normalized_term(value: Any) -> str:
-    text = str(value or "").casefold().strip()
-    text = re.sub(r"\s+\((?:disorder|finding|situation|organism|event)\)$", "", text)
-    text = re.sub(r"[^a-z0-9]+", " ", text)
-    return " ".join(text.split())
+def _matches_document_trigger(
+    evidence: dict[str, Any],
+    trigger: dict[str, Any],
+) -> bool:
+    if (
+        str(evidence.get("evidence_type", "")).casefold()
+        != trigger["evidence_type"]
+    ):
+        return False
 
+    assertion = str(evidence.get("assertion", "uncertain")).casefold()
+    temporality = str(evidence.get("temporality", "unknown")).casefold()
+    if assertion != "present" or temporality == "historical":
+        return False
 
-def _value_set_focuses(value_set: dict[str, Any]) -> list[tuple[str, str, str]]:
-    focuses: list[tuple[str, str, str]] = []
-    use_contexts = value_set.get("useContext") or value_set.get("use_context") or []
-    if isinstance(use_contexts, dict):
-        use_contexts = [use_contexts]
-    for context in use_contexts:
-        if not isinstance(context, dict):
-            continue
-        if (context.get("code") or {}).get("code") != "focus":
-            continue
-        concept = context.get("valueCodeableConcept") or context.get("value_codeable_concept") or {}
-        for coding in concept.get("coding") or []:
-            if isinstance(coding, dict) and coding.get("system") and coding.get("code"):
-                focuses.append((str(coding["system"]), str(coding["code"]), str(concept.get("text") or "")))
-    return focuses
-
-
-def _has_reporting_trigger_context(value_set: dict[str, Any]) -> bool:
-    use_contexts = value_set.get("useContext") or value_set.get("use_context") or []
-    if isinstance(use_contexts, dict):
-        use_contexts = [use_contexts]
-    for context in use_contexts:
-        if not isinstance(context, dict) or (context.get("code") or {}).get("code") != "reporting":
-            continue
-        concept = context.get("valueCodeableConcept") or context.get("value_codeable_concept") or {}
-        if any(
-            isinstance(coding, dict) and str(coding.get("code", "")).casefold() == "triggering"
-            for coding in concept.get("coding") or []
-        ):
-            return True
-    return False
-
-
-def _walk_expansion(contains: Any):
-    for item in contains if isinstance(contains, list) else []:
-        if not isinstance(item, dict):
-            continue
-        yield item
-        yield from _walk_expansion(item.get("contains"))
-
-
-@lru_cache(maxsize=1)
-def _document_trigger_catalog() -> tuple[dict[str, Any], ...]:
-    """Build disease aliases from reporting-focused eRSD value sets."""
-    code_index = build_trigger_code_index()
-    seen_value_sets: set[tuple[str, str, str]] = set()
-    catalog: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-
-    for value_set in get_value_sets().values():
-        if not isinstance(value_set, dict):
-            continue
-        identity = (
-            str(value_set.get("id") or ""),
-            str(value_set.get("url") or ""),
-            str(value_set.get("version") or ""),
-        )
-        if identity in seen_value_sets:
-            continue
-        seen_value_sets.add(identity)
-        if not _has_reporting_trigger_context(value_set):
-            continue
-
-        for focus_system, focus_code, focus_text in _value_set_focuses(value_set):
-            disease_id = canonical_disease_id(f"{focus_system}|{focus_code}")
-            for item in _walk_expansion((value_set.get("expansion") or {}).get("contains")):
-                if item.get("inactive") is True or not item.get("display"):
-                    continue
-                item_key = f"{item.get('system')}|{item.get('code')}"
-                group_ids = {
-                    match.get("group_id")
-                    for match in code_index.get(item_key, [])
-                }
-                for group_id, evidence_type in _DOCUMENT_TRIGGER_GROUP_TYPES.items():
-                    if group_id not in group_ids:
-                        continue
-                    term = _normalized_term(item["display"])
-                    if len(term) < 4:
-                        continue
-                    key = (group_id, evidence_type, str(disease_id), term)
-                    catalog[key] = {
-                        "trigger_id": f"ersd-{group_id}-{focus_code}",
-                        "disease_id": disease_id,
-                        "evidence_type": evidence_type,
-                        "trigger_type": "DOCUMENT_DIAGNOSIS" if evidence_type == "diagnosis" else "DOCUMENT_LABORATORY",
-                        "terms": (term,),
-                    }
-                    focus_term = _normalized_term(focus_text)
-                    if len(focus_term) >= 4:
-                        catalog[(group_id, evidence_type, str(disease_id), focus_term)] = {
-                            "trigger_id": f"ersd-{group_id}-{focus_code}",
-                            "disease_id": disease_id,
-                            "evidence_type": evidence_type,
-                            "trigger_type": "DOCUMENT_DIAGNOSIS" if evidence_type == "diagnosis" else "DOCUMENT_LABORATORY",
-                            "terms": (focus_term,),
-                        }
-
-    return tuple(catalog.values())
-
-
-def _matching_document_triggers(evidence: dict[str, Any]) -> list[dict[str, Any]]:
-    evidence_type = str(evidence.get("evidence_type", "")).casefold()
-    concept = _normalized_term(evidence.get("concept"))
-    if not concept:
-        return []
-
-    catalog = (*_document_trigger_catalog(), *_LEGACY_DOCUMENT_TRIGGERS)
-    matches: list[tuple[int, dict[str, Any]]] = []
-    for trigger in catalog:
-        if evidence_type != trigger["evidence_type"]:
-            continue
-        for raw_term in trigger["terms"]:
-            term = _normalized_term(raw_term)
-            if term and (
-                concept == term
-                or (len(term) >= 5 and term in concept)
-                or (len(concept) >= 12 and len(concept.split()) >= 2 and concept in term)
-            ):
-                matches.append((len(term), trigger))
-
-    if not matches:
-        return []
-    best_length = max(length for length, _ in matches)
-    best = {
-        (canonical_disease_id(trigger["disease_id"]), trigger["evidence_type"]): trigger
-        for length, trigger in matches
-        if length == best_length
-    }
-    # Ambiguous term matches should not invent a disease association.
-    return list(best.values()) if len(best) == 1 else []
-
-
-def _is_explicitly_negated(evidence: dict[str, Any], trigger: dict[str, Any]) -> bool:
     concept = str(evidence.get("concept") or "")
     evidence_text = str(evidence.get("evidence_text") or "")
-    combined = _normalized_term(f"{concept}. {evidence_text}")
-    for raw_term in trigger["terms"]:
-        term = _normalized_term(raw_term)
-        if not term:
-            continue
-        term_pattern = re.escape(term).replace(r"\ ", r"\s+")
-        expression = re.compile(rf"\b{term_pattern}\b", re.IGNORECASE)
-        for match in expression.finditer(combined):
-            before = combined[max(0, match.start() - 100):match.start()]
-            after = combined[match.end():match.end() + 100]
-            if _NEGATION_BEFORE.search(before) or _NEGATION_AFTER.search(after):
-                return True
-    return False
+    combined = f"{concept}. {evidence_text}"
 
+    if any(pattern.search(combined) for pattern in _NEGATED_DIAGNOSIS_PATTERNS):
+        return False
 
-def _matches_document_trigger(evidence: dict[str, Any], trigger: dict[str, Any]) -> bool:
-    if str(evidence.get("assertion", "uncertain")).casefold() != "present":
+    has_disease_term = any(
+        re.search(rf"\b{re.escape(term)}\b", concept, re.IGNORECASE)
+        for term in trigger["terms"]
+    )
+    if not has_disease_term:
         return False
-    if str(evidence.get("temporality", "unknown")).casefold() == "historical":
-        return False
-    if _is_explicitly_negated(evidence, trigger):
-        return False
+
     if trigger["evidence_type"] == "laboratory":
-        return bool(re.search(r"\b(positive|detected|reactive)\b", str(evidence.get("evidence_text") or ""), re.IGNORECASE))
-    return True
+        return assertion == "present" and bool(
+            re.search(
+                r"\b(positive|detected|reactive)\b",
+                evidence_text,
+                re.IGNORECASE,
+            )
+        )
+
+    # A differential or suspected diagnosis is useful chart context, but it
+    # should not create its own candidate when no diagnosis is asserted.
+    return assertion == "present"
 
 
 def _structured_disease_terms(signal: dict[str, Any]) -> set[str]:
@@ -250,9 +116,10 @@ def detect_document_triggers(
 ) -> list[dict[str, Any]]:
     """Convert explicit document evidence into explainable candidate signals.
 
-    Document diagnosis and positive laboratory evidence can match disease-focused
-    eRSD RCTC value sets. Other document evidence can support a disease already
-    matched by structured data, without treating symptoms alone as diagnoses.
+    Document evidence is attached to a disease only when that disease already
+    matched a structured eRSD trigger, or when an existing explicit document
+    trigger (currently measles) matches. This lets document findings support
+    any structured disease without treating symptoms as diagnoses.
     """
 
     if not isinstance(evidence_items, list):
@@ -264,7 +131,7 @@ def detect_document_triggers(
         if not isinstance(item, dict):
             continue
 
-        for trigger in _matching_document_triggers(item):
+        for trigger in DOCUMENT_DIAGNOSIS_TRIGGERS:
             if not _matches_document_trigger(item, trigger):
                 continue
 
@@ -280,7 +147,7 @@ def detect_document_triggers(
                     "disease_id": canonical_disease_id(trigger["disease_id"]),
                     "trigger_concept_key": canonical_disease_id(trigger["disease_id"]),
                     "evidence": {
-                        "source_type": item.get("source_type") or "ClinicalDocument",
+                        "source_type": "ClinicalDocument",
                         "source_id": item.get("document_id"),
                         "evidence_type": item.get("evidence_type"),
                         "concept": item.get("concept"),
@@ -344,7 +211,7 @@ def detect_document_triggers(
                     "disease_id": disease_id,
                     "trigger_concept_key": structured_signal.get("trigger_concept_key") or disease_id,
                     "evidence": {
-                        "source_type": item.get("source_type") or "ClinicalDocument",
+                        "source_type": "ClinicalDocument",
                         "source_id": item.get("document_id"),
                         "evidence_type": item.get("evidence_type"),
                         "concept": item.get("concept"),

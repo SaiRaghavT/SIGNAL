@@ -258,8 +258,6 @@
 .imminent-badge { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 12px; background: var(--signal-success-bg); color: var(--signal-text-secondary); font-size: 9px; font-weight: 650; }
 
 .dashboard-section-error { padding: 12px; border: 1px solid var(--signal-border); border-radius: 7px; background: var(--signal-danger-bg); color: var(--signal-danger); font-size: 10px; line-height: 1.45; }
-.dashboard-retry { margin: 8px 0 0 8px; padding: 5px 9px; border: 1px solid var(--signal-border); border-radius: 6px; background: var(--signal-surface); color: var(--signal-text); font-size: 10px; font-weight: 650; cursor: pointer; }
-.dashboard-retry:hover { background: var(--signal-surface-muted); }
 
 .dashboard-footer { display: flex; justify-content: space-between; gap: 12px; padding: 14px 2px 2px; color: var(--signal-text-secondary); font-size: 10px; }
 .dashboard-footer span:first-child { display: inline-flex; align-items: center; gap: 6px; }

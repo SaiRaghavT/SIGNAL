@@ -96,11 +96,6 @@ def ingest_document(
                 "source_document_id": (
                     existing_document.source_document_id
                 ),
-                "created_at": (
-                    existing_document.created_at.isoformat()
-                    if existing_document.created_at
-                    else None
-                ),
                 "text_length": len(
                     existing_document.extracted_text
                     or ""
@@ -164,11 +159,6 @@ def ingest_document(
             "source": document.source,
             "source_document_id": (
                 document.source_document_id
-            ),
-            "created_at": (
-                document.created_at.isoformat()
-                if document.created_at
-                else None
             ),
             "document_type": (
                 document.document_type

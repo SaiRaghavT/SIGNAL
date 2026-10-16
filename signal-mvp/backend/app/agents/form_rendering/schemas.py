@@ -70,10 +70,8 @@ class FormFieldDefinition(BaseModel):
 
 
 class FormDefinitionResponse(BaseModel):
-    name: str
     form_id: str
     form_version: str
     disease: str
     jurisdiction: str
     fields: List[FormFieldDefinition] = Field(default_factory=list)
-    staff_entry_fields: List[str] = Field(default_factory=list)

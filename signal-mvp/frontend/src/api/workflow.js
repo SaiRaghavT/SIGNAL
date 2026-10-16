@@ -7,7 +7,6 @@ const prepareManualReport = (body) => request("/api/agents/manual-reporting/prep
 const renderForm = (body) => request("/api/agents/form-rendering/render", { method: "POST", body: JSON.stringify(body) });
 const getRenderedFormPdf = (renderId) => requestBlob(`/api/agents/form-rendering/${encodeURIComponent(renderId)}`);
 const getFormDefinition = (formId) => request(`/api/agents/form-rendering/forms/${encodeURIComponent(formId)}`);
-const getFormDefinitionForCase = (caseId) => request(`/api/agents/form-rendering/forms/for-case/${encodeURIComponent(caseId)}`);
 const getImmediateNotification = (caseId) => request(`/api/workflow/cases/${encodeURIComponent(caseId)}/immediate-notification`);
 const recordImmediateNotification = (caseId, body) => request(`/api/workflow/cases/${encodeURIComponent(caseId)}/immediate-notification`, { method: "POST", body: JSON.stringify(body) });
 const getCaseValidation = (caseId) => request(`/api/cases/${encodeURIComponent(caseId)}/validation`);
@@ -46,7 +45,6 @@ export {
   getSubmissionReadiness,
   getCaseValidation,
   getFormDefinition,
-  getFormDefinitionForCase,
   getRenderedFormPdf,
   getImmediateNotification,
   nlpEvidence,

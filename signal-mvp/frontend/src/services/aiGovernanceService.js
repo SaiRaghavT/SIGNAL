@@ -30,13 +30,6 @@ const getAuditSummary = async () => request('/api/audit/events/summary')
 const label = value => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase())
 const findCandidate = (data, id) => data.candidates.find(item => item.candidate_id === id)
 const relevantDisease = value => String(value || '').toLowerCase().includes('measles')
-const evidenceStrength = candidate => candidate?.evidence_strength ?? (
-  ['legacy_evidence_strength_ratio', 'weighted_rule_based_v1'].includes(candidate?.confidence_method)
-    && candidate?.confidence != null
-    && Number.isFinite(Number(candidate.confidence))
-    ? Number(candidate.confidence) * 100
-    : null
-)
 const isTexas = value => /texas|\btx\b/i.test(String(value || ''))
 const reviewDecision = review => review?.payload?.decision || review?.status || 'not_available'
 const auditDetail = event => event.description || JSON.stringify(event.new_value || {})
@@ -95,7 +88,7 @@ async function buildOutcomeData() {
       disease: item.disease,
       jurisdiction: item.jurisdiction,
       evidence: candidate?.evidence || [],
-      evidence_strength: evidenceStrength(candidate),
+      confidence: candidate?.confidence ?? null,
       status: review ? decision : submission?.status || item.status || 'not_available',
       timestamp: review?.created_at || submission?.created_at || item.updated_at,
       submission_simulated: submission?.destination === 'MOCK_PHA',
@@ -193,7 +186,7 @@ const governanceService = {
         const caseOutcome = outcomeByCandidate.get(candidate.candidate_id)
         return {
           candidate_id: candidate.candidate_id,
-          evidence_strength: evidenceStrength(candidate),
+          confidence: candidate.confidence,
           candidate_status: candidate.status,
           reviewer_decision: caseOutcome?.reviewer_decision || 'not_available',
           reportability_decision: caseOutcome?.reportability_decision || 'not_available',
@@ -232,8 +225,8 @@ const governanceService = {
         },
         evidence: sourceEvidence.map(item => ({ text: item.display || item.code || item.source_type || 'Evidence', reference: item.source_id || null, timestamp: candidate.created_at })),
         candidate: { status: candidate.status, patient_id: candidate.patient_id, disease: candidate.disease, jurisdiction: candidate.jurisdiction, case_id: candidate.case_id },
-        output: { type: candidate.status, reference: candidate.candidate_id, evidence_strength: evidenceStrength(candidate) },
-        evidence_strength: evidenceStrength(candidate),
+        output: { type: candidate.status, reference: candidate.candidate_id, confidence: candidate.confidence },
+        confidence: candidate.confidence,
         case: caseRecord ? {
           case_id: caseRecord.case_id,
           status: caseRecord.status,

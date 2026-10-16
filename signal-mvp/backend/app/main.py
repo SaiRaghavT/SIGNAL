@@ -12,7 +12,6 @@ from backend.app.submission.api import router as submissions_router
 from backend.app.dashboard.router import router as dashboard_router
 from backend.app.detection.api import router as detection_router
 from backend.app.ingestion.api.fhir import router as fhir_router
-from backend.app.epic_fhir.api import router as epic_fhir_router
 from backend.app.ingestion.documents.api import router as document_router
 from backend.app.ingestion.hl7.api import router as hl7_router
 from backend.app.agents.audit_ledger.router import api_router as audit_api_router
@@ -75,11 +74,6 @@ from backend.app.agents.retry_resubmission.router import (
 from backend.app.workflow.router import router as workflow_router
 from backend.app.admin.router import router as admin_router
 
-from backend.app.pha.router import router as pha_router
-# Chatbot temporarily disabled:
-# from backend.app.assistant.api import demo_router as assistant_demo_router
-# from backend.app.assistant.api import router as assistant_router
-
 app = FastAPI(
     title="SIGNAL MVP",
     description="Public Health Reporting Intelligence Layer",
@@ -106,7 +100,6 @@ app.add_middleware(
 
 # FHIR ingestion
 app.include_router(fhir_router)
-app.include_router(epic_fhir_router)
 
 # HL7 v2 ingestion
 app.include_router(hl7_router)
@@ -181,10 +174,6 @@ app.include_router(workflow_router)
 app.include_router(agent_status_router)
 app.include_router(analytics_router)
 app.include_router(admin_router)
-app.include_router(pha_router)
-# Chatbot temporarily disabled; re-enable the routes above when needed.
-# app.include_router(assistant_router)
-# app.include_router(assistant_demo_router)
 # ---------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------

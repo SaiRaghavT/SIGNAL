@@ -1,6 +1,5 @@
 import json
 import calendar
-from functools import lru_cache
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -14,53 +13,6 @@ from .schemas import (
     DeadlineCalculationRequest,
     DeadlineCalculationResponse,
 )
-
-
-@lru_cache(maxsize=8)
-def _read_rule_catalog(path: str, modified_ns: int, size: int) -> dict:
-    """Cache parsed rules while invalidating automatically when the file changes."""
-    del modified_ns, size  # Included in the cache key for file-change invalidation.
-    with Path(path).open("r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def _normalize_rule_name(value: str | None) -> str:
-    normalized = re.sub(
-        r"\((?:disorder|finding|situation)\)$",
-        "",
-        str(value or "").strip(),
-        flags=re.IGNORECASE,
-    )
-    return re.sub(r"[^a-z0-9]+", " ", normalized.casefold()).strip()
-
-
-@lru_cache(maxsize=2048)
-def _find_catalog_rule(
-    path: str,
-    modified_ns: int,
-    size: int,
-    disease_key: str,
-    jurisdiction_key: str,
-    rule_id: str | None,
-    scope_key: str,
-) -> dict | None:
-    catalog = _read_rule_catalog(path, modified_ns, size)
-    rules = list(catalog.get("rules", [])) + list(catalog.get("deadline_rules", []))
-    for rule in rules:
-        if str(rule.get("jurisdiction", "")).upper() != jurisdiction_key:
-            continue
-        if str(rule.get("reporting_scope", "CASE_REPORT")).upper() != scope_key:
-            continue
-        if rule_id and rule.get("rule_id") != rule_id:
-            continue
-        names = [rule.get("disease"), rule.get("canonical_disease")]
-        names.extend(rule.get("aliases", []))
-        names.extend(rule.get("conditions", []))
-        if disease_key and disease_key in {
-            _normalize_rule_name(name) for name in names if name
-        }:
-            return rule
-    return None
 
 
 class NoReportingRuleError(ValueError):
@@ -83,23 +35,35 @@ class DeadlineCalculationService:
         rule_id: str | None,
         reporting_scope: str = "CASE_REPORT",
     ) -> dict:
-        stat = self.catalog_path.stat()
-        path = str(self.catalog_path)
-        disease_key = _normalize_rule_name(disease)
+        with self.catalog_path.open(
+            "r",
+            encoding="utf-8",
+        ) as file:
+            catalog = json.load(file)
+
+        def normalize(value: str | None) -> str:
+            normalized = re.sub(r"\((?:disorder|finding|situation)\)$", "", str(value or "").strip(), flags=re.IGNORECASE)
+            return re.sub(r"[^a-z0-9]+", " ", normalized.casefold()).strip()
+
+        disease_key = normalize(disease)
         scope_key = str(reporting_scope or "CASE_REPORT").strip().upper()
-        # The cache key includes file metadata, so catalog edits immediately
-        # use new rule contents. Matching still checks the exact same fields.
-        rule = _find_catalog_rule(
-            path,
-            stat.st_mtime_ns,
-            stat.st_size,
-            disease_key,
-            jurisdiction.upper(),
-            rule_id,
-            scope_key,
-        )
-        if rule is not None:
-            return rule
+        # Keep legacy evaluator-backed rules authoritative when they are a
+        # specific match (for example MEASLES-TX); the deadline catalog fills
+        # in the remaining notifiable conditions.
+        rules = list(catalog.get("rules", [])) + list(catalog.get("deadline_rules", []))
+        for rule in rules:
+            if str(rule.get("jurisdiction", "")).upper() != jurisdiction.upper():
+                continue
+            if str(rule.get("reporting_scope", "CASE_REPORT")).upper() != scope_key:
+                continue
+            if rule_id and rule.get("rule_id") != rule_id:
+                continue
+
+            names = [rule.get("disease"), rule.get("canonical_disease")]
+            names.extend(rule.get("aliases", []))
+            names.extend(rule.get("conditions", []))
+            if disease_key and disease_key in {normalize(name) for name in names if name}:
+                return rule
 
         raise NoReportingRuleError(
             "No reporting rule found for "

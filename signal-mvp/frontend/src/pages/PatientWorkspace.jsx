@@ -8,9 +8,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 
 
-import { getCanonicalPatient, getCanonicalPatientAnatomy } from "../api/canonical.js";
-import { cleanConditionDisplay } from "../utils/conditionDisplay.js";
-import DetectionCandidateReview from "./DetectionCandidateReview.jsx";
+import { getCanonicalPatient } from "../api/canonical.js";
 
 
 
@@ -41,8 +39,6 @@ import {
 
 
 import { deletePatientDocument, uploadPatientDocument } from "../api/documents.js";
-import { cleanPatientName } from "../utils/patientNames.js";
-import { ArrowLeft, CalendarDays, IdCard, MapPin, RefreshCw, UserRound, X } from "lucide-react";
 
 
 
@@ -188,7 +184,7 @@ function displayClinicalValue(value, fallback = String.fromCharCode(0x2014)) {
     value = value.display ?? value.text ?? value.code ?? value.numeric ?? value.value ?? value.name;
     if (value === null || value === undefined || value === "") return fallback;
   }
-  const raw = cleanConditionDisplay(String(value).trim());
+  const raw = String(value).trim();
   const labels = { f: "Female", female: "Female", m: "Male", male: "Male", ambulatory: "Ambulatory visit", available: "Available", finished: "Finished", active: "Active", provisional: "Provisional", final: "Final", present: "Present", completed: "Completed", clinical_note: "Clinical Note", clinical_document: "Clinical Document", diagnostic_report: "Diagnostic Report", "http://hl7.org/fhir/sid/icd-10-cm": "ICD-10-CM", "http://loinc.org": "LOINC", "http://snomed.info/sct": "SNOMED CT" };
   return labels[raw.toLowerCase()] || raw;
 }
@@ -325,7 +321,12 @@ function removePatientNameNumbers(value) {
       ? getPatientName({ name: value })
       : String(value || "");
 
-  return cleanPatientName(rawName);
+  return rawName
+    .replace(/\d+/g, " ")
+    .replace(/[|#,:;]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s_-]+|[\s_-]+$/g, "")
+    .trim();
 }
 
 function getDocuments(context) {
@@ -356,25 +357,6 @@ function getDocuments(context) {
 
 
 
-}
-
-function sortDocumentsNewestFirst(documents) {
-  return (Array.isArray(documents) ? documents : [])
-    .map((document, index) => ({ document, index }))
-    .sort((left, right) => {
-      const getTimestamp = (document) => Date.parse(
-        document?.uploaded_at || document?.created_at || document?.upload_date || document?.document_date || ""
-      );
-      const leftDate = getTimestamp(left.document);
-      const rightDate = getTimestamp(right.document);
-      const leftValid = Number.isFinite(leftDate);
-      const rightValid = Number.isFinite(rightDate);
-      if (!leftValid && !rightValid) return left.index - right.index;
-      if (!leftValid) return 1;
-      if (!rightValid) return -1;
-      return rightDate - leftDate;
-    })
-    .map(({ document }) => document);
 }
 
 
@@ -662,6 +644,20 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
       .toUpperCase() || "P";
 
+  const reportingDeadline = patient?.deadline || patientData.deadline;
+  const deadlineDate = reportingDeadline?.deadline
+    ? new Date(reportingDeadline.deadline)
+    : null;
+  const deadlineDateLabel = deadlineDate && !Number.isNaN(deadlineDate.getTime())
+    ? deadlineDate.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
 
 
   return (
@@ -675,8 +671,9 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
       <div className="patient-header-nav">
 
         <Link to="/patients" className="back-link">
-          <ArrowLeft aria-hidden="true" />
-          Back to Patients
+
+          ← Back to Patients
+
         </Link>
 
 
@@ -708,8 +705,9 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
             ) : (
 
               <>
-                <RefreshCw aria-hidden="true" />
-                Refresh
+
+                ↻ Refresh
+
               </>
 
             )}
@@ -758,9 +756,6 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
             <div className="patient-identity-item">
 
-              <IdCard aria-hidden="true" className="patient-identity-icon" />
-              <div className="patient-identity-copy">
-
               <span className="patient-identity-label">
 
                 Patient ID
@@ -774,7 +769,6 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
                 {patientIdentifier}
 
               </span>
-              </div>
 
             </div>
 
@@ -785,9 +779,6 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
 
             <div className="patient-identity-item">
-
-              <CalendarDays aria-hidden="true" className="patient-identity-icon" />
-              <div className="patient-identity-copy">
 
               <span className="patient-identity-label">
 
@@ -802,7 +793,6 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
                 {formatHeaderDate(dob)}
 
               </span>
-              </div>
 
             </div>
 
@@ -818,9 +808,6 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
                 <div className="patient-identity-item">
 
-                  <UserRound aria-hidden="true" className="patient-identity-icon" />
-                  <div className="patient-identity-copy">
-
                   <span className="patient-identity-label">
 
                     Sex
@@ -834,7 +821,6 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
                     {sex}
 
                   </span>
-                  </div>
 
                 </div>
 
@@ -843,23 +829,52 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
             )}
 
 
-
-            {(city || facility) && (
-              <>
-                <div className="patient-identity-divider" />
-                <div className="patient-identity-item patient-location">
-                  <MapPin aria-hidden="true" className="patient-identity-icon" />
-                  <div className="patient-identity-copy">
-                    <span className="patient-identity-label">Location</span>
-                    <span className="patient-identity-value">
-                      {city || "Location unavailable"}{facility ? ` / ${facility}` : ""}
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
 
           </div>
+
+
+
+          {(city || facility) && (
+
+            <div className="patient-location">
+
+              <span className="location-icon">
+
+                ●
+
+              </span>
+
+
+
+              <span>
+
+                {city || "Location unavailable"}
+
+
+
+                {facility && (
+
+                  <>
+
+                    <span className="location-separator">
+
+                      ·
+
+                    </span>
+
+
+
+                    {facility}
+
+                  </>
+
+                )}
+
+              </span>
+
+            </div>
+
+          )}
 
 
 
@@ -871,6 +886,13 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
 
 
+      {reportingDeadline?.reporting_timeline && (
+        <div className="patient-reporting-deadline">
+          <span>Reporting deadline</span>
+          <strong>{reportingDeadline.reporting_timeline}</strong>
+          {deadlineDateLabel && <small>Due {deadlineDateLabel}</small>}
+        </div>
+      )}
     </header>
 
   );
@@ -896,69 +918,345 @@ function PatientHeader({ patient, onRefresh, refreshing }) {
 
 
 const DETECTION_STAGES = [
+
+
+
   {
+
+
+
     id: "context",
+
+
+
     title: "Patient context",
-    description: "Preparing the patient's available records",
-    substeps: ["Load patient and encounter records", "Normalize clinical data", "Identify available source records"],
+
+
+
+    description: "Loading canonical patient records",
+
+
+
   },
+
+
+
   {
+
+
+
     id: "structured",
+
+
+
     title: "Structured detection",
-    description: "Checking coded clinical records",
-    substeps: ["Match condition and diagnosis codes", "Review laboratory tests and results", "Check observations and vital signs"],
+
+
+
+    description:
+
+
+
+      "Checking conditions, laboratory results and observations",
+
+
+
   },
+
+
+
   {
+
+
+
     id: "documents",
+
+
+
     title: "Document intelligence",
-    description: "Preparing and analyzing clinical documents",
-    substeps: ["Process available document text", "Extract relevant clinical evidence", "Validate the returned evidence"],
+
+
+
+    description:
+
+
+
+      "Processing available clinical documents",
+
+
+
   },
+
+
+
   {
+
+
+
     id: "fusion",
-    title: "Candidate evaluation",
-    description: "Combining evidence for clinician review",
-    substeps: ["Group signals by potential condition", "Combine supporting evidence", "Prepare the result for clinician review"],
+
+
+
+    title: "Patient detection",
+
+
+
+    description:
+
+
+
+      "Combining supporting detection signals",
+
+
+
   },
+
+
+
 ];
 
 
-function DetectionProgress({ activeStage, activeSubstep }) {
+
+
+
+function DetectionProgress({ activeStage }) {
+
+
+
   return (
+
+
+
     <section className="detection-panel">
-      <div className="section-label">SIGNAL DETECTION</div>
-      <h2>Detection in progress</h2>
-      <p className="section-description">SIGNAL is reviewing the patient's clinical information and available documentation.</p>
-      <p className="detection-progress-note">Workflow preview - step updates are not streamed live from the backend</p>
-      <div className="detection-stage-list">
-        {DETECTION_STAGES.map((stage, index) => {
-          const completed = index < activeStage;
-          const active = index === activeStage;
-          return (
-            <div className={`detection-stage ${completed ? "completed" : active ? "active" : "pending"}`} key={stage.id}>
-              <div className="detection-stage-icon">{completed ? "\u2713" : active ? "\u25cf" : "\u25cb"}</div>
-              <div className="detection-stage-content">
-                <div className="detection-stage-title">{stage.title}</div>
-                <div className="detection-stage-description">{stage.description}</div>
-                <ol className="detection-substeps" aria-label={`${stage.title} substeps`}>
-                  {stage.substeps.map((substep, substepIndex) => {
-                    const substepComplete = completed || (active && substepIndex < activeSubstep);
-                    const substepCurrent = active && substepIndex === activeSubstep;
-                    return (
-                      <li className={substepComplete ? "complete" : substepCurrent ? "current" : "upcoming"} key={substep}>
-                        <span aria-hidden="true" />{substep}
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
-            </div>
-          );
-        })}
+
+
+
+      <div className="section-label">
+
+
+
+        SIGNAL DETECTION
+
+
+
       </div>
-      <div className="detection-running">Reviewing clinical information...</div>
+
+
+
+
+
+      <h2>Detection in progress</h2>
+
+
+
+
+
+      <p className="section-description">SIGNAL is reviewing the patient's clinical information and available documentation.</p>
+
+
+
+
+
+      <div className="detection-stage-list">
+
+
+
+        {DETECTION_STAGES.map((stage, index) => {
+
+
+
+          const completed = index < activeStage;
+
+
+
+          const active = index === activeStage;
+
+
+
+
+
+          return (
+
+
+
+            <div
+
+
+
+              className={`detection-stage ${completed
+
+
+
+                ? "completed"
+
+
+
+                : active
+
+
+
+                  ? "active"
+
+
+
+                  : "pending"
+
+
+
+                }`}
+
+
+
+              key={stage.id}
+
+
+
+            >
+
+
+
+              <div className="detection-stage-icon">
+
+
+
+                {completed ? "✓" : active ? "●" : "○"}
+
+
+
+              </div>
+
+
+
+
+
+              <div className="detection-stage-content">
+
+
+
+                <div className="detection-stage-title">
+
+
+
+                  {stage.title}
+
+
+
+                </div>
+
+
+
+
+
+                <div className="detection-stage-description">
+
+
+
+                  {stage.description}
+
+
+
+                </div>
+
+
+
+
+
+                {stage.id === "structured" &&
+
+
+
+                  active && (
+
+
+
+                    <div className="stage-detail">
+
+
+
+                      Conditions · Labs · Observations
+
+
+
+                    </div>
+
+
+
+                  )}
+
+
+
+
+
+                {stage.id === "documents" &&
+
+
+
+                  active && (
+
+
+
+                    <div className="stage-detail">
+
+
+
+                      Extracting clinical evidence from
+
+
+
+                      available documents
+
+
+
+                    </div>
+
+
+
+                  )}
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+          );
+
+
+
+        })}
+
+
+
+      </div>
+
+
+
+
+
+      <div className="detection-running">
+
+
+
+        Reviewing clinical information...
+
+
+
+      </div>
+
+
+
     </section>
+
+
+
   );
+
+
+
 }
 
 
@@ -979,93 +1277,35 @@ function DetectionProgress({ activeStage, activeSubstep }) {
 
 
 
-function PatientAnatomyCard({ patientName = "Patient", conditions = [], anatomyFindings = [], anatomyLoading = false, anatomyRefreshing = false, anatomyError = "", onRefreshAnatomy, onViewClinicalNote }) {
+function PatientAnatomyCard({ patientName = "Patient", conditions = [], documents = [] }) {
+  const documentedText = documents
+    .map((document) => [document?.title, document?.extracted_text, document?.text, document?.content].filter(Boolean).join(" "))
+    .join(" ")
+    .toLowerCase();
   const conditionName = getReadableConditionName(conditions) || "Clinical case";
-  const findings = Array.isArray(anatomyFindings) ? anatomyFindings : [];
-  const anatomyAccents = ["#c96a49", "#317f8a", "#7d6ab0", "#53815d"];
-  const accentByMarkerId = new Map(
-    findings.filter((finding) => finding.marker?.id).map((finding, index) => [finding.marker.id, anatomyAccents[index % anatomyAccents.length]])
-  );
-  const labelByMarkerId = new Map(
-    findings.filter((finding) => finding.marker?.id).map((finding) => [finding.marker.id, finding.label])
-  );
-  const markers = [...new Map(findings.map((finding) => finding.marker).filter((marker) => marker?.id).map((marker) => [marker.id, marker])).values()];
-  const markerSideById = new Map(
-    [...markers]
-      .sort((left, right) => {
-        const leftY = Number.parseFloat(String(left.position || "").trim().split(/\s+/)[1]) || 0;
-        const rightY = Number.parseFloat(String(right.position || "").trim().split(/\s+/)[1]) || 0;
-        return rightY - leftY || left.id.localeCompare(right.id);
-      })
-      .map((marker, index) => [
-        marker.id,
-        index % 2 === 0 ? "anatomy-callout-left" : "anatomy-callout-right",
-      ])
-  );
+  const findings = [
+    { id: "skin", label: "Rash or skin changes", terms: /rash|maculopapular|skin lesion|skin changes/ },
+    { id: "eyes", label: "Eye redness or irritation", terms: /conjunctiv|red eyes|eye redness|eye irritation/ },
+    { id: "respiratory", label: "Cough or respiratory symptoms", terms: /cough|coryza|nasal congestion|runny nose|shortness of breath|dyspnea/ },
+    { id: "fever", label: "Fever", terms: /\bfever\b|febrile|elevated temperature/ },
+    { id: "pain", label: "Pain or tenderness", terms: /\bpain\b|tenderness|soreness/ },
+    { id: "gastrointestinal", label: "Gastrointestinal symptoms", terms: /nausea|vomiting|diarrhea|abdominal pain/ },
+  ].filter((finding) => finding.terms.test(documentedText));
 
   return (
     <section className="anatomy-card" aria-labelledby="anatomy-card-title">
       <div className="anatomy-card-copy">
-        <div className="anatomy-card-heading-row">
-          <div className="anatomy-card-heading-copy">
-            <span className="anatomy-card-kicker">PATIENT CASE · CLINICAL FINDINGS</span>
-            <h2 id="anatomy-card-title">{patientName} · {conditionName}</h2>
-          </div>
-          <div className="anatomy-refresh-row">
-            <button type="button" className="anatomy-refresh-button" onClick={onRefreshAnatomy} disabled={anatomyRefreshing}>
-              {anatomyRefreshing ? "Refreshing findings…" : "Refresh findings"}
-            </button>
-            {anatomyError && <span className="anatomy-refresh-error" role="status">{anatomyError}</span>}
-          </div>
-        </div>
-        <p className="anatomy-card-note">Only findings with an explicitly documented body part and a matching model anchor appear here.</p>
-        <div className="anatomy-findings" aria-label="Backend-extracted clinical findings">
-          {findings.length ? findings.map((finding, index) => (
-            <div
-              className="anatomy-finding"
-              key={finding.entity_id || `${finding.finding_id}-${finding.assertion}-${finding.body_region}`}
-              style={{ "--finding-accent": finding.marker?.id ? accentByMarkerId.get(finding.marker.id) : anatomyAccents[index % anatomyAccents.length] }}
-            >
+        <span className="anatomy-card-kicker">PATIENT CASE · CLINICAL FINDINGS</span>
+        <h2 id="anatomy-card-title">{patientName} · {conditionName}</h2>
+        <p className="anatomy-card-note">Generic anatomy view for this case. Findings appear when they are documented in the available clinical notes.</p>
+        <div className="anatomy-findings" aria-label="Documented findings shown">
+          {findings.length ? findings.map((finding) => (
+            <div className="anatomy-finding" key={finding.id}>
               <span className="anatomy-finding-dot" aria-hidden="true" />
-              <div className="anatomy-finding-copy">
-                <strong className="anatomy-finding-label">{finding.label ? `${finding.label[0].toUpperCase()}${finding.label.slice(1)}` : "Clinical finding"}</strong>
-                <small className="anatomy-finding-source">
-                  <span className="anatomy-finding-assertion">{(finding.assertion || "present").replaceAll("_", " ")}</span>
-                  <span className="anatomy-finding-source-count">{finding.sources?.length || 0} source {(finding.sources?.length || 0) === 1 ? "item" : "items"}</span>
-                  {finding.body_region && <span className="anatomy-finding-context">{finding.body_region}</span>}
-                  {(finding.lateralities || (finding.laterality && finding.laterality !== "unspecified" ? [finding.laterality] : [])).map((side) => <span className="anatomy-finding-context" key={side}>{side}</span>)}
-                </small>
-                {finding.sources?.length > 0 && (
-                  <details className="anatomy-finding-evidence">
-                    <summary>View supporting evidence</summary>
-                    <ul>
-                      {finding.sources.map((source, index) => (
-                        <li key={`${source.document_id || source.title}-${index}`}>
-                          <div className="anatomy-source-heading">
-                            <strong>{source.title || "Clinical document"}</strong>
-                            <span className="anatomy-source-metadata">
-                              {source.source_type && <span>{source.source_type}</span>}
-                              {source.date && <time>{String(source.date).slice(0, 10)}</time>}
-                            </span>
-                          </div>
-                          {source.evidence_text && <p className="anatomy-source-excerpt">{source.evidence_text}</p>}
-                          {(!source.evidence_kind || source.evidence_kind === "clinical_document") && (
-                            <button
-                              type="button"
-                              className="text-button"
-                              onClick={() => onViewClinicalNote?.(source)}
-                            >
-                              View clinical note
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </div>
+              <span>{finding.label}</span>
+              <span className="anatomy-finding-status">Documented</span>
             </div>
-          )) : <p className="anatomy-no-findings">{anatomyLoading ? "Loading documented anatomy findings…" : "No supported anatomy findings were returned by the backend."}</p>}
+          )) : <p className="anatomy-no-findings">No matching findings were found in the available clinical documents.</p>}
         </div>
       </div>
       <div className="anatomy-figure-wrap" aria-label="3D patient model">
@@ -1079,22 +1319,25 @@ function PatientAnatomyCard({ patientName = "Patient", conditions = [], anatomyF
           environment-image="neutral"
           aria-label="Fixed front view of the gender-neutral patient model"
         >
-          {markers.map((marker) => (
-            <span
-              key={marker.id}
-              slot={`hotspot-${marker.id}`}
-              className={`anatomy-callout ${(marker.class_name || "").split(/\s+/).filter((name) => !/^anatomy-callout-(left|right)$/.test(name)).join(" ")} ${markerSideById.get(marker.id) || "anatomy-callout-right"}`.trim()}
-              data-position={marker.position}
-              data-normal={marker.normal}
-              style={{ "--finding-accent": accentByMarkerId.get(marker.id) || anatomyAccents[0] }}
-              role="img"
-              aria-label={marker.aria_label || marker.label}
-            >
-              <span className="anatomy-callout-line" aria-hidden="true" />
-              <span className="anatomy-callout-arrow" aria-hidden="true" />
-              <span className="anatomy-callout-label" aria-hidden="true">{labelByMarkerId.get(marker.id) || marker.label || marker.body_part}</span>
+          {findings.some(({ id }) => id === "skin") && <>
+            <span slot="hotspot-rash-face" className="anatomy-callout anatomy-callout-left" data-position="-0.055m 1.49m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented facial rash">
+              <span className="anatomy-callout-label" aria-hidden="true">Face rash</span>
             </span>
-          ))}
+            <span slot="hotspot-rash-trunk" className="anatomy-callout anatomy-callout-left" data-position="0m 1.27m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented upper trunk rash">
+              <span className="anatomy-callout-label" aria-hidden="true">Trunk rash</span>
+            </span>
+          </>}
+          {findings.some(({ id }) => id === "eyes") && <>
+            <span slot="hotspot-eye-left" className="anatomy-callout anatomy-callout-point" data-position="-0.035m 1.53m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented redness in left eye" />
+            <span slot="hotspot-eye-right" className="anatomy-callout anatomy-callout-right anatomy-callout-face" data-position="0.035m 1.53m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented bilateral eye redness">
+              <span className="anatomy-callout-label" aria-hidden="true">Eye redness</span>
+            </span>
+          </>}
+          {findings.some(({ id }) => id === "respiratory") && (
+            <span slot="hotspot-respiratory" className="anatomy-callout anatomy-callout-right" data-position="0m 1.16m 0.31m" data-normal="0m 0m 1m" role="img" aria-label="Documented cough and coryza, indicated on the chest">
+              <span className="anatomy-callout-label" aria-hidden="true">Cough</span>
+            </span>
+          )}
         </model-viewer>
         <a className="anatomy-view-label" href="https://www.innerscene.com/tools/library/3d-parts/human-base-mesh-with-editable-53-bone-rig-8e7c8ab1" target="_blank" rel="noreferrer">FIXED FRONT VIEW <i aria-hidden="true" /> CC0 MODEL SOURCE</a>
       </div>
@@ -1155,7 +1398,7 @@ function RecordSummary({
           {condition ? (
             <>
               <h3>
-                {displayClinicalValue(condition?.code?.display || condition?.display || condition?.code?.code || "Condition")}
+                {condition?.code?.display || condition?.display || condition?.code?.code || "Condition"}
               </h3>
 
               <div className="patient-record-meta">
@@ -2460,6 +2703,83 @@ function getVisibleDetectionCandidates(candidates) {
   });
 }
 
+function getCandidateDisplaySignals(candidate) {
+  const entries = getCandidateSignalEntries(candidate);
+  const documentEntries = entries.filter(
+    (signal) => getEvidenceCategory(signal) === "document"
+  );
+  const clinicalEntries = entries.filter(
+    (signal) => getEvidenceCategory(signal) !== "document"
+  );
+  const entriesToDisplay = clinicalEntries.length > 0 ? clinicalEntries : entries;
+  const seen = new Set();
+
+  const visibleSignals = entriesToDisplay.filter((signal) => {
+    const category = getEvidenceCategory(signal);
+    if (category !== "laboratory") return true;
+
+    const code = getSignalValue(signal, "evidence.code", "test_code", "code");
+    const title = getSignalTitle(signal, category).toLowerCase();
+    const evidenceText = getSignalValue(signal, "evidence.evidence_text", "evidence_text").toLowerCase();
+    const text = `${title} ${evidenceText}`;
+    // A coded lab result and an NLP mention of the same result are one
+    // clinical finding for the summary. Keep unrelated assays separate.
+    const identity = /measles/.test(text) && /\b(rna|pcr|nucleic acid|naa)\b/.test(text)
+      ? "measles-rna-pcr"
+      : code
+        ? `code:${String(code).toLowerCase()}`
+        : `text:${title.replace(/\b(positive|detected|result|test|laboratory)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim()}`;
+    const key = `${category}:${identity}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  if (documentEntries.length === 0) {
+    return visibleSignals;
+  }
+
+  const documentsBySource = new Map();
+  for (const signal of documentEntries) {
+    const evidence = signal?.evidence || {};
+    const sourceId = getSignalValue(signal, "evidence.source_id", "source_id");
+    const title = getSignalTitle(signal, "document");
+    const existing = sourceId ? documentsBySource.get(sourceId) : null;
+    const sourceRecord = evidence.evidence_role === "supporting_clinical_evidence";
+    const item = {
+      title,
+      text: sourceRecord
+        ? ""
+        : getSignalValue(
+          signal,
+          "evidence.evidence_text",
+          "evidence.concept",
+          "evidence_text",
+          "description"
+        ),
+      sourceId,
+      documentDate: evidence.document_date,
+    };
+    if (!existing || sourceRecord) {
+      documentsBySource.set(sourceId || `${title}-${documentsBySource.size}`, item);
+    }
+  }
+
+  const supportingDocumentEvidence = [...documentsBySource.values()];
+  const documentSignal = {
+    trigger_type: "DOCUMENT_EVIDENCE",
+    trigger_id: "clinical-document-sources",
+    title: `Clinical documents (${supportingDocumentEvidence.length})`,
+    evidence: {
+      source_type: "ClinicalDocument",
+      title: `Clinical documents (${supportingDocumentEvidence.length})`,
+    },
+    supporting_document_evidence: supportingDocumentEvidence,
+  };
+
+  return [...visibleSignals, documentSignal];
+}
+
 function getSignalValue(signal, ...keys) {
   const evidence = signal?.evidence && typeof signal.evidence === "object" && !Array.isArray(signal.evidence)
     ? signal.evidence
@@ -2524,52 +2844,10 @@ function getSignalTitle(signal, category) {
   ) || "Clinical document";
 }
 
-function getSignalCategoryLabel(category, signal) {
+function getSignalCategoryLabel(category) {
   if (category === "condition") return "Clinical Signal";
   if (category === "laboratory") return "Laboratory Signal";
-  if (signal?.supporting_document_evidence?.some((item) => item.findings?.length)) {
-    return "AI-extracted evidence";
-  }
   return "Document Signal";
-}
-
-function getSignalOrigin(signal, category) {
-  const evidence = signal?.evidence && typeof signal.evidence === "object" && !Array.isArray(signal.evidence)
-    ? signal.evidence
-    : {};
-
-  if (category === "document" && Array.isArray(signal?.supporting_document_evidence)) {
-    const findings = signal.supporting_document_evidence.reduce(
-      (count, source) => count + (source?.findings?.length || 0),
-      0
-    );
-    const sourceCount = signal.supporting_document_evidence.length;
-    if (findings > 0) {
-      return `AI-extracted from ${sourceCount} clinical source record${sourceCount === 1 ? "" : "s"}`;
-    }
-  }
-
-  const sourceType = evidence.source_type || signal?.source_type;
-  const sourceId = evidence.source_id || signal?.source_id;
-  const code = evidence.code || signal?.code;
-  const codeSystem = evidence.code_system || signal?.code_system;
-  const systemLabel = codeSystem
-    ? /snomed\.info/i.test(codeSystem)
-      ? "SNOMED CT"
-      : /loinc\.org/i.test(codeSystem)
-        ? "LOINC"
-        : codeSystem
-    : "";
-
-  if (sourceType && (code || sourceId)) {
-    const matchedCode = code
-      ? `matched ${systemLabel ? `${systemLabel} ` : ""}code ${code}`
-      : "record evidence";
-    return `Calculated from ${sourceType}${sourceId ? ` ${sourceId}` : ""} · ${matchedCode}`;
-  }
-  if (sourceType) return `Calculated from ${sourceType}${sourceId ? ` ${sourceId}` : ""}`;
-  if (sourceId) return `Calculated from source record ${sourceId}`;
-  return "Source record details are unavailable";
 }
 
 function getSignalPrimaryValue(signal, category) {
@@ -2641,6 +2919,7 @@ function getSignalDetails(signal, category) {
     ["Document Date", signal?.document_date ?? evidence?.document_date],
     ["Document Status", signal?.document_status ?? evidence?.document_status],
     ["Evidence Role", signal?.evidence_role ?? evidence?.evidence_role],
+    ["Confidence", getConfidenceLabel(signal?.confidence)],
     ["Detected At", signal?.detected_at],
   ];
 
@@ -2765,6 +3044,320 @@ function formatSignalDetail(value) {
     return value?.display ?? value?.text ?? value?.code ?? JSON.stringify(value);
   }
   return String(value);
+}
+
+function getConfidenceLabel(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string" && /^(high|medium|low)$/i.test(value.trim())) {
+    return value.trim()[0].toUpperCase() + value.trim().slice(1).toLowerCase();
+  }
+
+  const text = String(value).trim();
+  const parsed = Number.parseFloat(text);
+  if (!Number.isFinite(parsed)) return safeText(value);
+
+  const normalized = text.includes("%") || parsed > 1 ? parsed / 100 : parsed;
+  if (normalized >= 0.8) return "High";
+  if (normalized >= 0.5) return "Medium";
+  return "Low";
+}
+
+function DetectionSignal({ signal, category }) {
+  const [expanded, setExpanded] = useState(false);
+  const title = getSignalTitle(signal, category);
+  const primaryValue = getSignalPrimaryValue(signal, category);
+  const details = getSignalDetails(signal, category);
+  const moreDetails = getSignalMoreDetails(signal);
+  const supportingDocumentEvidence = Array.isArray(signal?.supporting_document_evidence)
+    ? signal.supporting_document_evidence.filter((item) => item?.text || item?.title)
+    : [];
+
+  const icon =
+    category === "condition" ? "✦" : category === "laboratory" ? "⌁" : "▤";
+
+  return (
+    <article className={`signal-accordion signal-accordion-${category}`}>
+      <button
+        type="button"
+        className="signal-accordion-trigger"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        <span className="signal-accordion-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="signal-accordion-heading">
+          <span className="signal-accordion-type">
+            {getSignalCategoryLabel(category)}
+          </span>
+          <strong>{title}</strong>
+        </span>
+        <span className={`signal-accordion-chevron ${expanded ? "open" : ""}`} aria-hidden="true">
+          ↓
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="signal-accordion-body">
+          {primaryValue && (
+            <div className="signal-evidence-callout">
+              <span>
+                {category === "laboratory"
+                  ? "Result"
+                  : category === "document"
+                    ? "Evidence"
+                    : "Evidence"}
+              </span>
+              <strong>{formatSignalDetail(primaryValue)}</strong>
+            </div>
+          )}
+
+          {supportingDocumentEvidence.length > 0 && (
+            <div className="signal-evidence-callout">
+              <span>Supporting document evidence</span>
+              {supportingDocumentEvidence.map((item, index) => (
+                <p key={item.sourceId || `${item.title}-${index}`}>
+                  <strong>{item.title || "Clinical document"}</strong>
+                  {item.documentDate && (
+                    <time dateTime={item.documentDate}>
+                      {` · ${new Date(item.documentDate).toLocaleDateString()}`}
+                    </time>
+                  )}
+                  {item.text ? ` — ${item.text}` : ""}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {details.length > 0 && (
+            <div className="signal-detail-grid">
+              {details.map(([label, value]) => (
+                <div className="signal-detail" key={label}>
+                  <span>{label}</span>
+                  <strong
+                    className={label === "Confidence" ? `detection-confidence-${String(value).toLowerCase()}` : undefined}
+                  >
+                    {formatSignalDetail(value)}
+                  </strong>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {moreDetails.length > 0 && (
+            <details className="signal-more-details">
+              <summary>More detection details</summary>
+              <div className="signal-detail-grid signal-detail-grid-secondary">
+                {moreDetails.map(([label, value]) => (
+                  <div className="signal-detail" key={label}>
+                    <span>{label}</span>
+                    <strong>{formatSignalDetail(value)}</strong>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function CandidateDetails({ candidate, signalCount }) {
+  const signalSources = [...new Set(
+    getCandidateSignalEntries(candidate)
+      .map((signal) => {
+        const category = getEvidenceCategory(signal);
+        if (category === "condition") return "Clinical record";
+        if (category === "laboratory") return "Laboratory result";
+        if (category === "document") return "Clinical document";
+        return "";
+      })
+      .filter(Boolean)
+  )];
+  const detectedAt = candidate?.detected_at
+    ? new Date(candidate.detected_at)
+    : null;
+  const detectedLabel = detectedAt && !Number.isNaN(detectedAt.getTime())
+    ? detectedAt.toLocaleString(undefined, {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "numeric", minute: "2-digit",
+      })
+    : "Not available";
+  const statusLabel = String(candidate?.status || "POTENTIAL").toUpperCase() === "POTENTIAL"
+    ? "Potential · review needed"
+    : displayClinicalValue(candidate?.status);
+  const readableDetails = [
+    ["Review status", statusLabel],
+    ["Disease", getCandidateConditionName(candidate)],
+    ["Evidence found", signalSources.length ? signalSources.join(" · ") : "Clinical evidence"],
+    ["Distinct supporting findings", signalCount],
+    ["Confidence", getConfidenceLabel(candidate?.confidence ?? candidate?.score)],
+    ["Detected", detectedLabel],
+  ];
+  const technicalDetails = [
+    ["Patient detection ID", candidate?.candidate_id ?? candidate?.id],
+    ["Disease ID", candidate?.disease_id],
+    ["Encounter", candidate?.encounter_id ?? candidate?.encounter?.id],
+    ["Trigger Type", candidate?.trigger_type ?? candidate?.trigger_types],
+    ["Trigger Concept", candidate?.trigger_concept_key ?? candidate?.trigger_concept_keys],
+    ["Detected At", candidate?.detected_at],
+    ["Evidence Sources", candidate?.evidence_source_types],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== "");
+
+  return (
+    <section className="detection-candidate-details">
+      <div className="detection-section-heading">
+        <div>
+          <span className="detection-eyebrow">PATIENT DETAILS</span>
+          <h3>{getCandidateConditionName(candidate)} review</h3>
+        </div>
+        <span className="detection-section-note">AI detection summary</span>
+      </div>
+
+      <div className="detection-details-table">
+        {readableDetails.map(([label, value]) => (
+          <div className="detection-details-row" key={label}>
+            <span>{label}</span>
+            <strong
+              className={label === "Confidence" ? `detection-confidence-${String(value).toLowerCase()}` : undefined}
+            >
+              {formatSignalDetail(value)}
+            </strong>
+          </div>
+        ))}
+      </div>
+      {technicalDetails.length > 0 && (
+        <details className="candidate-technical-details">
+          <summary>Technical identifiers and source metadata</summary>
+          <div className="detection-details-table detection-details-table-technical">
+            {technicalDetails.map(([label, value]) => (
+              <div className="detection-details-row" key={label}>
+                <span>{label}</span>
+                <strong>{formatSignalDetail(value)}</strong>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function DetectionCandidate({ candidate, onContinue, onRunAgain }) {
+  const rawSignals = getCandidateDisplaySignals(candidate);
+  const grouped = { condition: [], laboratory: [], document: [] };
+
+  rawSignals.forEach((signal) => {
+    const category = getEvidenceCategory(signal);
+    if (grouped[category]) grouped[category].push(signal);
+  });
+
+  const signalCount = rawSignals.length;
+  const hasClinicalSignals = grouped.condition.length > 0 || grouped.laboratory.length > 0;
+  const confidence = candidate?.confidence ?? candidate?.score;
+  const name = getCandidateConditionName(candidate).replaceAll("_", " ");
+  const confidenceValue = getConfidenceLabel(confidence);
+
+  return (
+    <div className="enterprise-detection-result">
+      <section className="detection-result-hero">
+        <div className="detection-result-hero-topline">
+          <div className="detection-result-kicker">
+            <span className="detection-live-dot" />
+            SIGNAL DETECTION · COMPLETED
+          </div>
+          <button
+            type="button"
+            className="detection-run-again"
+            onClick={onRunAgain}
+          >
+            Run again
+          </button>
+        </div>
+
+        <div className="detection-result-hero-main">
+          <div>
+            <span className="detection-result-overline">Potential reportable condition</span>
+            <h2>{safeText(name).toUpperCase()}</h2>
+            <div className="detection-status-pill">
+              <span className="detection-status-dot" />
+              Potential · Review Required
+            </div>
+          </div>
+
+          <div className="detection-hero-metrics">
+            <div>
+              <span>Confidence</span>
+              <strong className={`detection-confidence-${confidenceValue.toLowerCase()}`}>
+                {confidenceValue}
+              </strong>
+            </div>
+            <div>
+              <span>Supporting signals</span>
+              <strong>{signalCount}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="detection-support-section">
+        <div className="detection-section-heading">
+          <div>
+            <span className="detection-eyebrow">
+              {hasClinicalSignals ? "CLINICAL SIGNALS" : "SUPPORTING SIGNALS"}
+            </span>
+            <h3>What SIGNAL found</h3>
+          </div>
+          <span className="detection-section-note">
+            {signalCount} {hasClinicalSignals ? "clinical " : "supporting "}signal{signalCount === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <div className="signal-accordion-list">
+          {["condition", "laboratory", "document"].map((category) =>
+            grouped[category].length > 0 ? (
+              grouped[category].map((signal, index) => (
+                <DetectionSignal
+                  key={
+                    signal?.signal_id ||
+                    signal?.source_id ||
+                    `${category}-${index}`
+                  }
+                  signal={signal}
+                  category={category}
+                />
+              ))
+            ) : null
+          )}
+        </div>
+
+        {signalCount === 0 && (
+          <div className="detection-empty-signals">
+            No supporting signals were returned for this patient.
+          </div>
+        )}
+      </section>
+
+      <CandidateDetails candidate={candidate} signalCount={signalCount} />
+
+      <div className="detection-action-bar">
+        <div>
+          <span className="detection-eyebrow">NEXT STEP</span>
+          <strong>Patient review is ready</strong>
+          <span>Continue when you are ready to begin reporting.</span>
+        </div>
+        <button
+          type="button"
+          className="detection-primary-action"
+          onClick={() => onContinue(candidate)}
+        >
+          Continue to Reporting
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /* =========================================================
@@ -2908,15 +3501,6 @@ function formatEvidenceMeta(...values) {
     .join(" · ");
 }
 
-function formatClinicalDocumentSource(source) {
-  const value = String(source || "").trim();
-  if (!value) return "";
-  if (/signal[_ -]?demo|synthetic/i.test(value)) return "Synthetic EHR data";
-  if (/epic|fhir|ehr/i.test(value)) return "EHR";
-  if (/document[_ -]?upload|upload/i.test(value)) return "Uploaded document";
-  return value.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 function EvidenceTab({
   conditions = [],
   labs = [],
@@ -2932,7 +3516,7 @@ function EvidenceTab({
       getKey: (item) => item?.condition_id || item?.source_condition_id,
       getDate: (item) => item?.onset_time || item?.recorded_time,
       renderItem: (item) =>
-        cleanConditionDisplay(item?.code?.display || item?.display || item?.name || item?.code?.text || "Condition"),
+        item?.code?.display || item?.display || item?.name || item?.code?.text || "Condition",
       renderMeta: (item) =>
         formatEvidenceMeta(
           item?.clinical_status && `Status: ${displayClinicalValue(item.clinical_status)}`,
@@ -2991,10 +3575,7 @@ function EvidenceTab({
           item?.document_status && `Status: ${displayClinicalValue(item.document_status)}`
         ),
     },
-  ].filter((group) =>
-    group.items.length > 0 &&
-    !["conditions", "documents"].includes(group.key)
-  ).sort((a, b) => ["observations", "laboratory"].indexOf(a.key) - ["observations", "laboratory"].indexOf(b.key));
+  ].filter((group) => group.items.length > 0);
 
   return (
     <section className="tab-section evidence-tab">
@@ -3009,134 +3590,11 @@ function EvidenceTab({
       </div>
 
       {groups.length ? (
-        groups.map(({ key: groupKey, ...group }) => (
-          <EvidenceGroup key={group.title} groupKey={groupKey} {...group} />
-        ))
+        groups.map((group) => <EvidenceGroup key={group.title} groupKey={group.key} {...group} />)
       ) : (
         <p className="evidence-empty">No patient evidence is available.</p>
       )}
     </section>
-  );
-}
-
-function ClinicalNotesTab({ documents = [], selectedDocumentId }) {
-  const notes = (Array.isArray(documents) ? documents : [])
-    .filter((document) => {
-      const type = normalizeText(document?.document_type || document?.type || "");
-      return type.includes("clinical") || type.includes("note") || document?.extracted_text || document?.text;
-    })
-    .map((document, index) => ({ document, index }))
-    .sort((a, b) => {
-      const dateA = Date.parse(a.document?.document_date || a.document?.uploaded_at || a.document?.created_at || a.document?.upload_date || "");
-      const dateB = Date.parse(b.document?.document_date || b.document?.uploaded_at || b.document?.created_at || b.document?.upload_date || "");
-      const validA = Number.isFinite(dateA);
-      const validB = Number.isFinite(dateB);
-      if (!validA && !validB) return a.index - b.index;
-      if (!validA) return 1;
-      if (!validB) return -1;
-      return dateB - dateA;
-    })
-    .map(({ document }) => document);
-  const selectedNote = notes.find((document) =>
-    String(document?.document_id ?? document?.source_document_id ?? document?.id) === String(selectedDocumentId)
-  );
-
-  useEffect(() => {
-    if (!selectedDocumentId) return;
-    document.getElementById(`clinical-note-${selectedDocumentId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [selectedDocumentId]);
-
-  return (
-    <section className="tab-section clinical-notes-tab">
-      <div className="section-heading-row evidence-page-heading">
-        <div>
-          <div className="section-label">CLINICAL NOTES</div>
-          <h2>{selectedNote?.title || selectedNote?.file_name || "Patient clinical notes"}</h2>
-        </div>
-      </div>
-      {notes.length ? (
-        <div className="clinical-notes-list">
-          {notes.map((note, index) => {
-            const text = firstEvidenceValue(note?.extracted_text, note?.extractedText, note?.text, note?.content, note?.clinical_summary, note?.summary);
-            const id = note?.document_id ?? note?.source_document_id ?? note?.id ?? index;
-            return (
-              <details className={`clinical-note-card${String(id) === String(selectedDocumentId) ? " selected" : ""}`} key={id} id={`clinical-note-${id}`} open={String(id) === String(selectedDocumentId)}>
-                <summary>
-                  <span className="clinical-note-heading">
-                    <strong>{note?.title || note?.file_name || note?.name || `Clinical note ${index + 1}`}</strong>
-                    <span className="clinical-note-metadata">
-                      {(note?.document_date || note?.uploaded_at || note?.created_at || note?.upload_date) && (
-                        <span className="clinical-note-meta-item date">
-                          <b>Date</b>{formatDateTime(note.document_date || note.uploaded_at || note.created_at || note.upload_date)}
-                        </span>
-                      )}
-                      {(note?.provenance?.source || note?.source) && (
-                        <span className="clinical-note-meta-item source">
-                          <b>Source</b>{formatClinicalDocumentSource(note.provenance?.source || note.source)}
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                </summary>
-                {text ? <pre>{text}</pre> : <p>Note text is not available in the patient workspace.</p>}
-              </details>
-            );
-          })}
-        </div>
-      ) : <p className="evidence-empty">No clinical notes are available for this patient.</p>}
-    </section>
-  );
-}
-
-function ClinicalNoteModal({ note, onClose }) {
-  const dialogRef = useRef(null);
-  const noteTitle = note?.title || note?.file_name || note?.name || "Clinical note";
-  const noteText = firstEvidenceValue(
-    note?.extracted_text,
-    note?.extractedText,
-    note?.text,
-    note?.content,
-    note?.clinical_summary,
-    note?.summary,
-    note?.evidence_text,
-  );
-  const noteDate = note?.document_date || note?.date || note?.uploaded_at || note?.created_at || note?.upload_date;
-  const noteSource = note?.provenance?.source || note?.source_type || note?.source;
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) dialog.showModal();
-    return () => {
-      if (dialog?.open) dialog.close();
-    };
-  }, []);
-
-  return (
-    <dialog
-      ref={dialogRef}
-      className="detection-source-dialog clinical-note-dialog"
-      aria-labelledby="anatomy-clinical-note-title"
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
-      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-    >
-      <header className="detection-source-dialog-header">
-        <div>
-          <span className="detection-eyebrow">SOURCE CLINICAL NOTE</span>
-          <h2 id="anatomy-clinical-note-title">{noteTitle}</h2>
-          <div className="clinical-note-dialog-meta">
-            {noteDate && <span>{formatDateTime(noteDate)}</span>}
-            {noteSource && <span>{formatClinicalDocumentSource(noteSource)}</span>}
-          </div>
-        </div>
-        <button type="button" aria-label="Close clinical note" onClick={onClose}><X aria-hidden="true" /></button>
-      </header>
-      <div className="detection-source-dialog-body clinical-note-dialog-body">
-        {noteText ? <pre className="clinical-note-dialog-text">{noteText}</pre> : <p>Note text is not available in this record.</p>}
-      </div>
-      <footer className="detection-source-dialog-footer">
-        <button type="button" onClick={onClose}>Close</button>
-      </footer>
-    </dialog>
   );
 }
 
@@ -3929,13 +4387,6 @@ export default function PatientWorkspace() {
 
     useState(false);
 
-  const [anatomyLoading, setAnatomyLoading] = useState(false);
-  const [anatomyRefreshing, setAnatomyRefreshing] = useState(false);
-  const [anatomyError, setAnatomyError] = useState("");
-  const workspaceLoadRequestRef = useRef(0);
-  const anatomyRequestRef = useRef(0);
-  const detectionRequestRef = useRef(0);
-
 
 
 
@@ -3956,8 +4407,6 @@ export default function PatientWorkspace() {
 
     useState("overview");
 
-  const [anatomyClinicalNote, setAnatomyClinicalNote] = useState(null);
-
 
 
 
@@ -3977,8 +4426,6 @@ export default function PatientWorkspace() {
 
 
     useState(0);
-
-  const [detectionSubstep, setDetectionSubstep] = useState(0);
 
 
 
@@ -4109,7 +4556,7 @@ export default function PatientWorkspace() {
 
 
 
-    () => sortDocumentsNewestFirst(getDocuments(context)),
+    () => getDocuments(context),
 
 
 
@@ -4124,97 +4571,95 @@ export default function PatientWorkspace() {
 
 
   async function loadWorkspace(showSpinner = true) {
-    const requestId = ++workspaceLoadRequestRef.current;
-    const anatomyRequestId = ++anatomyRequestRef.current;
-    const requestedPatientId = patientId;
 
-    if (showSpinner) setLoading(true);
+
+
+    if (showSpinner) {
+
+
+
+      setLoading(true);
+
+
+
+    }
+
+
+
+
+
     setError("");
-    setAnatomyLoading(true);
-    setAnatomyError("");
+
+
+
+
 
     try {
+
+
+
       const [patientContext, events] = await Promise.all([
-        getCanonicalPatient(requestedPatientId),
-        listAuditEvents("PATIENT", requestedPatientId),
+        getCanonicalPatient(patientId),
+        listAuditEvents("PATIENT", patientId),
       ]);
 
-      if (requestId !== workspaceLoadRequestRef.current) return;
+      setContext(patientContext);
 
-      setContext({
-        ...patientContext,
-        anatomy_findings: [],
-        anatomy_extraction_method: null,
-      });
+
+
+
+
+
+
+
+
+
+
       setAuditEvents(events || []);
 
-      // Let the workspace render before waiting for the slower anatomy/LLM call.
+
+
+    } catch (err) {
+
+
+
+      setError(
+
+
+
+        err?.message ||
+
+
+
+        "Unable to load patient workspace."
+
+
+
+      );
+
+
+
+    } finally {
+
+
+
       setLoading(false);
+
+
+
       setRefreshing(false);
 
-      getCanonicalPatientAnatomy(requestedPatientId)
-        .then((anatomy) => {
-          if (requestId !== workspaceLoadRequestRef.current || anatomyRequestId !== anatomyRequestRef.current) return;
-          setContext((current) => current ? {
-            ...current,
-            anatomy_findings: anatomy?.findings || [],
-            anatomy_extraction_method: anatomy?.extraction_method || null,
-          } : current);
-        })
-        .catch((err) => {
-          console.error("Failed to load patient anatomy:", err?.message || err);
-          if (requestId !== workspaceLoadRequestRef.current || anatomyRequestId !== anatomyRequestRef.current) return;
-          setAnatomyError(err?.message || "Unable to refresh anatomy findings.");
-          setContext((current) => current ? {
-            ...current,
-            anatomy_findings: [],
-            anatomy_extraction_method: null,
-          } : current);
-        })
-        .finally(() => {
-          if (requestId === workspaceLoadRequestRef.current && anatomyRequestId === anatomyRequestRef.current) setAnatomyLoading(false);
-        });
-    } catch (err) {
-      if (requestId === workspaceLoadRequestRef.current) {
-        setError(err?.message || "Unable to load patient workspace.");
-        setAnatomyLoading(false);
-      }
-    } finally {
-      if (requestId === workspaceLoadRequestRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
+
+
     }
+
+
+
   }
 
-  async function handleRefreshAnatomy() {
-    if (!patientId || anatomyRefreshing) return;
-    const requestedPatientId = patientId;
-    const requestId = ++anatomyRequestRef.current;
-    setAnatomyRefreshing(true);
-    setAnatomyError("");
-    try {
-      const anatomy = await getCanonicalPatientAnatomy(requestedPatientId, { refresh: true });
-      if (requestId !== anatomyRequestRef.current) return;
-      setContext((current) => current ? {
-        ...current,
-        anatomy_findings: anatomy?.findings || [],
-        anatomy_extraction_method: anatomy?.extraction_method || null,
-      } : current);
-    } catch (err) {
-      if (requestId !== anatomyRequestRef.current) return;
-      setAnatomyError(err?.message || "Unable to refresh anatomy findings.");
-    } finally {
-      if (requestId === anatomyRequestRef.current) {
-        setAnatomyRefreshing(false);
-        setAnatomyLoading(false);
-      }
-    }
-  }
   useEffect(() => {
     if (!patientId) return;
 
-    detectionRequestRef.current += 1;
     setDetectionResult(null);
     setDetectionState("idle");
     setDetectionError("");
@@ -4292,7 +4737,6 @@ export default function PatientWorkspace() {
 
 
 
-    const requestId = ++detectionRequestRef.current;
     setDetectionState("running");
 
 
@@ -4311,62 +4755,56 @@ export default function PatientWorkspace() {
 
 
 
-    setDetectionSubstep(0);
-    let stageCursor = 0;
-    let substepCursor = 0;
-    let backendFinished = false;
+    /*
+
+
+
+     * Presentation-only stage progression.
+
+
+
+     *
+
+
+
+     * There is still ONLY ONE backend API request.
+
+
+
+     * These stages do not represent real-time backend events.
+
+
+
+     */
+
+
+
     let stageTimer;
     const progressAnimation = new Promise((resolve) => {
-      stageTimer = window.setInterval(() => {
-        if (requestId !== detectionRequestRef.current) {
+      let nextStage = 0;
+      stageTimer = setInterval(() => {
+        nextStage += 1;
+        setDetectionStage(nextStage);
+        if (nextStage >= 3) {
           clearInterval(stageTimer);
           resolve();
-          return;
         }
-
-        substepCursor += 1;
-        if (substepCursor >= DETECTION_STAGES[stageCursor].substeps.length) {
-          if (stageCursor === DETECTION_STAGES.length - 1 && backendFinished) {
-            stageCursor += 1;
-            setDetectionStage(stageCursor);
-            setDetectionSubstep(0);
-            clearInterval(stageTimer);
-            resolve();
-            return;
-          }
-
-          substepCursor = 0;
-          setDetectionSubstep(0);
-
-          if (stageCursor < DETECTION_STAGES.length - 1) {
-            stageCursor += 1;
-            setDetectionStage(stageCursor);
-          }
-          return;
-        }
-
-        setDetectionSubstep(substepCursor);
-      }, 1500);
+      }, 650);
     });
 
     try {
-      const detectionRequest = detectCandidates(patientId).then((result) => {
-        backendFinished = true;
-        return result;
-      });
       const [result] = await Promise.all([
-        detectionRequest,
+        detectCandidates(patientId),
         progressAnimation,
       ]);
+
       clearInterval(stageTimer);
-      if (requestId !== detectionRequestRef.current) return;
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      if (requestId !== detectionRequestRef.current) return;
+      setDetectionStage(4);
+      await new Promise((resolve) => setTimeout(resolve, 650));
       setDetectionResult(result);
       setDetectionState("completed");
     } catch (err) {
       clearInterval(stageTimer);
-      if (requestId !== detectionRequestRef.current) return;
       setDetectionError(err?.message || "Detection failed.");
       setDetectionState("error");
     }
@@ -4402,7 +4840,6 @@ export default function PatientWorkspace() {
 
 
 
-    detectionRequestRef.current += 1;
     setDetectionResult(null);
 
 
@@ -4431,8 +4868,6 @@ export default function PatientWorkspace() {
     setDocumentActionError("");
     try {
       await deletePatientDocument({ patientId, documentId });
-      // Ignore any detection request that started while the document still existed.
-      detectionRequestRef.current += 1;
       setDetectionResult(null);
       setDetectionState("idle");
       setDetectionStage(0);
@@ -4667,75 +5102,9 @@ export default function PatientWorkspace() {
 
 
 
-      {/* Immediate-reporting warning and consent overlay temporarily disabled.
-      {hasMeasles && showMeaslesWarning && !consentAcknowledged && (
-        <div className="measles-consent-backdrop">
-          <section
-            className="measles-consent-gate"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="measles-consent-title"
-          >
-            <section className="measles-reporting-warning" role="alert">
-              <div className="measles-warning-heading">
-                <span aria-hidden="true">!</span>
-                <div>
-                  <p className="section-label">TEXAS MEASLES REPORTING</p>
-                  <h2>Suspected measles must be reported immediately</h2>
-                </div>
-              </div>
-              <p>
-                Texas requires suspected measles cases to be reported right away.
-                Do not wait for laboratory confirmation. Please call the Texas
-                DSHS reporting line yourself; SIGNAL will not call the patient
-                or place the report for you.
-              </p>
-              <p className="measles-reporting-number">
-                Texas DSHS reporting line: <strong>1-800-705-8868</strong>
-              </p>
-            </section>
-            <h2 id="measles-consent-title">Consent is required to continue</h2>
-            <p>
-              Confirm that the patient or their authorized representative has
-              consented to continue in this workspace.
-            </p>
-            <label className="measles-consent-check">
-              <input
-                type="checkbox"
-                checked={consentChecked}
-                onChange={(event) =>
-                  setConsentCheckPatientId(
-                    event.target.checked ? patientId : null
-                  )
-                }
-              />
-              <span>Patient consent to continue has been provided.</span>
-            </label>
-            <button
-              type="button"
-              className="primary-button"
-              disabled={!consentChecked}
-              onClick={() => setConsentedPatientId(patientId)}
-            >
-              Continue to patient workspace
-            </button>
-          </section>
-        </div>
-      )}
-      */}
-
       <div
         className="workspace-gated-content"
       >
-        <AiDocumentUploadCard
-          documents={documents}
-          onUpload={() => setShowDocumentModal(true)}
-          onRemove={handleRemoveDocument}
-          removingDocumentId={removingDocumentId}
-          actionError={documentActionError}
-          disabled={detectionState === "running" || Boolean(removingDocumentId)}
-        />
-
         <div className="workspace-tabs">
 
 
@@ -4886,13 +5255,6 @@ export default function PatientWorkspace() {
 
           </button>
 
-          <button
-            className={activeTab === "clinical-notes" ? "workspace-tab active" : "workspace-tab"}
-            onClick={() => setActiveTab("clinical-notes")}
-          >
-            Clinical Notes
-          </button>
-
 
 
 
@@ -4914,22 +5276,21 @@ export default function PatientWorkspace() {
           <div className="workspace-content">
 
             <PatientAnatomyCard
-              patientName={cleanPatientName(getPatientName(context?.patient || context?.data || context))}
+              patientName={getPatientName(context?.patient || context?.data || context)}
               conditions={conditions}
-              anatomyFindings={context?.anatomy_findings}
-              anatomyLoading={anatomyLoading}
-              anatomyRefreshing={anatomyRefreshing}
-              anatomyError={anatomyError}
-              onRefreshAnatomy={handleRefreshAnatomy}
-              onViewClinicalNote={(source) => {
-                const sourceId = source?.document_id || source?.source_document_id;
-                const matchingDocument = documents.find((item) =>
-                  (sourceId && [item?.document_id, item?.source_document_id, item?.id].some((id) => String(id) === String(sourceId))) ||
-                  (source?.title && [item?.title, item?.file_name, item?.name].some((title) => title === source.title))
-                );
-                setAnatomyClinicalNote(matchingDocument ? { ...matchingDocument, evidence_text: source?.evidence_text } : source);
-              }}
+              documents={documents}
             />
+
+            {detectionState !== "completed" && !showDocumentModal && (
+              <AiDocumentUploadCard
+                documents={documents}
+                onUpload={() => setShowDocumentModal(true)}
+                onRemove={handleRemoveDocument}
+                removingDocumentId={removingDocumentId}
+                actionError={documentActionError}
+                disabled={detectionState === "running" || Boolean(removingDocumentId)}
+              />
+            )}
 
             {detectionState === "idle" && (
 
@@ -5019,8 +5380,21 @@ export default function PatientWorkspace() {
 
               <div ref={detectionProgressRef}>
                 <DetectionProgress
-                  activeStage={detectionStage}
-                  activeSubstep={detectionSubstep}
+
+
+
+                  activeStage={
+
+
+
+                    detectionStage
+
+
+
+                  }
+
+
+
                 />
               </div>
 
@@ -5118,16 +5492,6 @@ export default function PatientWorkspace() {
 
             {detectionState === "completed" && detectionResult && (
               <>
-                {detectionResult.document_evidence_status === "completed" && (
-                  <div className="detection-ai-status" role="status">
-                    AI analyzed {detectionResult.ai_evidence_source_count || 0} clinical record source{detectionResult.ai_evidence_source_count === 1 ? "" : "s"} and extracted {detectionResult.document_evidence_count || 0} evidence item{detectionResult.document_evidence_count === 1 ? "" : "s"}.
-                  </div>
-                )}
-                {detectionResult.document_evidence_status === "no_document_text" && (
-                  <div className="detection-ai-status" role="status">
-                    AI analysis was skipped because no readable clinical records were available. Structured record matching still ran.
-                  </div>
-                )}
                 {detectionResult.document_evidence_status === "failed" && (
                   <section className="document-ai-warning" role="status">
                     <strong>AI processing could not be performed</strong>
@@ -5144,10 +5508,8 @@ export default function PatientWorkspace() {
                 )}
                 {getVisibleDetectionCandidates(detectionResult?.candidates).length > 0 ? (
                   getVisibleDetectionCandidates(detectionResult?.candidates).length === 1 ? (
-                    <DetectionCandidateReview
+                    <DetectionCandidate
                       candidate={getVisibleDetectionCandidates(detectionResult?.candidates)[0]}
-                      conditionName={getCandidateConditionName(getVisibleDetectionCandidates(detectionResult?.candidates)[0])}
-                      patientContext={context}
                       onContinue={handleReviewCandidate}
                       onRunAgain={handleDetection}
                     />
@@ -5160,10 +5522,8 @@ export default function PatientWorkspace() {
                       </p>
                       {getVisibleDetectionCandidates(detectionResult?.candidates).map((candidate, index) => (
                         <div key={candidate?.candidate_id || candidate?.id || index}>
-                          <DetectionCandidateReview
+                          <DetectionCandidate
                             candidate={candidate}
-                            conditionName={getCandidateConditionName(candidate)}
-                            patientContext={context}
                             onContinue={handleReviewCandidate}
                             onRunAgain={handleDetection}
                           />
@@ -5181,34 +5541,6 @@ export default function PatientWorkspace() {
                     </p>
                   </section>
                 )}
-                {(() => {
-                  const candidates = getVisibleDetectionCandidates(detectionResult?.candidates);
-                  const linkedSourceIds = new Set(candidates.flatMap((candidate) =>
-                    (candidate?.signals || []).map((signal) => signal?.evidence?.source_id).filter(Boolean).map(String)
-                  ));
-                  const unlinkedLabReviews = (detectionResult?.laboratory_review_signals || []).filter((signal) =>
-                    !linkedSourceIds.has(String(signal?.evidence?.source_id || ""))
-                  );
-                  return unlinkedLabReviews.length > 0 ? (
-                    <section className="no-candidate-panel" aria-labelledby="lab-review-only-heading">
-                      <div className="section-label">LABORATORY RESULTS FOR REVIEW</div>
-                      <h3 id="lab-review-only-heading">No qualifying positive lab trigger</h3>
-                      <ul>
-                        {unlinkedLabReviews.map((signal, index) => {
-                          const evidence = signal?.evidence || {};
-                          return <li key={evidence.source_id || index}>
-                            <strong>{evidence.display || "Laboratory result"}</strong>
-                            {evidence.result_classification && <span> · {evidence.result_classification}</span>}
-                            {evidence.classification_reason && <p>{evidence.classification_reason}</p>}
-                            {evidence.raw_result && <p>Recorded result: {evidence.raw_result}</p>}
-                            {evidence.effective_time && <p>Collection date: {evidence.effective_time}</p>}
-                            {evidence.source_reference && <p>Source reference: {evidence.source_reference}</p>}
-                          </li>;
-                        })}
-                      </ul>
-                    </section>
-                  ) : null;
-                })()}
               </>
             )}
 
@@ -5240,9 +5572,31 @@ export default function PatientWorkspace() {
               />
             )}
 
+            {detectionState !== "completed" && (
+              <DocumentsSection
 
 
-          </div>
+
+              documents={documents}
+
+
+
+              onAddDocument={() =>
+
+
+
+                setShowDocumentModal(true)
+
+
+
+              }
+
+
+
+              />
+          )}
+
+        </div>
 
 
 
@@ -5332,12 +5686,6 @@ export default function PatientWorkspace() {
 
         )}
 
-        {activeTab === "clinical-notes" && (
-          <div className="workspace-content">
-            <ClinicalNotesTab documents={documents} />
-          </div>
-        )}
-
 
 
 
@@ -5382,13 +5730,6 @@ export default function PatientWorkspace() {
 
 
 
-        )}
-
-        {anatomyClinicalNote && (
-          <ClinicalNoteModal
-            note={anatomyClinicalNote}
-            onClose={() => setAnatomyClinicalNote(null)}
-          />
         )}
 
       </div>

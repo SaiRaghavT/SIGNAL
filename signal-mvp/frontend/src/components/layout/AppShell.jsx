@@ -1,8 +1,5 @@
-import { Activity, BarChart3, FolderKanban, LayoutDashboard, Send, ShieldCheck, Users } from "lucide-react";
+import { Activity, BarChart3, FolderKanban, LayoutDashboard, ScrollText, Send, ShieldCheck, Users } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { WorkflowBreadcrumb } from "../navigation/WorkflowBreadcrumb.jsx";
-// Chatbot temporarily disabled:
-// import ChatWidget from "../assistant/ChatWidget.jsx";
 
 const nav = [
   ["/dashboard", "Dashboard", LayoutDashboard],
@@ -10,6 +7,7 @@ const nav = [
   ["/cases", "Cases", FolderKanban],
   ["/submissions", "Submissions", Send],
   ["/analytics", "Analytics", BarChart3],
+  ["/audit", "Technical / Audit", ScrollText],
   ["/governance", "AI Governance", ShieldCheck],
 ];
 
@@ -45,11 +43,17 @@ export function AppShell() {
         </div>
       </aside>
       <main className="main">
-       
-        <WorkflowBreadcrumb />
+        <header className="topbar">
+          <div>
+            <span className="eyebrow">{onPatients ? "Workspace / Patients" : onCaseWorkspace ? "Workspace / Cases / Case Workspace" : "SIGNAL MVP"}</span>
+            {!onPatients && <h1>Public Health Reporting Intelligence Layer</h1>}
+          </div>
+          {onPatients ? (
+            <div className="role-chip"><span className="dot ok" /> System Online</div>
+          ) : <div className="role-chip">Reporting User</div>}
+        </header>
         <Outlet />
       </main>
-      {/* Chatbot temporarily disabled: <ChatWidget /> */}
     </div>
   );
 }

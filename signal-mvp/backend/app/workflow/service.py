@@ -3,7 +3,6 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from backend.app.detection.candidate_fusion import calculate_evidence_strength
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.candidate import Candidate
 from backend.app.models.case import Case
@@ -215,9 +214,7 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
             data={
                 "candidate_id": case.candidate_id,
                 "status": candidate.status if candidate else "linked_to_case",
-                "evidence_strength": calculate_evidence_strength(
-                    candidate.signals if isinstance(candidate.signals, list) else []
-                )["score"] if candidate else None,
+                "confidence": candidate.confidence if candidate else None,
             } if candidate_available else {},
             limitations=[
                 "Candidate history is not persisted; the current disposition is shown when available."
@@ -315,7 +312,7 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
             entity_reference=submissions[-1].submission_id if submissions else None,
             data={"submissions": [_submission_data(item) for item in submissions]},
             limitations=(
-                ["A stored ACKNOWLEDGEMENT STATUS does not establish actual public-health delivery."]
+                ["A stored submission status does not establish actual public-health delivery."]
                 + (["The destination is simulated (MOCK_PHA)."] if any(item.destination == "MOCK_PHA" for item in submissions) else [])
                 if submissions
                 else []

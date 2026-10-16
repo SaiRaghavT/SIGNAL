@@ -12,8 +12,6 @@ import {
   getAdminBatches,
   getAdminQueue,
 } from "../../services/adminService";
-import { cleanPatientName } from "../../utils/patientNames.js";
-import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminQueue.css";
 
 const MODES = {
@@ -153,7 +151,7 @@ function formatModeLabel(mode) {
 }
 
 function getPatientName(item) {
-  return cleanPatientName(
+  return (
     item?.patient_name ||
     item?.patientName ||
     [item?.patient?.first_name, item?.patient?.last_name].filter(Boolean).join(" ") ||
@@ -199,20 +197,6 @@ function getDeadline(item) {
     item?.reporting_deadline ||
     "—"
   );
-}
-
-function formatDeadline(value) {
-  if (!value) return formatValue(value);
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return formatValue(value);
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
 }
 
 function getPriority(item) {
@@ -604,10 +588,16 @@ export default function AdminQueue() {
         </div>
 
         {loading ? (
-          <SignalLoading
-            title="Loading Reporting Operations"
-            message="Retrieving queued cases, reporting deadlines, and administrative batches."
-          />
+          <div className="admin-loading-state">
+            <RefreshCw
+              size={20}
+              className="spinning"
+            />
+
+            <span>
+              Loading reporting operations...
+            </span>
+          </div>
         ) : activeMode === MODES.BATCH ? (
           batches.items.length === 0 ? (
             <div className="admin-empty-state">
@@ -773,6 +763,7 @@ export default function AdminQueue() {
               <thead>
                 <tr>
                   <th>Patient</th>
+                  <th>Case ID</th>
                   <th>Condition</th>
                   <th>Jurisdiction</th>
                   <th>Deadline</th>
@@ -809,6 +800,14 @@ export default function AdminQueue() {
                         </td>
 
                         <td>
+                          <span className="case-id">
+                            {formatValue(
+                              caseId
+                            )}
+                          </span>
+                        </td>
+
+                        <td>
                           {formatValue(
                             getCondition(item)
                           )}
@@ -824,7 +823,7 @@ export default function AdminQueue() {
 
                         <td>
                           <span className="deadline-value">
-                            {formatDeadline(getDeadline(item))}
+                            {formatValue(getDeadline(item))}
                           </span>
                         </td>
 

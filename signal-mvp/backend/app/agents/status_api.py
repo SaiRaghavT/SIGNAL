@@ -23,16 +23,7 @@ def _status(name: str, configured: bool, simulated: bool, description: str, erro
 @router.get("/status")
 def get_agent_status() -> dict:
     provider = (settings.llm_provider or "gemini").casefold()
-    groq_key = settings.groq_run_detection_api_key or settings.groq_api_key
-    llm_configured = bool(
-        settings.gemini_api_key
-        if provider == "gemini"
-        else groq_key
-        if provider == "groq"
-        else settings.openrouter_api_key
-        if provider == "openrouter"
-        else False
-    )
+    llm_configured = bool(settings.gemini_api_key if provider == "gemini" else settings.groq_api_key if provider == "groq" else False)
     rules_path = Path(__file__).resolve().parents[1] / "rules" / "rule_catalog.json"
     template_path = Path(__file__).resolve().parents[1] / "forms" / "templates" / "TX_MEASLES_OUTBREAK_CRF_2025.pdf"
     return {

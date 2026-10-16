@@ -150,10 +150,8 @@ def test_multiple_signals_are_fused_into_one_candidate():
         triggers=triggers,
     )
 
-    assert result["signal_count"] == 1
+    assert result["signal_count"] == 2
     assert result["candidate_count"] == 1
-    assert len(result["laboratory_review_signals"]) == 1
-    assert result["laboratory_review_signals"][0]["evidence"]["result_classification"] == "UNKNOWN"
 
     candidate = result["candidates"][0]
 
@@ -168,43 +166,3 @@ def test_invalid_normalized_patient_is_rejected():
         assert False
     except ValueError as exc:
         assert str(exc) == "normalized_patient must be a dictionary."
-
-
-def test_nonpositive_lab_result_is_review_evidence_not_a_candidate():
-    result = detect_candidates({
-        "patient": {"id": "patient-001"},
-        "conditions": [],
-        "observations": [],
-        "diagnostic_reports": [{
-            "id": "lab-negative",
-            "patient_id": "patient-001",
-            "encounter_id": "encounter-001",
-            "test": {"system": "http://loinc.org", "code": "48508-6", "display": "Measles virus RNA"},
-            "report_status": "final",
-            "conclusion": "not detected",
-            "observations": [],
-        }],
-        "medications": [], "procedures": [], "encounters": [], "clinical_documents": [],
-    })
-    assert result["candidate_count"] == 0
-    assert result["laboratory_review_signals"][0]["evidence"]["result_classification"] == "NEGATIVE"
-
-
-def test_qualifying_measles_lab_result_creates_high_priority_candidate():
-    result = detect_candidates({
-        "patient": {"id": "patient-001"},
-        "conditions": [], "observations": [],
-        "diagnostic_reports": [{
-            "id": "lab-positive", "patient_id": "patient-001", "encounter_id": "encounter-001",
-            "test": {"system": "http://loinc.org", "code": "48508-6", "display": "Measles virus RNA"},
-            "report_status": "final", "conclusion": "positive", "observations": [],
-        }],
-        "medications": [], "procedures": [], "encounters": [], "clinical_documents": [],
-    })
-    assert result["candidate_count"] == 1
-    candidate = result["candidates"][0]
-    assert candidate["detection_priority"] == "HIGHEST"
-    assert candidate["signals"][0]["evidence"]["positive_detection_eligible"] is True
-    assert "confidence" not in candidate
-    assert candidate["evidence_strength"] == 100.0
-    assert candidate["evidence_strength_method"] == "weighted_rule_based_v2"

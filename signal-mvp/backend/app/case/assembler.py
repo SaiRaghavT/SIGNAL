@@ -7,7 +7,6 @@ from backend.app.models.case import Case
 from backend.app.demo.reset_service import store_demo_baseline
 
 from .models import CaseAssemblyInput, SignalCase
-from .report_fields import available_case_report_fields, initialize_case_report_fields, is_measles_case
 
 
 def _to_signal_case(case: Case) -> SignalCase:
@@ -29,7 +28,7 @@ def _to_signal_case(case: Case) -> SignalCase:
         warnings=case.warnings,
         final_decision=case.final_decision,
         rule_id=case.rule_id,
-        report_fields=available_case_report_fields(case),
+        report_fields=case.report_fields or {},
     )
 
 
@@ -112,8 +111,6 @@ def assemble_case(
             return _to_signal_case(case)
 
     candidate = db.query(Candidate).filter(Candidate.candidate_id == data.candidate_id).first()
-    if is_measles_case(case):
-        initialize_case_report_fields(case)
     if is_demo_case(case):
         store_demo_baseline(db, case, candidate)
     db.commit()

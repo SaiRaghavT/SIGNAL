@@ -3,6 +3,7 @@ import {
   Users,
   FolderKanban,
   Send,
+  ScrollText,
   Activity,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -12,6 +13,7 @@ const nav = [
   ["/patients", "Patients", Users],
   ["/cases", "Cases", FolderKanban],
   ["/submissions", "Submissions", Send],
+  ["/audit", "Audit", ScrollText],
 ];
 
 export default function Sidebar() {
