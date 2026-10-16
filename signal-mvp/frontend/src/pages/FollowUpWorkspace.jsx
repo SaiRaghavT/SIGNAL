@@ -155,11 +155,9 @@ export default function FollowUpWorkspace() {
 
   const caseStage = stage(journey, "CASE");
   const reviewStage = stage(journey, "REVIEW");
-  const attestationStage = stage(journey, "ATTESTATION");
   const reviewData = reviewStage?.data || {};
   const caseReady = Boolean(caseData?.case_id && caseStage?.available);
-  const reviewAuthorized = /^(APPROVE|APPROVED)$/i.test(reviewStage?.status || "")
-    && /^ATTESTED$/i.test(attestationStage?.status || "");
+  const reviewAuthorized = /^(APPROVE|APPROVED)$/i.test(reviewStage?.status || "");
   const submissionFailed = /FAIL|ERROR|REJECT/i.test(submission?.status || "");
   const submissionSent = Boolean(submission) && !submissionFailed && /SUBMITTED|ACKNOWLEDGED/i.test(submission.status || "");
   const acknowledgementRecorded = Boolean(acknowledgement)
@@ -176,7 +174,7 @@ export default function FollowUpWorkspace() {
     {
       title: "Admin Review",
       state: /REJECT|REQUEST_INFORMATION/i.test(reviewStage?.status || "") ? "failed" : reviewAuthorized ? "complete" : reviewStage?.available ? "current" : "pending",
-      details: [["Authorization", `${valueText(reviewStage?.status)} / ${valueText(attestationStage?.status)}`], ["Administrator", reviewActor], ["Review time", reviewStage?.occurred_at]],
+      details: [["Human review", valueText(reviewStage?.status)], ["Reviewer", reviewActor], ["Review time", reviewStage?.occurred_at]],
     },
     {
       title: "Submission Created",

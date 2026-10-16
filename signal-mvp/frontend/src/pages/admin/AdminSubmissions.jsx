@@ -235,7 +235,7 @@ function formatDate(value) {
 
 export default function AdminSubmissions() {
   const [submissions, setSubmissions] = useState([]);
-  const [submissionRecords, setSubmissionRecords] = useState([]);
+  const [submissionSummary, setSubmissionSummary] = useState(null);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [modeFilter, setModeFilter] = useState("ALL");
   const [search, setSearch] = useState("");
@@ -256,8 +256,15 @@ export default function AdminSubmissions() {
       const response = await getAdminSubmissions();
 
       const records = normalizeItems(response).map(normalizeSubmission);
-      setSubmissionRecords(records);
-      const items = deduplicatePatientConditions(records);
+      setSubmissionSummary(response?.summary ?? null);
+      const items = deduplicatePatientConditions(
+        records.filter((record) =>
+          record.patient &&
+          record.patient !== "\u2014" &&
+          MODE_OPTIONS.slice(1).includes(normalizeStatus(record.mode)) &&
+          normalizeStatus(record.status) !== "BLOCKED",
+        ),
+      );
 
       setSubmissions(items);
     } catch (err) {
@@ -317,15 +324,25 @@ export default function AdminSubmissions() {
   ]);
 
   const metrics = useMemo(() => {
-    return {
-      total: submissionRecords.length,
+    if (submissionSummary) {
+      return {
+        total: submissionSummary.total ?? 0,
+        submitted: submissionSummary.submitted ?? 0,
+        awaiting: submissionSummary.awaiting_acknowledgement ?? 0,
+        acknowledged: submissionSummary.acknowledged ?? 0,
+        failedRetryRequired: submissionSummary.failed_retry_required ?? 0,
+      };
+    }
 
-      submitted: submissionRecords.filter(
+    return {
+      total: submissions.length,
+
+      submitted: submissions.filter(
         (item) =>
           normalizeStatus(item.status) === "SUBMITTED",
       ).length,
 
-      awaiting: submissionRecords.filter((item) => {
+      awaiting: submissions.filter((item) => {
         const status = normalizeStatus(item.status);
 
         return (
@@ -334,18 +351,18 @@ export default function AdminSubmissions() {
         );
       }).length,
 
-      acknowledged: submissionRecords.filter(
+      acknowledged: submissions.filter(
         (item) =>
           normalizeStatus(item.status) === "ACKNOWLEDGED",
       ).length,
 
-      failedRetryRequired: submissionRecords.filter((item) =>
+      failedRetryRequired: submissions.filter((item) =>
         ["FAILED", "ERROR", "REJECTED", "RETRY_REQUIRED"].includes(
           normalizeStatus(item.status),
         ),
       ).length,
     };
-  }, [submissionRecords]);
+  }, [submissions, submissionSummary]);
 
   return (
     <main className="admin-submissions-page">
@@ -486,8 +503,6 @@ export default function AdminSubmissions() {
             <table className="submission-table">
               <thead>
                 <tr>
-                  <th>Submission ID</th>
-                  <th>Case ID</th>
                   <th>Patient</th>
                   <th>Condition</th>
                   <th>Mode</th>
@@ -506,14 +521,6 @@ export default function AdminSubmissions() {
                         submission.submissionId
                       }
                     >
-                      <td className="mono">
-                        {submission.submissionId}
-                      </td>
-
-                      <td className="mono">
-                        {submission.caseId}
-                      </td>
-
                       <td>
                         <strong>
                           {submission.patient}

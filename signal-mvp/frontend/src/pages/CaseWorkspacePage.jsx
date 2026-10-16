@@ -9,9 +9,7 @@ import {
 } from "../api/cases.js";
 
 import {
-  attestCase,
   getCaseValidation,
-  getCaseAttestation,
   getCaseReview,
   queueCase,
   markSubmissionReady,
@@ -402,7 +400,6 @@ export default function CaseWorkspacePage() {
   const [journey, setJourney] = useState(null);
   const [validation, setValidation] = useState(null);
   const [review, setReview] = useState(null);
-  const [attestation, setAttestation] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [notification, setNotification] = useState(null);
   const [adminInformationRequest, setAdminInformationRequest] = useState(null);
@@ -415,13 +412,6 @@ export default function CaseWorkspacePage() {
   const [confirmationChecked, setConfirmationChecked] =
     useState(false);
 
-  const dataPatientSource = String(data?.patient?.provenance?.source || "").trim().toLowerCase();
-  const dataFacilitySource = String(data?.facility?.source || "").trim().toLowerCase();
-  const dataDisease = String(data?.disease || "").trim().toLowerCase();
-  const syntheticDemoQueueCase =
-    [dataPatientSource, dataFacilitySource].some((source) => ["synthea", "signal_demo"].includes(source)) &&
-    (dataDisease.includes("measles") || dataDisease.endsWith("|14189004")) &&
-    String(data?.jurisdiction || "").trim().toUpperCase() === "TX";
 
   const [refreshKey, setRefreshKey] =
     useState(0);
@@ -439,9 +429,8 @@ export default function CaseWorkspacePage() {
     };
   }, [caseId]);
 
-  function restoreSessionWorkflow(persistedReview, persistedAttestation) {
+  function restoreSessionWorkflow(persistedReview) {
     setReview(persistedReview || null);
-    setAttestation(persistedAttestation || null);
     setConfirmationChecked(false);
   }
 
@@ -458,7 +447,6 @@ export default function CaseWorkspacePage() {
       timelineResponse,
       notificationResponse,
       reviewResponse,
-      attestationResponse,
     ] = await Promise.all([
       getCase(caseId),
       getCaseJourney(caseId),
@@ -466,13 +454,12 @@ export default function CaseWorkspacePage() {
       getCaseTimeline(caseId),
       getImmediateNotification(caseId),
       getCaseReview(caseId),
-      getCaseAttestation(caseId),
     ]);
 
     setData(caseResponse);
     setJourney(journeyResponse);
     setValidation(validationResponse);
-    restoreSessionWorkflow(reviewResponse, attestationResponse);
+    restoreSessionWorkflow(reviewResponse);
 
     setTimeline(
       timelineResponse?.events || []
@@ -500,7 +487,6 @@ export default function CaseWorkspacePage() {
           timelineResponse,
           notificationResponse,
           reviewResponse,
-          attestationResponse,
         ] = await Promise.all([
           getCase(caseId),
           getCaseJourney(caseId),
@@ -508,7 +494,6 @@ export default function CaseWorkspacePage() {
           getCaseTimeline(caseId),
           getImmediateNotification(caseId),
           getCaseReview(caseId),
-          getCaseAttestation(caseId),
         ]);
 
         if (!active) return;
@@ -516,7 +501,7 @@ export default function CaseWorkspacePage() {
         setData(caseResponse);
         setJourney(journeyResponse);
         setValidation(validationResponse);
-        restoreSessionWorkflow(reviewResponse, attestationResponse);
+        restoreSessionWorkflow(reviewResponse);
 
         setTimeline(
           timelineResponse?.events || []
@@ -576,7 +561,6 @@ export default function CaseWorkspacePage() {
 
   const reviewApproved = ["APPROVE", "APPROVED"].includes(String(review?.status || "").toUpperCase());
 
-  const attested = String(attestation?.status || "").toUpperCase() === "ATTESTED";
 
   const isNotReportable = [
     data?.final_decision,
@@ -589,11 +573,8 @@ export default function CaseWorkspacePage() {
     validationStatus === "VALID" &&
     validation?.ready_for_review === true;
 
-  // The synthetic Measles/Texas demo workflow intentionally permits incomplete
-  // reporting fields. The confirmation remains required and backend demo
-  // review/attestation/queue operations still have to succeed.
   const canSubmitToQueue =
-    confirmationChecked && (syntheticDemoQueueCase || readyForReview);
+    confirmationChecked && readyForReview;
 
 
   /* =======================================================
@@ -800,7 +781,7 @@ export default function CaseWorkspacePage() {
       setError("Confirm that you reviewed and verified this reporting package before submitting.");
       return;
     }
-    if (!readyForReview && !syntheticDemoQueueCase) {
+    if (!readyForReview) {
       setError(missingFields.length
         ? `Complete the required reporting fields before submitting: ${missingFields.join("; ")}`
         : "Run validation and resolve the remaining reporting errors before submitting.");
@@ -816,32 +797,18 @@ export default function CaseWorkspacePage() {
           reviewer_role: reviewer.role,
           decision: "APPROVE",
           review_confirmed: true,
-          demo_simulation: syntheticDemoQueueCase,
         });
         setReview(savedReview);
       }
-      if (!attested) {
-        const savedAttestation = await attestCase(caseId, {
-          reviewer_id: reviewer.id,
-          reviewer_role: reviewer.role,
-          attestation_status: "ATTESTED",
-          demo_simulation: syntheticDemoQueueCase,
-        });
-        setAttestation(savedAttestation);
-      }
-      if (!syntheticDemoQueueCase) {
-        const readiness = await markSubmissionReady(caseId, {
-          actor_id: reviewer.id,
-        });
-        if (!readiness?.ready) {
-          throw new Error("SIGNAL did not confirm that the persisted review, attestation, and reporting package are ready.");
-        }
+      const readiness = await markSubmissionReady(caseId, {
+        actor_id: reviewer.id,
+      });
+      if (!readiness?.ready) {
+        throw new Error("SIGNAL did not confirm that the approved review and reporting package are ready.");
       }
       const queueResult = await queueCase(caseId, {
         actor_id: reviewer.id,
         submission_mode: data?.submission_mode || undefined,
-        demo_submission: syntheticDemoQueueCase,
-        demo_review_confirmed: syntheticDemoQueueCase && confirmationChecked,
       });
       resolveClinicalInformationRequest(caseId);
       setAdminInformationRequest(null);
@@ -879,7 +846,7 @@ export default function CaseWorkspacePage() {
       <section className="review-validation-page">
         <SignalLoading
           title="Loading Reporting Review"
-          message="Loading the case, validation state, reviewer decision, and attestation status from SIGNAL."
+          message="Loading the case, validation state, and reviewer decision from SIGNAL."
         />
       </section>
     );
@@ -1184,18 +1151,18 @@ export default function CaseWorkspacePage() {
           </section>
 
 
-          {/* HUMAN REVIEW AND ATTESTATION */}
+          {/* HUMAN REVIEW */}
           <section
             className="review-validation-card review-validation-human-card"
             id="case-human-review"
           >
             <div className="review-validation-card-header">
               <div>
-                <h2>Human Review &amp; Attestation</h2>
-                <p>Confirm both steps before adding this case to the reporting queue.</p>
+                <h2>Human Review</h2>
+                <p>Confirm your review before adding this case to the reporting queue.</p>
               </div>
-              <span className={`review-validation-badge ${reviewApproved && attested ? "success" : "neutral"}`}>
-                {reviewApproved && attested ? "Persisted" : "Pending"}
+              <span className={`review-validation-badge ${reviewApproved ? "success" : "neutral"}`}>
+                {reviewApproved ? "Approved" : "Pending"}
               </span>
             </div>
 
@@ -1209,7 +1176,7 @@ export default function CaseWorkspacePage() {
               <span>I have reviewed and verified this reporting package and confirm it is ready for submission.</span>
             </label>
 
-            {!readyForReview && !syntheticDemoQueueCase && (
+            {!readyForReview && (
               <p className="review-validation-field-feedback" role="status">
                 {missingFields.length
                   ? `Complete the required reporting fields: ${missingFields.join("; ")}`
@@ -1217,12 +1184,12 @@ export default function CaseWorkspacePage() {
               </p>
             )}
 
-            {reviewApproved && attested && (
+            {reviewApproved && (
               <div className="review-validation-approved">
                 <div className="review-validation-approved-icon">?</div>
                 <div>
-                  <strong>Review and attestation are saved for this case.</strong>
-                  <span>{review?.payload?.reviewer_id || review?.actor_id || attestation?.payload?.reviewer_id || attestation?.actor_id || currentReviewer().name}</span>
+                  <strong>Human review is saved for this case.</strong>
+                  <span>{review?.payload?.reviewer_id || review?.actor_id || currentReviewer().name}</span>
                 </div>
               </div>
             )}
@@ -1517,13 +1484,6 @@ export default function CaseWorkspacePage() {
               />
 
               <ReadinessRow
-                label="Attestation"
-                complete={
-                  attested
-                }
-              />
-
-              <ReadinessRow
                 label="Queue Handoff"
                 complete={false}
                 current={
@@ -1597,7 +1557,6 @@ export default function CaseWorkspacePage() {
 
       <footer className="review-validation-action-bar">
 
-        {!syntheticDemoQueueCase && (
         <div className="review-validation-action-copy">
 
           <strong>
@@ -1607,15 +1566,12 @@ export default function CaseWorkspacePage() {
           </strong>
 
           <span>
-            {syntheticDemoQueueCase
-              ? "Complete Human Review and Attestation before submitting this case to the Admin queue."
-              : demoReviewPreview
+            {demoReviewPreview
               ? "The demo button below only simulates submission and does not save or send this sample package."
-              : "Confirm your reviewer decision and attestation before submitting the package to the authorized reporting queue."}
+              : "Confirm your reviewer decision before submitting the package to the authorized reporting queue."}
           </span>
 
         </div>
-        )}
 
 
         <button
@@ -1629,7 +1585,7 @@ export default function CaseWorkspacePage() {
             submitToQueue
           }
         >
-          {demoReviewPreview && !syntheticDemoQueueCase ? "Submit Demo to Queue" : "Submit to Queue"}
+          {demoReviewPreview ? "Submit Demo to Queue" : "Submit to Queue"}
         </button>
 
       </footer>

@@ -17,7 +17,12 @@ from backend.app.demo.admin_demo_reporting import (
     apply_admin_demo_reporting_defaults,
     canonical_patient_for_case,
 )
-from .report_fields import available_case_report_fields, missing_report_fields
+from .report_fields import (
+    available_case_report_fields,
+    initialize_case_report_fields,
+    is_measles_case,
+    missing_report_fields,
+)
 
 from .schemas import CaseDetailResponse, CaseListItem, CaseListResponse
 
@@ -34,9 +39,14 @@ def get_case_detail(db: Session, case_id: UUID) -> CaseDetailResponse | None:
     demo_changes.extend(
         apply_admin_demo_reporting_defaults(case, canonical_patient_for_case(db, case))
     )
-    if demo_changes:
+    if is_measles_case(case):
+        _, measles_changed = initialize_case_report_fields(case)
+        if measles_changed:
+            demo_changes.append("measles_report_fields_initialized")
+    if demo_changes and hasattr(db, "commit"):
         db.commit()
-        db.refresh(case)
+        if hasattr(db, "refresh"):
+            db.refresh(case)
 
     report_fields = available_case_report_fields(case)
     laboratory_evidence = case.laboratory_evidence

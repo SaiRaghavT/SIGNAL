@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -6,15 +7,19 @@ import {
   CheckCircle2,
   Clock3,
   FileCheck2,
-  FileText,
   HeartPulse,
-  MapPin,
-  Send,
+  XCircle,
   UserRound,
 } from "lucide-react";
 import { SignalLoading } from "../../components/ui/SignalLoading.jsx";
 import "../../styles/AdminSubmissionJourney.css";
 import { cleanPatientName } from "../../utils/patientNames.js";
+import {
+  getAdminSubmission,
+  getAdminQueueCase,
+  getAdminSubmissions,
+  simulateAdminDemoSubmission,
+} from "../../services/adminService.js";
 
 const STAGES = [
   {
@@ -169,8 +174,127 @@ export default function AdminSubmissionJourney() {
   const navigate = useNavigate();
   const { submissionId: routeSubmissionId } = useParams();
 
-  const submission = location.state?.submission;
-  const caseData = location.state?.caseData;
+  const [resolved, setResolved] = useState(() => ({
+    submission: location.state?.submission ?? null,
+    caseData: location.state?.caseData ?? null,
+  }));
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSubmission() {
+      setLoading(true);
+      setLoadError("");
+
+      try {
+        // Older Admin builds used DEMO-{case_id} as a local reference without
+        // creating a submission. Complete that authorized PHA handoff here.
+        if (routeSubmissionId?.startsWith("DEMO-")) {
+          const caseId = routeSubmissionId.slice("DEMO-".length);
+          const response = await simulateAdminDemoSubmission(caseId);
+          if (String(response?.status ?? "").toUpperCase() !== "SUBMITTED" || !response?.submission_id) {
+            throw new Error("The local PHA submission was not recorded.");
+          }
+          const caseData = await getAdminQueueCase(caseId);
+          if (!cancelled) {
+            navigate(`/admin/submission-journey/${encodeURIComponent(response.submission_id)}`, {
+              replace: true,
+              state: { submission: response, caseData },
+            });
+          }
+          return;
+        }
+
+        if (location.state?.submission && location.state?.caseData) {
+          if (!cancelled) {
+            setResolved({
+              submission: location.state.submission,
+              caseData: location.state.caseData,
+            });
+          }
+          return;
+        }
+
+        const result = await getAdminSubmissions();
+        const submission = (result.items ?? []).find(
+          (item) => item.submission_id === routeSubmissionId
+        );
+        if (!submission) throw new Error("No saved submission matches this reference.");
+
+        let caseData;
+        try {
+          caseData = await getAdminQueueCase(submission.case_id);
+        } catch {
+          // Saved submissions can outlive queue records. Keep View usable from
+          // the Submissions page by building the case summary from its row.
+          caseData = {
+            ...submission,
+            case_id: submission.case_id,
+            patient: submission.patient ?? {
+              name: submission.patient_name,
+              patient_id: submission.patient_id,
+            },
+            condition: submission.condition ?? submission.disease,
+            jurisdiction: submission.jurisdiction,
+            rule_id: submission.rule_id,
+          };
+        }
+        if (!cancelled) setResolved({ submission, caseData });
+      } catch (error) {
+        if (!cancelled) setLoadError(error?.message || "Unable to load the saved submission.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadSubmission();
+    return () => { cancelled = true; };
+  }, [location.state, navigate, routeSubmissionId]);
+
+  useEffect(() => {
+    if (!routeSubmissionId || routeSubmissionId.startsWith("DEMO-")) return undefined;
+
+    let cancelled = false;
+    let refreshing = false;
+
+    const refreshSubmission = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const latest = await getAdminSubmission(routeSubmissionId);
+        if (!cancelled) {
+          setResolved((current) => ({ ...current, submission: latest }));
+        }
+      } catch {
+        // Keep the last loaded submission visible if a refresh is temporarily unavailable.
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    refreshSubmission();
+    const intervalId = window.setInterval(refreshSubmission, 5000);
+    window.addEventListener("focus", refreshSubmission);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshSubmission);
+    };
+  }, [routeSubmissionId]);
+
+  const submission = resolved.submission;
+  const caseData = resolved.caseData;
+
+  if (loading) {
+    return (
+      <div className="admin-journey-page">
+        <SignalLoading title="Loading Submission" message="Retrieving the saved submission from SIGNAL." />
+      </div>
+    );
+  }
 
   if (!submission || !caseData) {
     return (
@@ -194,12 +318,8 @@ export default function AdminSubmissionJourney() {
         </header>
 
         <section className="journey-alert-card">
-          <h2>Submission data unavailable</h2>
-          <p>
-            Open Immediate Reporting Review from the existing case list
-            and use Authorize &amp; Submit to pass the selected patient
-            and case data to this page.
-          </p>
+          <h2>Submission not found</h2>
+          <p>{loadError || "This reference has no saved submission record."}</p>
         </section>
       </div>
     );
@@ -234,10 +354,13 @@ export default function AdminSubmissionJourney() {
     getField(caseData, "caseId", "case_id") ??
     "—";
 
-  const condition =
+  const conditionValue =
     getField(submission, "condition") ??
     getField(caseData, "condition", "disease_name", "disease") ??
     "—";
+  const condition = conditionValue && typeof conditionValue === "object"
+    ? getField(conditionValue, "display", "name", "text", "label") ?? display(conditionValue)
+    : conditionValue;
 
   const jurisdiction =
     getField(submission, "jurisdiction") ??
@@ -250,24 +373,34 @@ export default function AdminSubmissionJourney() {
     "—";
 
   const submittedAt =
-    getField(submission, "submittedAt", "submitted_at") ?? "—";
+    getField(submission, "submittedAt", "submitted_at", "created_at") ?? "—";
 
   const reportingMode =
-    getField(submission, "mode", "reportingMode", "reporting_mode") ??
+    getField(submission, "mode", "reportingMode", "reporting_mode", "submission_mode") ??
     "—";
 
   const reportingRule =
-    getField(caseData, "reportingRule", "reporting_rule") ?? "—";
+    getField(caseData, "rule_id", "reportingRule", "reporting_rule") ?? "—";
 
   const deadline =
     getField(caseData, "deadline", "reportingDeadline",
       "reporting_deadline") ?? "—";
 
-  const healthDepartment =
-    getField(caseData, "healthDepartment", "health_department") ?? "—";
-
-  // This is a simulated transport stage, not a real external transmission.
-  const currentStageIndex = 4;
+  const healthDepartment = getField(caseData, "healthDepartment", "health_department")
+    ?? (jurisdiction === "TX" ? "DSHS" : "Public Health Authority");
+  const submissionStatus = String(submission.status ?? "").toUpperCase();
+  const destination = getField(submission, "destination") ?? "MOCK_PHA";
+  const acknowledgement = submission.acknowledgement ?? {};
+  const phaDecision = submission.latest_pha_decision ?? {};
+  const phaDecisionValue = String(phaDecision.decision ?? "").toUpperCase();
+  const isAccepted = phaDecisionValue === "ACCEPTED";
+  const isRejected = phaDecisionValue === "REJECTED";
+  const isAcknowledged = submissionStatus === "ACKNOWLEDGED"
+    || String(acknowledgement.status ?? "").toUpperCase() === "ACKNOWLEDGED";
+  const reviewComplete = isAcknowledged || isAccepted || isRejected;
+  const journeyStatus = isRejected ? "REJECTED" : isAccepted ? "ACCEPTED" : submissionStatus;
+  const currentStageIndex = reviewComplete ? STAGES.length : STAGES.length - 1;
+  const progressStageIndex = Math.min(currentStageIndex, STAGES.length - 1);
 
   const handleBack = () => navigate("/admin/queue");
 
@@ -302,8 +435,8 @@ export default function AdminSubmissionJourney() {
             <span>SUBMISSION ID</span>
             <FileCheck2 size={17} />
           </div>
-          <strong>{actualSubmissionId}</strong>
-          <small>Local demo reference</small>
+          <strong>{display(actualSubmissionId)}</strong>
+          <small>{display(destination)} submission</small>
         </div>
 
         <div className="journey-kpi">
@@ -311,8 +444,8 @@ export default function AdminSubmissionJourney() {
             <span>PATIENT</span>
             <UserRound size={17} />
           </div>
-          <strong>{patientName}</strong>
-          <small>{patientId}</small>
+          <strong>{display(patientName)}</strong>
+          <small>{display(patientId)}</small>
         </div>
 
         <div className="journey-kpi">
@@ -320,17 +453,17 @@ export default function AdminSubmissionJourney() {
             <span>CONDITION</span>
             <HeartPulse size={17} />
           </div>
-          <strong>{condition}</strong>
-          <small>Case {actualCaseId}</small>
+          <strong>{display(condition)}</strong>
+          <small>Case {display(actualCaseId)}</small>
         </div>
 
         <div className="journey-kpi">
           <div className="journey-kpi-heading">
-            <span>ACKNOWLEDGEMENT STATUS</span>
+            <span>SUBMISSION STATUS</span>
             <Clock3 size={17} />
           </div>
-          <strong>IN PROGRESS</strong>
-          <small>No external receipt confirmed</small>
+          <strong>{formatLabel(journeyStatus)}</strong>
+          <small>{isRejected ? "PHA rejected this report" : isAccepted ? "PHA accepted this report" : isAcknowledged ? "PHA acknowledgement received" : "Awaiting PHA acknowledgement"}</small>
         </div>
       </div>
 
@@ -339,26 +472,26 @@ export default function AdminSubmissionJourney() {
           <UserRound size={18} />
           <div>
             <span className="journey-section-label">PATIENT DETAILS</span>
-            <h2>{patientName}</h2>
+            <h2>{display(patientName)}</h2>
           </div>
         </div>
 
         <div className="journey-person-fields">
           <div>
             <span>Patient ID</span>
-            <strong>{patientId}</strong>
+            <strong>{display(patientId)}</strong>
           </div>
           <div>
             <span>Case ID</span>
-            <strong>{actualCaseId}</strong>
+            <strong>{display(actualCaseId)}</strong>
           </div>
           <div>
             <span>Condition</span>
-            <strong>{condition}</strong>
+            <strong>{display(condition)}</strong>
           </div>
           <div>
             <span>Jurisdiction</span>
-            <strong>{jurisdiction}</strong>
+            <strong>{display(jurisdiction)}</strong>
           </div>
         </div>
       </section>
@@ -367,7 +500,13 @@ export default function AdminSubmissionJourney() {
         <div>
           <h2>Reporting Workflow</h2>
           <p>
-            Current demonstration stage: APHL AIMS transport.
+            {isRejected
+              ? "PHA rejected this report; the review stage is complete."
+              : isAccepted
+              ? "PHA accepted this report; the review stage is complete."
+              : isAcknowledged
+                ? "PHA acknowledgement received; all timeline stages are complete."
+              : "The report is in the PHA queue; awaiting its acknowledgement."}
           </p>
         </div>
 
@@ -378,10 +517,10 @@ export default function AdminSubmissionJourney() {
 
         <div className="journey-track-wrapper">
           <div
-            className="journey-track is-simulated"
+            className={`journey-track ${isAcknowledged ? "" : "is-simulated"}`}
             style={{
               "--journey-progress": `${
-                (currentStageIndex / (STAGES.length - 1)) * 100
+                (progressStageIndex / STAGES.length) * 100
               }%`,
             }}
           >
@@ -395,13 +534,16 @@ export default function AdminSubmissionJourney() {
                     "journey-stage",
                     completed ? "completed" : "",
                     current ? "current" : "",
+                    index === STAGES.length - 1 && isRejected ? "failed" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
                   key={stage.id}
                 >
                   <div className="journey-stage-circle">
-                    {completed ? <CheckCircle2 size={14} /> : index + 1}
+                    {index === STAGES.length - 1 && isRejected
+                      ? <XCircle size={18} />
+                      : completed ? <CheckCircle2 size={14} /> : index + 1}
                   </div>
                   <div className="journey-stage-label">{stage.label}</div>
                   <div className="journey-stage-subtitle">
@@ -413,9 +555,6 @@ export default function AdminSubmissionJourney() {
           </div>
         </div>
 
-        <p className="journey-simulation-note">
-          SIMULATED WORKFLOW · No external system has been contacted.
-        </p>
       </section>
 
       <div className="journey-grid">
@@ -434,32 +573,6 @@ export default function AdminSubmissionJourney() {
           <PanelRow label="Deadline" value={formatDateTime(deadline)} />
         </section>
 
-        <section className="journey-panel">
-          <SectionHeading>Clinical Evidence</SectionHeading>
-
-          <div className="journey-details-grid">
-            {Object.entries(
-              getField(caseData, "clinicalEvidence", "clinical_evidence") ?? {}
-            ).map(([key, value]) => (
-              <Detail key={key} label={formatLabel(key)} value={display(value)} />
-            ))}
-
-            {Object.entries(
-              getField(caseData, "laboratoryEvidence", "laboratory_evidence") ?? {}
-            ).map(([key, value]) => (
-              <Detail key={`lab-${key}`} label={formatLabel(key)} value={display(value)} />
-            ))}
-
-            {Object.keys(
-              getField(caseData, "clinicalEvidence", "clinical_evidence") ?? {}
-            ).length === 0 &&
-              Object.keys(
-                getField(caseData, "laboratoryEvidence", "laboratory_evidence") ?? {}
-              ).length === 0 && (
-                <Detail label="Evidence" value="No evidence fields supplied" />
-              )}
-          </div>
-        </section>
       </div>
 
       <section className="journey-response-card">
@@ -472,8 +585,19 @@ export default function AdminSubmissionJourney() {
         <div className="journey-response-content">
           <Detail label="Jurisdiction" value={jurisdiction} />
           <Detail label="Health Department" value={healthDepartment} />
-          <Detail label="Transport Status" value="Simulated" />
-          <Detail label="External Acknowledgement" value="Not received" />
+          <Detail label="Submission Status" value={formatLabel(journeyStatus)} />
+          {phaDecision.decision && (
+            <Detail label="PHA Review Decision" value={`${formatLabel(phaDecision.decision)}${submission.pha_decision_count > 1 ? ` (${submission.pha_decision_count} recorded)` : ""}`} />
+          )}
+          {phaDecision.reviewer && <Detail label="PHA Reviewer" value={phaDecision.reviewer} />}
+          {phaDecision.created_at && <Detail label="Decision Recorded At" value={formatDateTime(phaDecision.created_at)} />}
+          <Detail label="PHA Acknowledgement" value={isAcknowledged ? "Received" : "Pending"} />
+          {acknowledgement.acknowledgement_id && (
+            <Detail label="Acknowledgement ID" value={acknowledgement.acknowledgement_id} />
+          )}
+          {acknowledgement.received_at && (
+            <Detail label="Received At" value={formatDateTime(acknowledgement.received_at)} />
+          )}
         </div>
       </section>
 
@@ -488,7 +612,7 @@ export default function AdminSubmissionJourney() {
           <div className="journey-requested-list">
             <div>
               <Clock3 size={14} />
-              <span>External acknowledgement: not verified</span>
+              <span>{isAcknowledged ? "PHA acknowledgement: received" : "PHA acknowledgement: pending"}</span>
             </div>
             <div>
               <CalendarClock size={14} />

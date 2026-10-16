@@ -54,8 +54,7 @@ function caseIsReady(item) {
   const missing = Array.isArray(item?.missing_information) ? item.missing_information : [];
   return missing.length === 0
     && Boolean(item?.report_id)
-    && String(item?.review_status || "").toUpperCase() === "APPROVE"
-    && String(item?.attestation_status || "").toUpperCase() === "ATTESTED"
+    && ["APPROVE", "APPROVED"].includes(String(item?.review_status || "").toUpperCase())
     && ["QUEUED", "READY_FOR_SUBMISSION"].includes(String(item?.queue_status || "").toUpperCase());
 }
 
@@ -235,13 +234,13 @@ export default function AdminBatchReview() {
           <section className="batch-card">
             <header className="batch-card-header"><div><Layers3 size={19} /><div><h2>Included Cases</h2><p>Each case remains individually identifiable and read-only.</p></div></div><span>{stats.total} cases</span></header>
             {cases.length === 0 ? <div className="batch-empty">This backend batch does not contain any case IDs.</div> : (
-              <div className="batch-table-wrap"><table className="batch-table"><thead><tr><th>Patient</th><th>Case ID</th><th>Condition</th><th>Jurisdiction</th><th>Deadline</th><th>Priority</th><th>Status</th><th>Review Status</th><th>Attestation Status</th><th>Details</th></tr></thead>
+              <div className="batch-table-wrap"><table className="batch-table"><thead><tr><th>Patient</th><th>Case ID</th><th>Condition</th><th>Jurisdiction</th><th>Deadline</th><th>Priority</th><th>Status</th><th>Review Status</th><th>Details</th></tr></thead>
                 <tbody>{cases.map((item) => {
                   const id = caseIdOf(item);
                   const mode = String(item?.submission_mode || "").toUpperCase();
                   const reviewPath = mode === "IMMEDIATE" ? `/admin/queue/${encodeURIComponent(id)}/immediate` : mode === "INDIVIDUAL" ? `/admin/queue/${encodeURIComponent(id)}/individual` : null;
                   return <tr key={id}>
-                    <td>{patientNameOf(item)}</td><td><code>{textValue(id)}</code></td><td>{textValue(item?.condition || item?.disease)}</td><td>{textValue(item?.jurisdiction)}</td><td>{timestamp(item?.deadline)}</td><td>{textValue(item?.priority || item?.severity)}</td><td><span className="batch-status">{textValue(item?.case_status || item?.queue_status)}</span></td><td>{textValue(item?.review_status)}</td><td>{textValue(item?.attestation_status)}</td>
+                    <td>{patientNameOf(item)}</td><td><code>{textValue(id)}</code></td><td>{textValue(item?.condition || item?.disease)}</td><td>{textValue(item?.jurisdiction)}</td><td>{timestamp(item?.deadline)}</td><td>{textValue(item?.priority || item?.severity)}</td><td><span className="batch-status">{textValue(item?.case_status || item?.queue_status)}</span></td><td>{textValue(item?.review_status)}</td>
                     <td><details className="batch-case-details"><summary><ChevronDown size={14} /> View</summary>
                       {item?.detail_error ? <p className="batch-alert error">{item.detail_error}</p> : <>
                         {reviewPath && <Link className="batch-case-link" to={reviewPath}>Open case review</Link>}
@@ -263,7 +262,7 @@ export default function AdminBatchReview() {
             <header className="batch-card-header"><div><FileCheck2 size={19} /><div><h2>Validation Summary</h2><p>Readiness derived from each included Case record.</p></div></div></header>
             <dl className="batch-validation-grid">
               <div><dt>Total Cases</dt><dd>{stats.total}</dd></div><div><dt>Ready Cases</dt><dd>{stats.ready}</dd></div><div><dt>Missing Information Count</dt><dd>{stats.missingFields}</dd></div><div><dt>Invalid Cases</dt><dd>{stats.invalid}</dd></div>
-              <div><dt>Review State</dt><dd>{cases.filter((item) => String(item?.review_status || "").toUpperCase() === "APPROVE").length} approved / {stats.total}</dd></div><div><dt>Attestation State</dt><dd>{cases.filter((item) => String(item?.attestation_status || "").toUpperCase() === "ATTESTED").length} attested / {stats.total}</dd></div>
+              <div><dt>Review State</dt><dd>{cases.filter((item) => ["APPROVE", "APPROVED"].includes(String(item?.review_status || "").toUpperCase())).length} approved / {stats.total}</dd></div>
             </dl>
           </section>
         </div>

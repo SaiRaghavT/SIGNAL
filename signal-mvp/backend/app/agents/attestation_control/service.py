@@ -10,7 +10,7 @@ from backend.app.agents.audit_ledger.service import AuditLedgerService
 from backend.app.ecr.builder import build_ecr
 from backend.app.models.case import Case
 from backend.app.schemas.validation import validate_ecr
-from backend.app.case.report_fields import missing_report_fields
+from backend.app.case.report_fields import available_case_report_fields, missing_report_fields
 
 from .schemas import (
     AttestationRequest,
@@ -154,7 +154,8 @@ class AttestationControlService:
                 comments=request.comments,
             )
 
-        missing, required_missing = missing_report_fields(case.report_fields or {})
+        report_fields = available_case_report_fields(case)
+        missing, required_missing = missing_report_fields(report_fields)
         ecr = build_ecr(case)
         # Attestation is the human review transition from NEEDS_REVIEW to
         # REPORT; validate the underlying evidence before that transition.
@@ -162,7 +163,7 @@ class AttestationControlService:
         validation = validate_ecr(
             ecr,
             SimpleNamespace(
-                fields=case.report_fields or {},
+                fields=report_fields,
                 missing_fields=missing,
                 required_missing_fields=required_missing,
             ),

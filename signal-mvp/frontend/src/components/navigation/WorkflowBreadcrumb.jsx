@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ChevronRight, User, FolderKanban } from "lucide-react";
+import { cleanPatientName } from "../../utils/patientNames.js";
 import "../../styles/workflow-breadcrumb.css";
 
 /**
@@ -210,10 +211,10 @@ export function getBreadcrumbTrail(pathname) {
  */
 function getSupplementaryContext(location) {
   const state = location.state || {};
-  if (state.patientName) return { type: "patient", label: state.patientName };
-  if (state.caseData?.patientName) return { type: "patient", label: state.caseData.patientName };
-  if (state.patient?.name) return { type: "patient", label: state.patient.name };
-  if (state.patient?.full_name) return { type: "patient", label: state.patient.full_name };
+  if (state.patientName) return { type: "patient", label: cleanPatientName(state.patientName) };
+  if (state.caseData?.patientName) return { type: "patient", label: cleanPatientName(state.caseData.patientName) };
+  if (state.patient?.name) return { type: "patient", label: cleanPatientName(state.patient.name) };
+  if (state.patient?.full_name) return { type: "patient", label: cleanPatientName(state.patient.full_name) };
   if (state.condition) return { type: "condition", label: state.condition };
   if (state.caseData?.condition) return { type: "condition", label: state.caseData.condition };
   if (state.caseData?.disease) return { type: "condition", label: state.caseData.disease };

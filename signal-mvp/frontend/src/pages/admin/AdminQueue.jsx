@@ -201,6 +201,20 @@ function getDeadline(item) {
   );
 }
 
+function formatDeadline(value) {
+  if (!value) return formatValue(value);
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return formatValue(value);
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 function getPriority(item) {
   return (
     item?.priority ||
@@ -759,7 +773,6 @@ export default function AdminQueue() {
               <thead>
                 <tr>
                   <th>Patient</th>
-                  <th>Case ID</th>
                   <th>Condition</th>
                   <th>Jurisdiction</th>
                   <th>Deadline</th>
@@ -796,14 +809,6 @@ export default function AdminQueue() {
                         </td>
 
                         <td>
-                          <span className="case-id">
-                            {formatValue(
-                              caseId
-                            )}
-                          </span>
-                        </td>
-
-                        <td>
                           {formatValue(
                             getCondition(item)
                           )}
@@ -819,7 +824,7 @@ export default function AdminQueue() {
 
                         <td>
                           <span className="deadline-value">
-                            {formatValue(getDeadline(item))}
+                            {formatDeadline(getDeadline(item))}
                           </span>
                         </td>
 
