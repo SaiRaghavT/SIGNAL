@@ -11,7 +11,6 @@ const CasesPage = lazy(() => import("./pages/CasesPage.jsx").then((module) => ({
 const CaseWorkspacePage = lazy(() => import("./pages/CaseWorkspacePage.jsx"));
 const SubmissionsPage = lazy(() => import("./pages/SubmissionsPage.jsx").then((module) => ({ default: module.SubmissionsPage })));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage.jsx").then((module) => ({ default: module.AnalyticsPage })));
-const AuditPage = lazy(() => import("./pages/AuditPage.jsx").then((module) => ({ default: module.AuditPage })));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.jsx"));
 const AdminAudit = lazy(() => import("./pages/admin/AdminAudit.jsx"));
 const AdminDeadlines = lazy(() => import("./pages/admin/AdminDeadlines.jsx"));
@@ -117,7 +116,6 @@ export default function App() {
           <Route path="/submissions" element={<SubmissionsPage />} />
           <Route path="/submissions/case/:caseId" element={<SubmissionWorkspace />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/audit" element={<AuditPage />} />
           <Route path="/governance" element={<GovernanceOverview />} />
           <Route path="/governance/monitoring" element={<MonitoringPage />} />
           <Route path="/governance/evaluation" element={<EvaluationPage />} />
