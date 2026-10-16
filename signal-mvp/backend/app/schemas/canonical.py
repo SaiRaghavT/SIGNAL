@@ -79,6 +79,7 @@ class PatientDeadline(BaseModel):
     jurisdiction: str | None = None
     rule_id: str | None = None
     reporting_timing: str | None = None
+    reporting_timeline: str | None = None
     reporting_method: str | None = None
     urgency: str | None = None
     minutes_remaining: int | None = None
@@ -116,4 +117,5 @@ class PatientListResponse(BaseModel):
     total: int
     pages: int
     facilities: list[str] = Field(default_factory=list)
+    conditions: list[str] = Field(default_factory=list)
     condition_filter: str | None = None

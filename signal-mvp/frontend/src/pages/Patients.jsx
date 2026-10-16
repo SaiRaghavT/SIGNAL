@@ -5,10 +5,10 @@ import { PageHeader } from "../components/ui/PageHeader.jsx";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
 import { useDailyRefresh } from "../hooks/useDailyRefresh.js";
 import "../styles/patients.css";
- 
+
 const PAGE_SIZE = 10;
 const EMPTY_VALUE = "—";
- 
+
 function formatDate(value) {
   if (!value) return EMPTY_VALUE;
   const [year, month, day] = String(value).slice(0, 10).split("-").map(Number);
@@ -25,7 +25,7 @@ function formatDate(value) {
   const part = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]));
   return `${part.day} ${part.month} ${part.year}`;
 }
- 
+
 function formatDeadline(value) {
   const deadline = typeof value === "string" ? value : value?.deadline;
   if (typeof deadline !== "string" || !deadline.trim()) return EMPTY_VALUE;
@@ -42,7 +42,6 @@ function formatDeadline(value) {
   const part = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]));
   return `${part.day} ${part.month} ${part.year}, ${part.hour}:${part.minute} ${part.dayPeriod?.toUpperCase() || ""}`.trim();
 }
- 
 function formatDeadlineDuration(totalMinutes) {
   if (!Number.isFinite(totalMinutes)) return "";
   const absMinutes = Math.abs(Math.round(totalMinutes));
@@ -63,18 +62,18 @@ function formatPatientName(patient) {
     .filter(Boolean)
     .join(" ");
 }
- 
+
 function formatCondition(value) {
   return String(value || "")
     .replace(/\s*\(disorder\)$/i, "")
     .trim();
 }
- 
+
 function visiblePages(currentPage, totalPages) {
   const first = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
   return Array.from({ length: Math.min(5, totalPages) }, (_, index) => first + index);
 }
- 
+
 export default function Patients() {
   const [search, setSearch] = useState("");
   const [condition, setCondition] = useState("");
@@ -86,11 +85,11 @@ export default function Patients() {
   const [refreshKey, setRefreshKey] = useState(0);
   const hasLoadedOnce = useRef(false);
   const currentDay = useDailyRefresh();
- 
+
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
- 
+
     async function loadPatients() {
       if (hasLoadedOnce.current) setSearching(true);
       else setLoading(true);
@@ -116,7 +115,7 @@ export default function Patients() {
         }
       }
     }
- 
+
     const debounceTimer = window.setTimeout(loadPatients, 200);
     return () => {
       active = false;
@@ -124,13 +123,13 @@ export default function Patients() {
       controller.abort();
     };
   }, [page, search, condition, refreshKey, currentDay]);
- 
+
   function clearFilters() {
     setSearch("");
     setCondition("");
     setPage(1);
   }
- 
+
   const visiblePatients = Array.isArray(result?.items) ? result.items : [];
   const tablePatients = visiblePatients.filter(
     (patient) => formatPatientName(patient).toUpperCase() !== "SAMPLE PATIENT"
@@ -138,7 +137,7 @@ export default function Patients() {
   const totalPages = result?.pages || 0;
   const firstVisiblePatient = result?.total ? (page - 1) * PAGE_SIZE + 1 : 0;
   const lastVisiblePatient = Math.min(page * PAGE_SIZE, result?.total || 0);
- 
+
   return (
     <section className="patients-page">
       <PageHeader
@@ -154,7 +153,7 @@ export default function Patients() {
           {loading ? "Refreshing…" : "Refresh"}
         </button>
       </PageHeader>
- 
+
       <div className="patients-card">
         <div className="patients-filter-section">
           <div className="patients-toolbar">
@@ -251,7 +250,7 @@ export default function Patients() {
                 </tbody>
               </table>
             </div>
- 
+
             <nav className="patients-pagination" aria-label="Patient pages">
               <span className="patients-count">
                 Showing {firstVisiblePatient}–{lastVisiblePatient} of {result?.total || 0} patients

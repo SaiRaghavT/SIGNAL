@@ -29,13 +29,13 @@ export function buildEvidencePatterns(reviewedRows) {
 
 export function buildEvaluationReadiness(candidates, reviewedCases) {
   const confidence = candidates
-    .filter(item => item.confidence !== null && item.confidence !== undefined && item.confidence !== '')
-    .map(item => Number(item.confidence))
-    .filter(value => Number.isFinite(value) && value >= 0 && value <= 1)
+    .filter(item => item.evidence_strength !== null && item.evidence_strength !== undefined && item.evidence_strength !== '')
+    .map(item => Number(item.evidence_strength))
+    .filter(value => Number.isFinite(value) && value >= 0 && value <= 100)
   return {
     candidate_count: candidates.length,
-    confidence_count: confidence.length,
-    mean_confidence: confidence.length ? confidence.reduce((sum, value) => sum + value, 0) / confidence.length : null,
+    evidence_strength_count: confidence.length,
+    mean_evidence_strength: confidence.length ? confidence.reduce((sum, value) => sum + value, 0) / confidence.length : null,
     reviewed_cases: reviewedCases,
     classification_metrics: 'insufficient_data',
   }
@@ -45,8 +45,8 @@ export function findGovernanceIssues(candidates) {
   return candidates.flatMap(candidate => {
     const issues = []
     if (!Array.isArray(candidate.evidence) || candidate.evidence.length === 0) issues.push('Source evidence is missing.')
-    if (candidate.confidence === null || candidate.confidence === undefined) issues.push('Confidence is not available.')
-    else if (!Number.isFinite(Number(candidate.confidence)) || Number(candidate.confidence) < 0 || Number(candidate.confidence) > 1) issues.push('Confidence is outside the supported 0 to 1 range.')
+    if (candidate.evidence_strength === null || candidate.evidence_strength === undefined) issues.push('Evidence strength is not available.')
+    else if (!Number.isFinite(Number(candidate.evidence_strength)) || Number(candidate.evidence_strength) < 0 || Number(candidate.evidence_strength) > 100) issues.push('Evidence strength is outside the supported 0 to 100 range.')
     return issues.map(reason => ({ candidate_id: candidate.candidate_id, disease: candidate.disease, reason, status: 'requires_human_review' }))
   })
 }

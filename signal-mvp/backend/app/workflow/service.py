@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from backend.app.detection.candidate_fusion import calculate_evidence_strength
 from backend.app.models.audit_event import AuditEvent
 from backend.app.models.candidate import Candidate
 from backend.app.models.case import Case
@@ -227,7 +228,9 @@ def get_case_journey(db: Session, case_id: UUID) -> CaseJourneyResponse | None:
             data={
                 "candidate_id": case.candidate_id,
                 "status": candidate.status if candidate else "linked_to_case",
-                "confidence": candidate.confidence if candidate else None,
+                "evidence_strength": calculate_evidence_strength(
+                    candidate.signals if isinstance(candidate.signals, list) else []
+                )["score"] if candidate else None,
             } if candidate_available else {},
             limitations=[
                 "Candidate history is not persisted; the current disposition is shown when available."

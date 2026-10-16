@@ -3,7 +3,6 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell.jsx";
 import AdminShell from "./components/layout/AdminShell.jsx";
 import { SignalLoading } from "./components/ui/SignalLoading.jsx";
-import { SignalAssistant } from "./components/ui/SignalAssistant.jsx";
 
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Patients = lazy(() => import("./pages/Patients.jsx"));
@@ -152,7 +151,6 @@ export default function App() {
         </Route>
         <Route path="*" element={<RoleHome />} />
       </Routes>
-      <SignalAssistant />
     </Suspense>
   );
 }

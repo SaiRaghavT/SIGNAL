@@ -1,8 +1,13 @@
 
 from pathlib import Path
+import time
 from typing import Any
 
+from ...ai_detection_logging import get_ai_detection_logger
 from ...config.settings import settings
+from ...agents.nlp_evidence.cache import source_identity
+
+logger = get_ai_detection_logger()
 
 
 def ocr_scanned_pdf_page(page: Any) -> str:
@@ -124,6 +129,8 @@ def _extract_pdf_text_with_ocr(pdf_path: str) -> str:
 
 def process_documents(
     documents: list[dict[str, Any]],
+    *,
+    run_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Process clinical documents for downstream NLP analysis.
@@ -163,9 +170,25 @@ def process_documents(
                     or "pdf" in document_type
                 ):
                     if pdf_path.exists() and pdf_path.is_file():
-                        text = _extract_pdf_text_with_ocr(
-                            str(pdf_path)
-                        )
+                        ocr_started = time.perf_counter()
+                        try:
+                            text = _extract_pdf_text_with_ocr(str(pdf_path))
+                        except Exception as exc:
+                            logger.info(
+                                "Detection timing run_id=%s stage=pdf_ocr_failed provider=local_ocr model=tesseract source_count=1 source_id=%s elapsed_ms=%.0f error_type=%s",
+                                run_id or "untracked",
+                                source_identity(document),
+                                (time.perf_counter() - ocr_started) * 1000,
+                                type(exc).__name__,
+                            )
+                            raise
+                        else:
+                            logger.info(
+                                "Detection timing run_id=%s stage=pdf_ocr_complete provider=local_ocr model=tesseract source_count=1 source_id=%s elapsed_ms=%.0f",
+                                run_id or "untracked",
+                                source_identity(document),
+                                (time.perf_counter() - ocr_started) * 1000,
+                            )
 
         processed_documents.append(
             {

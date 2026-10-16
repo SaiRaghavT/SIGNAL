@@ -12,6 +12,7 @@ import {
   Send,
   Users,
 } from "lucide-react";
+import { listCanonicalPatients } from "../api/canonical.js";
 import { getDashboardSummary } from "../api/dashboard.js";
 import { request } from "../api/client.js";
 import { SignalLoading } from "../components/ui/SignalLoading.jsx";
@@ -24,7 +25,7 @@ function responseItems(response) {
   return Array.isArray(response?.items) ? response.items : [];
 }
 
-const DASHBOARD_SECTIONS = ["summary", "reporting", "activity", "deadlines", "measlesPatients"];
+const DASHBOARD_SECTIONS = ["summary", "reporting", "activity", "deadlines", "patients"];
 
 function countRows(counts) {
   return Object.entries(counts || {}).map(([label, value]) => ({ label, value }));
@@ -109,7 +110,7 @@ export default function Dashboard() {
     reporting: null,
     activity: null,
     deadlines: null,
-    measlesPatients: null,
+    patients: null,
     loading: Object.fromEntries(DASHBOARD_SECTIONS.map((key) => [key, true])),
     errors: {},
   });
@@ -129,7 +130,7 @@ export default function Dashboard() {
       else if (key === "reporting") value = await request("/api/dashboard/reporting-status", { signal });
       else if (key === "activity") value = responseItems(await request("/api/dashboard/activity", { signal }));
       else if (key === "deadlines") value = await request("/api/dashboard/deadlines", { signal });
-      else value = await request("/api/dashboard/measles-priority", { signal });
+      else value = await listCanonicalPatients({ page: 1, page_size: 5, signal });
 
       if (signal?.aborted) return;
       setData((current) => ({
@@ -167,7 +168,7 @@ export default function Dashboard() {
   const deadlineRiskRows = useMemo(() => countRows(data?.deadlines?.by_status), [data]);
   const conditionRows = useMemo(() => countRows(data?.reporting?.case_conditions), [data]);
   const jurisdictionRows = useMemo(() => countRows(data?.reporting?.jurisdictions), [data]);
-  const priorityPatients = useMemo(() => responseItems(data?.measlesPatients), [data]);
+  const priorityPatients = useMemo(() => responseItems(data?.patients), [data]);
   const activityItems = activityVisible ? data?.activity?.slice(0, 5) || [] : [];
   const deadlineItems = responseItems(data?.deadlines).slice(0, 3);
   const summary = data?.summary;
@@ -220,10 +221,10 @@ export default function Dashboard() {
 
       <section className="dashboard-priority-card" aria-labelledby="priority-work-heading">
         <header className="dashboard-card-header">
-          <div><h2 id="priority-work-heading">Priority Work</h2><p>Top 5 Measles patients</p></div>
+          <div><h2 id="priority-work-heading">Priority Work</h2><p>Top 5 patients in the reporting worklist</p></div>
           <button className="dashboard-view-all" type="button" onClick={() => navigate("/patients")}>View All Patients <ArrowRight size={14} aria-hidden="true" /></button>
         </header>
-        <SectionState loading={data.loading.measlesPatients} error={data.errors.measlesPatients} onRetry={() => loadSection("measlesPatients")} empty="No patients are currently in the reporting worklist.">
+        <SectionState loading={data.loading.patients} error={data.errors.patients} onRetry={() => loadSection("patients")} empty="No patients are currently in the reporting worklist.">
           {priorityPatients.length ? <>
             <div className="dashboard-table-wrap">
               <table className="priority-table">
@@ -235,13 +236,18 @@ export default function Dashboard() {
                   return <tr key={patient.patient_id}>
                     <td><strong>{patientName(patient)}</strong></td><td>{patient.condition || "Patient review"}</td>
                     <td>{patient.jurisdiction || patient.deadline?.jurisdiction || EMPTY_VALUE}</td>
-                    <td><span className={badgeClass}>{priority}</span></td><td>{formatDeadline(deadline)}</td>
+                    <td><span className={badgeClass}>{priority}</span></td>
+                    <td>
+                      {patient.deadline?.reporting_timeline && <div>{patient.deadline.reporting_timeline}</div>}
+                      {deadline && <small>{formatDeadline(deadline)}</small>}
+                      {!patient.deadline?.reporting_timeline && !deadline && EMPTY_VALUE}
+                    </td>
                     <td><button className="row-action" type="button" onClick={() => navigate(`/patients/${encodeURIComponent(patient.patient_id)}`)}>View</button></td>
                   </tr>;
                 })}</tbody>
               </table>
             </div>
-            <footer className="dashboard-priority-footer"><span>Showing {priorityPatients.length} of {data.measlesPatients.total} Measles patients</span><span>Patients in Patients page order</span></footer>
+            <footer className="dashboard-priority-footer"><span>Showing {priorityPatients.length} of {data.patients.total} patients</span><span>Patients in Patients page order</span></footer>
           </> : null}
         </SectionState>
       </section>
