@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Feuji Health Intelligence connects clinical, operational, and public health solutions with data and AI.">
+  <title>Feuji Health Intelligence</title>
+  <style>
+    :root{--orange:#f87518;--orange2:#f55c2d;--navy:#0c2236;--blue:#183653;--text:#15283a;--muted:#576b7f;--line:#e9edf1;--card:#eef2f6;--white:#fff;--max:1350px;--shadow:0 5px 16px #18365312}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;color:var(--text);background:#fff;font:15px/1.5 Arial,Helvetica,sans-serif}a{color:inherit;text-decoration:none}button{font:inherit}.wrap{width:min(var(--max),calc(100% - 80px));margin-inline:auto}.hero{display:grid;grid-template-columns:1fr 1.12fr;align-items:center;gap:42px;padding-top:78px;padding-bottom:44px;min-height:690px}.hero-copy h1{font-size:clamp(38px,4.05vw,58px);line-height:1.01;letter-spacing:-1.8px;color:var(--orange);margin:0;font-weight:800}.hero-copy h2{font-size:clamp(24px,2.7vw,36px);line-height:1.14;letter-spacing:-.8px;margin:4px 0 20px;font-weight:750;max-width:610px}.hero-copy p{max-width:610px;color:#263a4f;font-size:16px;line-height:1.55;margin:0 0 62px}.actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.btn{display:inline-flex;justify-content:center;align-items:center;gap:8px;border:1px solid #94a6b7;padding:14px 23px;background:#fff;border-radius:6px;color:#3d5268;font-size:14px;font-weight:600;transition:.18s ease;cursor:pointer}.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--orange)}.btn.primary{background:var(--orange);border-color:var(--orange);color:#fff}.btn.primary:hover{background:#e9620d}.ecosystem{position:relative;width:100%;aspect-ratio:1.28;max-width:700px;margin-inline:auto;display:grid;place-items:center}.orbit{position:absolute;border:1px dashed #e2e8ed;border-radius:50%;width:65%;height:76%}.orbit.inner{width:45%;height:57%}.core{z-index:1;width:29%;aspect-ratio:1;border:3px solid #23a8e7;border-right-color:#e7a143;border-radius:50%;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#fff;box-shadow:0 2px 8px #233c5012;text-align:center}.core b{font-size:clamp(36px,4vw,56px);line-height:.95;color:#f26a35;letter-spacing:-4px}.core small{font-size:10px;line-height:1.15;color:#4e6174;font-weight:700}.node{position:absolute;z-index:2;min-width:150px;padding:13px 15px;border:1px solid #eef1f4;border-radius:11px;background:#fff;box-shadow:0 3px 12px #243c5010;color:#344a5d;font-size:12px;font-weight:700;display:flex;align-items:center;gap:10px}.node-icon{width:20px;height:20px;border-radius:7px;background:#f0f7ff;color:#4689d6;display:grid;place-items:center;font-size:12px}.node:nth-of-type(4n+2) .node-icon{background:#edf9f5;color:#38b68e}.node:nth-of-type(4n+3) .node-icon{background:#fff3e9;color:#f99b4b}.n1{top:5%;left:39%}.n2{top:18%;left:8%}.n3{top:18%;right:8%}.n4{top:46%;left:1%}.n5{top:46%;right:1%}.n6{bottom:19%;left:8%}.n7{bottom:19%;right:8%}.n8{bottom:17%;left:41%}.audience{position:absolute;bottom:3%;left:18%;right:18%;padding-top:14px;border-top:1px solid #edf0f2;display:flex;justify-content:space-between;color:#45596d;font-size:12px;font-weight:700}.audience span{display:flex;gap:8px;align-items:center}.audience i{font-style:normal;color:#51769b}.stats{display:grid;grid-template-columns:repeat(5,1fr);min-height:102px;margin-bottom:77px;border:1px solid #8fa0b0;border-radius:14px;overflow:hidden;background:#fff}.stat{display:flex;align-items:center;justify-content:center;gap:16px;padding:16px;border-right:1px solid #8798a8}.stat:last-child{border-right:0}.stat-icon{color:#54789d;font-size:28px}.stat strong{display:block;font-size:21px;line-height:1.12}.stat span{font-size:13px;color:#3d5268}
+    .solutions-section{border-top:1px solid #edf0f3;padding:80px 0 75px}.section-heading{text-align:center;color:var(--orange);font-size:clamp(27px,3.2vw,40px);letter-spacing:-.8px;line-height:1.15;margin:0 0 14px}.section-subtitle{text-align:center;color:#44596d;font-weight:600;margin:0 0 34px}.carousel{position:relative}.solution-track{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 72px)/5);gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:0 0 8px}.solution-track::-webkit-scrollbar{display:none}.solution{scroll-snap-align:start;min-width:0;overflow:hidden;background:#eef2f6;border:1px solid #e0e6ec;border-radius:16px;padding:13px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:290px}.solution-art{height:128px;border-radius:10px;background:linear-gradient(145deg,#fdfefe,#dceafa);display:grid;place-items:center;position:relative;overflow:hidden;margin-bottom:14px}.solution-art:before,.solution-art:after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;background:#d5e3fa;opacity:.72;left:-25px;bottom:-43px}.solution-art:after{width:100px;height:100px;left:auto;right:-31px;top:-40px}.solution-art .emoji{z-index:1;font-size:51px;filter:drop-shadow(0 2px 1px #1d365622)}.solution:first-child .solution-art{background:radial-gradient(ellipse at center,#0a6681,#06425f 70%);color:#ff8a13}.solution:first-child .solution-art .emoji{font-size:25px;letter-spacing:1px}.solution h3{font-size:16px;margin:0 0 7px;line-height:1.22}.solution p{font-size:12px;line-height:1.38;color:#34485b;margin:0 0 12px;min-height:42px}.tag{display:inline-flex;width:max-content;max-width:100%;padding:5px 10px;border:1px solid #d3dbe3;border-radius:20px;background:#fff;color:#253b50;font-size:9px;line-height:1.2;font-weight:800;letter-spacing:.25px}.solution-more{border:0;background:transparent;color:var(--orange);cursor:pointer;font-size:12px;font-weight:700;text-align:left;padding:8px 0 0}.solution-more[aria-expanded=true]:after{content:' −'}.solution-more[aria-expanded=false]:after{content:' +'}.solution-detail{display:none;color:#34485b;font-size:12px;padding:6px 0}.solution-detail.open{display:block}.carousel-arrow{position:absolute;z-index:2;top:48%;width:42px;height:42px;border:0;border-radius:50%;background:var(--orange);color:#fff;box-shadow:0 2px 8px #0002;font-size:26px;line-height:1;cursor:pointer}.carousel-arrow:hover{background:#e75e10}.carousel-arrow.prev{left:-19px}.carousel-arrow.next{right:-19px}.dots{display:flex;justify-content:center;gap:12px;padding-top:23px}.dots button{width:10px;height:10px;border:0;border-radius:50%;background:#d8dee5;padding:0;cursor:pointer}.dots button[aria-current=true]{background:#9faebd}
+    .why{background:var(--navy);color:#f4f7fb;padding:83px 0 78px}.why h2{text-align:center;font-size:clamp(30px,3.3vw,42px);margin:0 0 24px;letter-spacing:-.7px}.why-grid{width:min(1100px,100%);margin:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:22px 34px}.why-card{min-height:150px;padding:22px 19px;border:1px solid #8492a2;border-radius:15px;background:#102c48;display:flex;align-items:center;gap:18px}.why-icon{flex:0 0 28px;color:#e1e8ef;font-size:24px;text-align:center}.why-card h3{margin:0 0 7px;font-size:17px}.why-card p{font-size:14px;line-height:1.5;color:#d5dee7;margin:0}
+    .journey{padding:83px 0 36px}.journey-title{text-align:center;color:var(--orange);font-size:clamp(28px,3.1vw,40px);margin:0 0 48px}.journeys{display:grid;grid-template-columns:repeat(6,1fr);gap:18px;text-align:center}.journey-item{color:var(--orange);font-size:14px;font-weight:600}.journey-icon{width:142px;max-width:100%;aspect-ratio:1;border:2px solid var(--orange);border-radius:50%;overflow:hidden;background:#eff5fa;margin:0 auto 10px}.journey-icon img{display:block;width:100%;height:100%;object-fit:cover}.path-title{text-align:center;color:var(--orange);font-size:clamp(22px,2.5vw,31px);margin:61px 0 7px;padding-bottom:9px;border-bottom:1px solid #b6bdc4}.path{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;padding:13px 4px 0}.path-card{background:#f5f4f2;min-height:404px;padding:16px 12px 12px;display:flex;flex-direction:column;align-items:center;text-align:center}.path-label{display:block;width:100%;padding:9px 5px;border-radius:18px;background:#27211f;color:#fff;font-size:10px;line-height:1.2;font-weight:800}.path-number{align-self:flex-start;margin:17px 0 0;color:var(--orange2);font-size:17px;font-weight:800}.path-icon{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;background:var(--orange2);color:#fff;font-size:42px;margin:0 auto 17px}.path-card strong{font-size:15px;line-height:1.32;min-height:43px}.path-card p{color:#617080;font-style:italic;font-size:14px;line-height:1.4;margin:13px 0 auto}.path-action{margin-top:20px;border-radius:6px;width:100%;padding:11px 3px;background:#f2632f;color:#fff;font-size:11px;font-weight:800}.path-card:nth-child(even) .path-action{background:#28211f}
+    .cta{background:var(--navy);color:#f5f8fc;text-align:center;padding:83px 0 0}.cta h2{font-size:clamp(40px,5vw,58px);line-height:1.08;letter-spacing:-1.3px;margin:0 0 31px}.cta-copy{color:#d4dce5;font-size:16px;margin:0 0 31px}.cta-copy em{font-style:normal;color:var(--orange)}.cta-actions{justify-content:center}.footer{margin-top:32px;text-align:left;border-top:1px solid #1c3b57;padding:34px 0 0}.footer-grid{display:grid;grid-template-columns:1.5fr repeat(4,1fr);gap:30px}.brand{color:var(--orange);font-weight:800;font-size:38px;line-height:1}.brand span{display:inline-block;vertical-align:middle;margin-left:11px;padding-left:12px;border-left:1px solid #aebdcc;color:#e2e8ee;font-weight:400;font-size:12px;line-height:1.2}.footcol h3{font-size:15px;color:var(--orange);margin:0 0 14px}.footcol a{display:block;font-size:12px;color:#ccd6df;margin:0 0 11px}.footcol a:hover{color:#fff;text-decoration:underline}.social{border-top:1px solid #1c3b57;border-bottom:1px solid #1c3b57;text-align:center;padding:29px 0 24px;margin-top:27px;color:#c8d3de;font-size:12px}.social-icons{display:flex;justify-content:center;align-items:center;gap:17px;margin-top:16px}.social-icons a{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#1177bd;color:#fff;font-weight:800;font-size:19px}.social-icons a:nth-child(2){background:#fff;color:#14191d}.social-icons a:nth-child(3){background:#1877f2}.social-icons a:nth-child(4){background:#f00}.legal{text-align:center;border-bottom:1px solid #1c3b57;padding:26px 0 30px;color:#cbd5df;font-size:12px}.legal .copyright{color:var(--orange);margin-bottom:20px}.legal a{display:block;margin:9px 0}.legal a:hover{color:#fff}
+    @media(max-width:1000px){.wrap{width:calc(100% - 48px)}.hero{min-height:0;padding-top:56px;grid-template-columns:1fr 1fr;gap:22px}.hero-copy p{margin-bottom:34px}.node{min-width:112px;padding:10px;font-size:10px}.stats{margin-bottom:55px}.stat{gap:9px;padding:12px}.solution-track{grid-auto-columns:calc((100% - 36px)/3)}.why-grid{gap:15px}.why-card{padding:17px;min-height:142px}.journey-icon{width:115px}.path-card{min-height:360px;padding:12px 8px}.path-label{font-size:8px}.path-icon{width:72px;height:72px;font-size:34px}.path-card strong{font-size:12px}.path-card p{font-size:12px}.footer-grid{gap:18px}}
+    @media(max-width:700px){.wrap{width:calc(100% - 36px)}.hero{grid-template-columns:1fr;padding-top:38px;gap:34px}.hero-copy h1{font-size:43px}.hero-copy h2{font-size:28px}.hero-copy p{font-size:15px;margin-bottom:27px}.ecosystem{max-width:520px}.node{min-width:104px;font-size:9px;padding:8px}.node-icon{width:17px;height:17px}.audience{left:12%;right:12%;font-size:10px}.stats{grid-template-columns:repeat(2,1fr);margin-bottom:38px}.stat{min-height:70px;border-bottom:1px solid #aab5c0}.stat:nth-child(even){border-right:0}.stat:last-child{grid-column:span 2;border-bottom:0}.stat strong{font-size:17px}.stat span{font-size:11px}.solutions-section{padding:45px 0}.solution-track{grid-auto-columns:calc((100% - 14px)/2);gap:14px}.solution{min-height:280px;padding:10px}.solution-art{height:110px}.carousel-arrow.prev{left:-12px}.carousel-arrow.next{right:-12px}.why{padding:48px 0}.why-grid{grid-template-columns:repeat(2,1fr);gap:12px}.why-card{min-height:148px;padding:13px;display:block}.why-icon{display:block;text-align:left;margin-bottom:7px}.why-card h3{font-size:14px}.why-card p{font-size:12px}.journey{padding-top:48px}.journey-title{margin-bottom:30px}.journeys{grid-template-columns:repeat(3,1fr);gap:19px 8px}.journey-icon{width:90px}.journey-item{font-size:12px}.path-title{margin-top:42px}.path{grid-template-columns:repeat(2,1fr);gap:8px}.path-card{min-height:315px}.path-label{font-size:9px}.path-card strong{font-size:13px}.path-card p{font-size:12px}.cta{padding-top:48px}.cta h2{font-size:39px}.footer-grid{grid-template-columns:repeat(2,1fr);gap:25px 15px}.brand{grid-column:span 2}.footcol h3{font-size:14px}.footcol a{font-size:11px}}
+    @media(max-width:420px){.wrap{width:calc(100% - 28px)}.hero-copy h1{font-size:39px}.hero-copy h2{font-size:24px}.ecosystem{aspect-ratio:.94}.node{min-width:auto;padding:7px;font-size:8px;gap:5px}.n2,.n6{left:0}.n3,.n7{right:0}.n4{left:-3%}.n5{right:-3%}.core{width:31%}.audience{left:7%;right:7%;font-size:9px}.stat-icon{font-size:21px}.solution-track{grid-auto-columns:84%}.why-grid{grid-template-columns:1fr}.why-card{min-height:auto;display:flex}.why-icon{margin:0}.journey-icon{width:76px}.journey-item{font-size:11px}.path-card{min-height:290px;padding:9px 6px}.path-icon{width:60px;height:60px;font-size:29px}.path-card p{font-size:11px}.cta h2{font-size:33px}.cta-copy{font-size:14px}}
+  </style>
+</head>
+<body id="top">
+  <main>
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">Feuji Health<br>Intelligence</h1>
+        <h2>built for connected care and smarter operations.</h2>
+        <p>Feuji Health Intelligence unifies clinical intelligence, revenue cycle automation, interoperability, payment integrity and public health into a single Domain, Data &amp; AI powered healthcare Product(s) platform designed for Providers, Payers and Government organizations</p>
+        <div class="actions"><a class="btn primary" href="#solutions">Explore Platform <span aria-hidden="true">↗</span></a><a class="btn" href="#contact">Request Executive Demo</a></div>
+      </div>
+      <div class="ecosystem" aria-label="FHI connected healthcare products">
+        <div class="orbit"></div><div class="orbit inner"></div>
+        <div class="core"><b>fhi</b><small>Intelligent. Connected.<br>Healthcare.</small></div>
+        <a class="node n1" href="fhir-copilot.html"><span class="node-icon">◉</span>FHIR L&amp;D &amp; Copilot</a>
+        <div class="node n2"><span class="node-icon">♙</span>Patient 360</div>
+        <div class="node n3"><span class="node-icon">♙</span>Member 360</div>
+        <div class="node n4"><span class="node-icon">▦</span>RCM Platform</div>
+        <div class="node n5"><span class="node-icon">◉</span>PRISM</div>
+        <div class="node n6"><span class="node-icon">▣</span>IDP</div>
+        <div class="node n7"><span class="node-icon">◉</span>Ambient Listening</div>
+        <div class="node n8"><span class="node-icon">▥</span>Autodialler</div>
+        <div class="audience"><span><i>▣</i>Providers</span><span><i>◉</i>Payers</span><span><i>▣</i>Government</span></div>
+      </div>
+    </section>
+
+    <section class="stats wrap" aria-label="FHI at a glance">
+      <div class="stat"><span class="stat-icon">⬡</span><div><strong>20+</strong><span>Offerings</span></div></div>
+      <div class="stat"><span class="stat-icon">♧</span><div><strong>75+</strong><span>Healthcare Agents</span></div></div>
+      <div class="stat"><span class="stat-icon">☷</span><div><strong>99%</strong><span>Automation Efficacy</span></div></div>
+      <div class="stat"><span class="stat-icon">☷</span><div><strong>Modularized</strong><span>&amp; Customizable</span></div></div>
+      <div class="stat"><span class="stat-icon">♙</span><div><strong>Built for</strong><span>Payer &amp;/or Provider</span></div></div>
+    </section>
+
+    <section class="solutions-section" id="solutions" aria-labelledby="solutions-title">
+      <div class="wrap">
+        <h2 class="section-heading" id="solutions-title">Explore 20+ Enterprise Healthcare Solutions</h2>
+        <p class="section-subtitle">Purpose-built AI solutions for every stage of the healthcare ecosystem.</p>
+        <div class="carousel" aria-label="Healthcare solutions carousel">
+          <button class="carousel-arrow prev" type="button" aria-label="Previous solutions">‹</button>
+          <div class="solution-track" id="solution-track" tabindex="0">
+            <article class="solution"><div class="solution-art"><span class="emoji">🔥 FHIR</span></div><h3><a href="fhir-copilot.html">FHIR L&amp;D and Copilot</a></h3><p>Accelerate FHIR learning, development and implementation with AI.</p><span class="tag">INTEROPERABILITY</span><a class="solution-more" href="fhir-copilot.html">Explore page</a><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">An AI copilot for FHIR learning and implementation.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">👩‍⚕️👨‍⚕️</span></div><h3>Patient 360</h3><p>Create a unified patient profile with real-time clinical insights.</p><span class="tag">CLINICAL INTELLIGENCE</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Bring patient information together to support connected care.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">⚕️🔗</span></div><h3>Member 360</h3><p>Optimize member engagement and risk adjustment programs.</p><span class="tag">PAYMENT INTEGRITY</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Support member engagement and risk adjustment workflows.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🏥📊</span></div><h3>RCM Platform</h3><p>Automate revenue cycle operations from claims to payment.</p><span class="tag">REVENUE CYCLE</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Connect revenue cycle processes from intake through payment.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🖥️📄</span></div><h3>IDP</h3><p>Convert healthcare documents into structured data using AI.</p><span class="tag">AUTOMATION</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Extract and structure information from healthcare documents.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">☎️</span></div><h3>Autodialler</h3><p>Automate patient communication and outreach workflows.</p><span class="tag">PATIENT ENGAGEMENT</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Coordinate repeatable outreach and patient communication.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🎙️</span></div><h3>Ambient Listener</h3><p>Transform clinical conversations into structured documentation.</p><span class="tag">CLINICAL AI</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Turn conversations into clear clinical documentation.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🩺</span></div><h3>PRISM</h3><p>Deliver AI-assisted clinical insights and recommendations.</p><span class="tag">CLINICAL AI</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Surface clinical insights to support decision-making.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🔀</span></div><h3>ARIA</h3><p>Orchestrate intelligent healthcare workflows across systems.</p><span class="tag">AI PLATFORM</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Coordinate AI-enabled workflows across healthcare systems.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">📈</span></div><h3>HCC Intelligence Engine</h3><p>Identify risk opportunities using predictive intelligence.</p><span class="tag">PAYMENT INTEGRITY</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Use predictive insights to identify HCC risk opportunities.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">⚖️</span></div><h3>PreIDR Engine</h3><p>Accelerate dispute preparation with AI-powered analysis.</p><span class="tag">PAYMENT INTEGRITY</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Prepare dispute materials with AI-assisted analysis.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">💬</span></div><h3>CRM Healthcare Dispute</h3><p>Manage healthcare disputes with Salesforce integration.</p><span class="tag">INTEROPERABILITY</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Manage healthcare dispute workflows with Salesforce.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🏛️</span></div><h3>Government Data Warehouse</h3><p>Centralize healthcare data for secure reporting and analytics.</p><span class="tag">GOVERNMENT</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Bring public health data together for reporting and analysis.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🦠</span></div><h3>SIGNAL</h3><p>Automate disease surveillance and public health reporting.</p><span class="tag">PUBLIC HEALTH</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Support disease surveillance and public health reporting.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🧭</span></div><h3>Longitudinal Health CRM</h3><p>Track patient engagement across the complete care journey.</p><span class="tag">PATIENT ENGAGEMENT</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Follow patient engagement throughout the care journey.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">🔬</span></div><h3>Diagnostic</h3><p>Accelerate diagnosis with AI-powered clinical intelligence.</p><span class="tag">CLINICAL AI</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Support diagnostic workflows with clinical intelligence.</p></article>
+            <article class="solution"><div class="solution-art"><span class="emoji">📊</span></div><h3>Population Health Analytics</h3><p>Monitor outcomes and improve population health strategies.</p><span class="tag">ANALYTICS</span><button class="solution-more" aria-expanded="false">Details</button><p class="solution-detail">Track outcomes and inform population health programs.</p></article>
+          </div>
+          <button class="carousel-arrow next" type="button" aria-label="Next solutions">›</button>
+          <div class="dots" id="solution-dots" aria-label="Choose solution page"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="why" aria-labelledby="why-title"><div class="wrap">
+      <h2 id="why-title">Why Organizations Choose FHI</h2>
+      <div class="why-grid">
+        <article class="why-card"><span class="why-icon">▦</span><div><h3>One Unique Platform</h3><p>AI agents combining SaaS, consulting &amp; BPS as integrated platform or individual services.</p></div></article>
+        <article class="why-card"><span class="why-icon">♧</span><div><h3>Automated Processes</h3><p>Intelligent RCM and automated workflows eliminate manual friction, accelerate throughput.</p></div></article>
+        <article class="why-card"><span class="why-icon">⛨</span><div><h3>Healthcare Standards</h3><p>FHIR-compliant architecture for Payers, Providers, and Government health bodies.</p></div></article>
+        <article class="why-card"><span class="why-icon">◈</span><div><h3>Secure for Healthcare</h3><p>Built with healthcare-grade standards such as HIPAA, HITECH, FDCPA, etc.</p></div></article>
+        <article class="why-card"><span class="why-icon">♧</span><div><h3>Intelligent Automation</h3><p>Multi-agent copilots with modular design and workflow aiding clinical SMEs.</p></div></article>
+        <article class="why-card"><span class="why-icon">▣</span><div><h3>Enterprise Ready</h3><p>Cloud-native deployment with scalable architecture.</p></div></article>
+      </div>
+    </div></section>
+
+    <section class="journey wrap" aria-labelledby="journey-title">
+      <h2 class="journey-title" id="journey-title">Supporting Every Healthcare Journey</h2>
+      <div class="journeys">
+        <div class="journey-item"><div class="journey-icon"><img src="fhi-assets/X21.jpg" alt=""></div>Patient</div>
+        <div class="journey-item"><div class="journey-icon"><img src="fhi-assets/X22.jpg" alt=""></div>Provider</div>
+        <div class="journey-item"><div class="journey-icon"><img src="fhi-assets/X23.jpg" alt=""></div>Hospital</div>
+        <div class="journey-item"><div class="journey-icon"><img src="fhi-assets/X24.jpg" alt=""></div>Health Plan</div>
+        <div class="journey-item"><div class="journey-icon"><img src="fhi-assets/X25.jpg" alt=""></div>Government</div>
+        <div class="journey-item"><div class="journey-icon"><img src="fhi-assets/X26.jpg" alt=""></div>Public Health</div>
+      </div>
+      <h3 class="path-title">FlexiPath - Start Anywhere, Scale to the Full Platform</h3>
+      <div class="path">
+        <article class="path-card"><span class="path-label">SINGLE PRODUCT</span><span class="path-number">01</span><span class="path-icon">⬡</span><strong>Standalone</strong><p>Single product subscription</p><span class="path-action">REVOLUTIONIZE</span></article>
+        <article class="path-card"><span class="path-label">MULTI-PRODUCT</span><span class="path-number">02</span><span class="path-icon">▰</span><strong>Modular</strong><p>Combine products by priority</p><span class="path-action">EXPAND</span></article>
+        <article class="path-card"><span class="path-label">PLATFORM</span><span class="path-number">03</span><span class="path-icon">▤</span><strong>Integrated FHI Platform</strong><p>Full SaaS ecosystem</p><span class="path-action">TRANSFORM</span></article>
+        <article class="path-card"><span class="path-label">BUNDLED-1</span><span class="path-number">04</span><span class="path-icon">▧</span><strong>Consulting &amp; AI Lab as a Service</strong><p>Assess + Recommend + Build</p><span class="path-action">SUPPLEMENT</span></article>
+        <article class="path-card"><span class="path-label">BUNDLED-2</span><span class="path-number">05</span><span class="path-icon">♙</span><strong>BPO Services + Standalone / Modular / Integrated Platform</strong><p>SaaS ecosystem + BPO</p><span class="path-action">ENHANCE</span></article>
+        <article class="path-card"><span class="path-label">COMPREHENSIVE</span><span class="path-number">06</span><span class="path-icon">◉</span><strong>BPO Services + SaaS + Consulting</strong><p>SaaS ecosystem + BPO + Consulting</p><span class="path-action">ACROSS THE BOARD</span></article>
+      </div>
+    </section>
+
+    <section class="cta" id="contact" aria-labelledby="cta-title"><div class="wrap">
+      <h2 id="cta-title">Ready to Transform<br>Healthcare with AI?</h2>
+      <p class="cta-copy">Accelerate interoperability, automate healthcare operations, and unlock intelligent insights with <em>Feuji Health Intelligence.</em></p>
+      <div class="actions cta-actions"><a class="btn primary" href="mailto:contact@feuji.com?subject=FHI%20Demo%20Request">Request Demo</a><a class="btn" href="mailto:contact@feuji.com?subject=FHI%20Sales%20Inquiry">Contact Sales</a></div>
+      <footer class="footer">
+        <div class="footer-grid">
+          <a href="#top" class="brand" aria-label="Feuji Health Intelligence home">fhi<span>Feuji Health<br>Intelligence</span></a>
+          <nav class="footcol" aria-label="Platform"><h3>Platform</h3><a href="#top">Platform Overview</a><a href="#solutions">Healthcare AI Solutions</a><a href="#journey-title">Industries</a><a href="#solutions">Developers</a><a href="#solutions">Technology</a><a href="#why-title">Security &amp; Compliance</a><a href="#solutions">Integrations</a></nav>
+          <nav class="footcol" aria-label="Solutions"><h3>Solutions</h3><a href="#solutions">FHIR Copilot</a><a href="#solutions">RCM Platform</a><a href="#solutions">Patient 360</a><a href="#solutions">Member 360</a><a href="#solutions">Ambient Listener</a><a href="#solutions">Autodialler</a><a href="#solutions">IDP</a><a href="#solutions">View All Solutions</a></nav>
+          <nav class="footcol" aria-label="Resources"><h3>Resources</h3><a href="#contact">Documentation</a><a href="#contact">Whitepapers</a><a href="#contact">Case Studies</a><a href="#contact">Project Updates</a><a href="#contact">FAQs</a><a href="#contact">Support</a></nav>
+          <nav class="footcol" aria-label="Company"><h3>Company</h3><a href="#contact">About Feuji</a><a href="#contact">Leadership</a><a href="#contact">Our Values</a><a href="#contact">Careers</a><a href="#contact">News</a><a href="#contact">Contact Us</a></nav>
+        </div>
+        <div class="social">Find us on:<div class="social-icons"><a href="https://www.linkedin.com/" aria-label="LinkedIn">in</a><a href="https://x.com/" aria-label="X">𝕏</a><a href="https://www.facebook.com/" aria-label="Facebook">f</a><a href="https://www.youtube.com/" aria-label="YouTube">▶</a></div></div>
+        <div class="legal"><div class="copyright">© 2026 Feuji Inc.</div><a href="#contact">Privacy</a><a href="#contact">Terms</a><a href="#contact">Cookies</a><a href="#contact">Accessibility</a><a href="#contact">Responsible AI</a></div>
+      </footer>
+    </div></section>
+  </main>
+  <script>
+    (() => {
+      const track = document.querySelector('#solution-track');
+      const dots = document.querySelector('#solution-dots');
+      const cards = [...track.querySelectorAll('.solution')];
+      const step = () => cards[1] ? cards[1].offsetLeft - cards[0].offsetLeft : track.clientWidth;
+      const pageCount = () => Math.max(1, Math.ceil((track.scrollWidth - track.clientWidth) / step()) + 1);
+      const pageIndex = () => Math.min(pageCount() - 1, Math.round(track.scrollLeft / step()));
+      const update = () => {
+        const count = pageCount();
+        dots.replaceChildren(...Array.from({length:count}, (_,i) => {
+          const b = document.createElement('button');
+          b.type = 'button'; b.setAttribute('aria-label', `Show solution group ${i+1}`);
+          b.setAttribute('aria-current', String(i === pageIndex()));
+          b.addEventListener('click', () => track.scrollTo({left:i*step(),behavior:'smooth'}));
+          return b;
+        }));
+      };
+      document.querySelector('.carousel-arrow.prev').addEventListener('click', () => track.scrollBy({left:-step(),behavior:'smooth'}));
+      document.querySelector('.carousel-arrow.next').addEventListener('click', () => track.scrollBy({left:step(),behavior:'smooth'}));
+      track.addEventListener('scroll', () => requestAnimationFrame(update), {passive:true});
+      window.addEventListener('resize', update);
+      track.querySelectorAll('.solution-more').forEach(button => button.addEventListener('click', () => {
+        const open = button.getAttribute('aria-expanded') !== 'true';
+        button.setAttribute('aria-expanded', String(open));
+        button.nextElementSibling.classList.toggle('open', open);
+      }));
+      update();
+    })();
+  </script>
+</body>
+</html>

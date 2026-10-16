@@ -1202,6 +1202,16 @@ def _clinical_document_to_dict(
             if document.document_date
             else None
         ),
+        "created_at": (
+            document.created_at.isoformat()
+            if document.created_at
+            else None
+        ),
+        "updated_at": (
+            document.updated_at.isoformat()
+            if document.updated_at
+            else None
+        ),
         "author_reference": document.author_reference,
         "content_type": document.content_type,
         "content_location": document.content_location,

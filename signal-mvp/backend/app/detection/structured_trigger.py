@@ -18,6 +18,7 @@ from .trigger_loader import (
 # =========================================================
 
 STRUCTURED_TRIGGERS = {}
+_MEASLES_LAB_TEST_VALUE_SET_URL = "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1146.297"
 
 
 # =========================================================
@@ -68,6 +69,8 @@ def _get_resource_list(
         return []
 
     resources = normalized_patient.get(field, [])
+    if resource_type == "DiagnosticReport" and not resources:
+        resources = normalized_patient.get("diagnostic_reports", [])
 
     return (
         resources
@@ -292,7 +295,9 @@ def _create_structured_signal(
         ),
 
         "trigger_concept_key": _resolve_trigger_concept_key(match),
-        "disease_id": canonical_disease_id(_resolve_trigger_concept_key(match)),
+        "disease_id": canonical_disease_id(
+            _resolve_trigger_concept_key(match) or match.get("disease_id")
+        ),
         "evidence": {
             "source_type": resource.get(
                 "resource_type",
@@ -520,6 +525,76 @@ def _create_lab_signal(
         str(code) if code is not None else None,
     )
 
+    raw_values = [resource.get("conclusion"), resource.get("value")]
+    observation_values = []
+    observation_statuses = []
+    for observation in resource.get("observations", []) if isinstance(resource.get("observations"), list) else []:
+        if not isinstance(observation, dict):
+            continue
+        value = observation.get("value")
+        if isinstance(value, dict):
+            value = value.get("text") or value.get("code") or value.get("numeric")
+        if value is not None:
+            observation_values.append(value)
+        if observation.get("status"):
+            raw_values.append(observation.get("status"))
+            observation_statuses.append(str(observation["status"]).strip().casefold())
+    raw_values.extend(observation_values)
+    raw_result = " | ".join(str(value) for value in raw_values if value is not None)
+    status = str(resource.get("report_status") or resource.get("status") or "").strip().casefold()
+    normalized_values = [str(value).strip().casefold() for value in raw_values if value is not None]
+    text = " | ".join(normalized_values)
+    if status in {"cancelled", "entered-in-error", "unknown"} or any(
+        item in {"cancelled", "entered-in-error", "unknown"} for item in observation_statuses
+    ):
+        result_classification = "UNKNOWN"
+        classification_reason = "The laboratory report status is cancelled, unknown, or entered in error."
+    elif status == "preliminary" or "preliminary" in observation_statuses:
+        result_classification = "PRELIMINARY"
+        classification_reason = "The laboratory report is preliminary and requires final interpretation."
+    elif status in {"registered", "partial", "in-progress", "in progress", "pending"} or any(
+        item in {"registered", "partial", "in-progress", "in progress", "pending"}
+        for item in observation_statuses
+    ):
+        result_classification = "PENDING"
+        classification_reason = "The laboratory report is not final."
+    elif any(term in text for term in ("equivocal", "borderline")):
+        result_classification = "EQUIVOCAL"
+        classification_reason = "The recorded result is equivocal or borderline."
+    elif any(term in text for term in ("indeterminate", "inconclusive")):
+        result_classification = "INDETERMINATE"
+        classification_reason = "The recorded result is indeterminate or inconclusive."
+    elif any(term in text for term in ("not detected", "not positive", "non-positive", "negative", "non-reactive", "nonreactive", "absent")):
+        result_classification = "NEGATIVE"
+        classification_reason = "The recorded result is negative."
+    elif any(term in text for term in ("positive", "detected", "reactive", "present")):
+        result_classification = "POSITIVE"
+        classification_reason = "The recorded result contains a positive interpretation."
+    else:
+        result_classification = "UNKNOWN"
+        classification_reason = "No recognized result interpretation is present."
+
+    concept_key = _resolve_trigger_concept_key(match)
+    disease_id = canonical_disease_id(concept_key or match.get("disease_id"))
+    mapped_value_set_urls = set(match.get("value_set_urls") or [])
+    if not mapped_value_set_urls:
+        mapped_value_set_urls = {
+            str(value_set.get("url"))
+            for value_set in match.get("value_sets", [])
+            if isinstance(value_set, dict) and value_set.get("url")
+        }
+    disease_specific_test_mapping = bool(disease_id) and (
+        match.get("configured_trigger") is True
+        or (
+            disease_id == canonical_disease_id("measles")
+            and _MEASLES_LAB_TEST_VALUE_SET_URL in mapped_value_set_urls
+        )
+    )
+    qualifying_positive = (
+        match.get("group") == "LAB_RESULT"
+        and disease_specific_test_mapping
+        and result_classification == "POSITIVE"
+    )
     return {
         "patient_id": resource.get(
             "patient_id"
@@ -539,8 +614,9 @@ def _create_lab_signal(
             "group"
         ),
 
-        "trigger_concept_key": _resolve_trigger_concept_key(match),
-        "disease_id": canonical_disease_id(_resolve_trigger_concept_key(match)),
+        "trigger_concept_key": concept_key,
+        "disease_id": disease_id,
+        "detection_priority": "HIGHEST" if qualifying_positive else "REVIEW_ONLY",
 
         "evidence": {
             "source_type": coded_resource.get(
@@ -595,9 +671,7 @@ def _create_lab_signal(
                 "conclusion"
             ),
 
-            "report_status": resource.get(
-                "report_status"
-            ),
+            "report_status": resource.get("report_status") or resource.get("status"),
 
             "observation_id":
                 coded_resource.get(
@@ -608,6 +682,26 @@ def _create_lab_signal(
                 coded_resource.get(
                     "value"
                 ),
+            "result_classification": result_classification,
+            "classification_reason": classification_reason,
+            "normalized_result": result_classification,
+            "interpretation": classification_reason,
+            "positive_detection_eligible": qualifying_positive,
+            "disease_specific_test_mapping": disease_specific_test_mapping,
+            "configured_trigger": match.get("configured_trigger") is True,
+            "raw_result": raw_result,
+            "specimen": resource.get("specimen"),
+            "effective_time": resource.get("effective_time"),
+            "collection_time": resource.get("effective_time"),
+            "issued_time": resource.get("issued_time"),
+            "result_time": resource.get("issued_time"),
+            "source_reference": resource.get("source_lab_result_id") or resource.get("id"),
+            "source_system": resource.get("source_system") or (
+                resource.get("provenance", {}).get("source")
+                if isinstance(resource.get("provenance"), dict)
+                else None
+            ),
+            "provenance": resource.get("provenance"),
         },
 
         "confidence": 1.0,
@@ -731,6 +825,7 @@ def _create_document_signal(
 def _detect_resource(
     resource: Dict[str, Any],
     resource_type: str,
+    triggers: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Detect RCTC matches for one resource.
@@ -741,6 +836,44 @@ def _detect_resource(
         dict,
     ):
         return []
+
+    # Explicit application rules are supported alongside eRSD mappings. They
+    # require an exact coding-system/code match and therefore cannot turn an
+    # unmapped display name into a trigger.
+    if triggers:
+        candidates = (
+            _get_lab_code_candidates(resource)
+            if resource_type == "DiagnosticReport"
+            else [resource]
+        )
+        configured_signals = []
+        for candidate in candidates:
+            system, code, _ = _extract_code(candidate)
+            for trigger in triggers:
+                if not isinstance(trigger, dict) or trigger.get("resource_type") != resource_type:
+                    continue
+                expected_system = trigger.get("code_system")
+                expected_codes = {str(value) for value in trigger.get("codes", [])}
+                if system != expected_system or str(code) not in expected_codes:
+                    continue
+                match = {
+                    "group_id": trigger.get("trigger_id"),
+                    "group": trigger.get("trigger_type"),
+                    "disease_id": trigger.get("disease_id"),
+                    "code_system": system,
+                    "code": str(code),
+                    "display": _extract_code(candidate)[2],
+                    "value_sets": [],
+                    "value_set_ids": [],
+                    "value_set_urls": [],
+                    "configured_trigger": True,
+                }
+                if trigger.get("trigger_type") == "LAB_RESULT":
+                    configured_signals.append(_create_lab_signal(resource, candidate, match))
+                else:
+                    configured_signals.append(_create_structured_signal(candidate, match))
+        if configured_signals:
+            return configured_signals
 
     # -----------------------------------------------------
     # Laboratory resources
@@ -899,11 +1032,11 @@ def detect_structured_triggers(
         )
 
         for resource in resources:
-
             signals.extend(
                 _detect_resource(
                     resource,
                     resource_type,
+                    triggers=triggers,
                 )
             )
 

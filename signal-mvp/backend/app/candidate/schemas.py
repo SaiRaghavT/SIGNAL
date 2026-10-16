@@ -11,7 +11,14 @@ class CandidateResponse(BaseModel):
     disease: str
     jurisdiction: str | None = None
     evidence: list[dict[str, Any]] = Field(default_factory=list)
-    confidence: float | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    confidence_method: str = "unavailable"
+    confidence_components: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_strength: float | None = Field(default=None, ge=0, le=100)
+    evidence_strength_method: str = "unavailable"
+    evidence_strength_components: list[dict[str, Any]] = Field(default_factory=list)
+    primary_trigger: dict[str, Any] | None = None
+    detection_priority: str = "STANDARD"
     status: str
     case_id: str | None = None
     created_at: datetime

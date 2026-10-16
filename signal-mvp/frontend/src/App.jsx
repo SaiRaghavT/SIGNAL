@@ -17,7 +17,6 @@ import CaseCompletion from "./pages/CaseCompletion.jsx";
 import QueueAcknowledgementPage from "./pages/QueueAcknowledgementPage.jsx";
 import { SubmissionsPage } from "./pages/SubmissionsPage.jsx";
 import { AnalyticsPage } from "./pages/AnalyticsPage.jsx";
-import { AuditPage } from "./pages/AuditPage.jsx";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
@@ -193,8 +192,6 @@ export default function App() {
         />
 
         <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/audit" element={<AuditPage />} />
-
         {/* AI Governance */}
         <Route path="/governance" element={<GovernanceOverview />} />
         <Route path="/governance/monitoring" element={<MonitoringPage />} />

@@ -1,4 +1,4 @@
-import { Activity, BarChart3, FolderKanban, LayoutDashboard, ScrollText, Send, ShieldCheck, Users } from "lucide-react";
+import { Activity, BarChart3, FolderKanban, LayoutDashboard, Send, ShieldCheck, Users } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { WorkflowBreadcrumb } from "../navigation/WorkflowBreadcrumb.jsx";
 // Chatbot temporarily disabled:
@@ -10,7 +10,6 @@ const nav = [
   ["/cases", "Cases", FolderKanban],
   ["/submissions", "Submissions", Send],
   ["/analytics", "Analytics", BarChart3],
-  ["/audit", "Technical / Audit", ScrollText],
   ["/governance", "AI Governance", ShieldCheck],
 ];
 

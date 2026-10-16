@@ -44,8 +44,14 @@ Output format:
             "evidence_text": "string",
             "assertion": "present | absent | uncertain",
             "temporality": "current | historical | unknown",
-            "confidence": 0.0
+            "confidence": 0.85
         }
     ]
 }
+
+Set confidence to your certainty that the extracted item and its assertion are
+supported by the quoted evidence, not the patient's disease severity or risk.
+Use 0.90-1.00 for direct, unambiguous documentation; 0.70-0.89 when the source
+is clear but interpretation is needed; and below 0.70 when the evidence is
+ambiguous. Do not use 0.0 as a default for supported findings.
 """

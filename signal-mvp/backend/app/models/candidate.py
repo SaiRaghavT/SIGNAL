@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Float, String, UniqueConstraint, func
+from sqlalchemy import DateTime, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,7 +26,6 @@ class Candidate(Base):
     jurisdiction: Mapped[str | None] = mapped_column(String(100), nullable=True)
     case_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     detection_source: Mapped[str] = mapped_column(String(100), nullable=False)
-    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     evidence: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     signals: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="POTENTIAL", index=True)
